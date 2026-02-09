@@ -21,9 +21,9 @@ seeds = [
 
 ["Lit Knob - Combination Test"]
 seeds = [
-    "2EA13FA7FB7217A1",
-    "E4935A549B5DF581",
-    "6FD5EBBE71D19515",
+    "36A4CA2207354896",
+    "6EF477AEAD1ED638",
+    "CBF4529D8F2E8028",
 ]
 
 ["Lit Knob - Custom Collectables Test"]
@@ -56,9 +56,9 @@ seeds = [
 
 ["Lit Knob - Object Test"]
 seeds = [
-    "E3EF6DD9CE1580B4",
-    "1CE21391B9461E78",
-    "4A49CB206C9D9CA0",
+    "459B4E4FE95861A4",
+    "E20896CE265A3B59",
+    "3DE7692F01593E18",
 ]
 
 ["Lit Knob - Out of Range Test"]

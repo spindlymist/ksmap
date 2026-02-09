@@ -199,6 +199,7 @@ impl ScreenSync {
 
         for (id, count) in counts {
             let mut rng = seed.hasher(RngStep::Limiters)
+                .write(screen.position)
                 .write(id)
                 .into_rng();
             let Some(def) = object_defs.get(&id) else { continue };
