@@ -20,17 +20,15 @@ mod blend_modes;
 pub use blend_modes::BlendMode;
 
 pub fn tileset_index_to_pixels(i: u8) -> (u32, u32) {
-    (
-        (i as u32 % 16) * 24,
-        (i as u32 / 16) * 24,
-    )
+    let x = (i % 16) as u32 * 24;
+    let y = (i / 16) as u32 * 24;
+    (x, y)
 }
 
-pub fn screen_index_to_pixels(i: u8) -> (i64, i64) {
-    (
-        (i as i64 % 25) * 24,
-        (i as i64 / 25) * 24,
-    )
+pub fn screen_index_to_pixels(i: u8) -> (u32, u32) {
+    let x = (i % 25) as u32 * 24;
+    let y = (i / 25) as u32 * 24;
+    (x, y)
 }
 
 #[derive(Clone, Copy)]
@@ -238,7 +236,7 @@ fn draw_tile_layer(ctx: &mut ScreenContext, layer: &LayerData) {
         let (screen_x, screen_y) = screen_index_to_pixels(i as u8);
         
         let tile_img = imageops::crop_imm(tileset, tile_x, tile_y, 24, 24);
-        imageops::overlay(&mut ctx.image, &*tile_img, screen_x, screen_y);
+        imageops::overlay(&mut ctx.image, &*tile_img, screen_x as i64, screen_y as i64);
     }
 }
 
@@ -305,7 +303,7 @@ fn draw_object_with_offset(
     ctx: &mut ScreenContext,
     at_index: usize,
     mut object: ObjectId,
-    offset: (i64, i64),
+    offset: (i32, i32),
 ) {
     let def = match ctx.defs.get(&object) {
         Some(def) => def,
@@ -339,7 +337,7 @@ fn draw_spritesheet(
     params: &DrawParams,
     anim_t: Option<u32>,
     obj_img: &RgbaImage,
-    offset: (i64, i64),
+    offset: (i32, i32),
     flip: bool,
 ) {
     let mut rng_frame = ctx.seed.hasher(RngStep::Frame)
@@ -349,14 +347,20 @@ fn draw_spritesheet(
         .into_rng();
     let mut frame = pick_frame(&mut rng_frame, &obj_img, params, anim_t);
     let (screen_x, screen_y) = screen_index_to_pixels(at_index);
-    let (offset_x, offset_y) = params.offset.unwrap_or_default();
+    let (offset_x, offset_y) = params.offset;
 
     let (image_width, image_height) = obj_img.dimensions();
-    let (mut frame_width, mut frame_height) = params.frame_size.unwrap_or((24, 24));
+    let (mut frame_width, mut frame_height) = params.frame_size;
     frame_width = u32::min(frame_width, image_width);
     frame_height = u32::min(frame_height, image_height);
-    let final_x = (screen_x + 12) + (offset_x + offset.0) - (frame_width / 2) as i64;
-    let final_y = (screen_y + 12) + (offset_y + offset.1) - (frame_height / 2) as i64;
+    let final_x =
+        (screen_x + 12) as i64
+        + (offset_x + offset.0) as i64
+        - (frame_width / 2) as i64;
+    let final_y =
+        (screen_y + 12) as i64
+        + (offset_y + offset.1) as i64
+        - (frame_height / 2) as i64;
     
     let flipped = if flip {
             let mut flipped = frame.to_image();
@@ -387,7 +391,7 @@ fn draw_spritesheet(
 
 fn pick_frame<'a>(rng: &mut impl Rng, object_img: &'a RgbaImage, params: &DrawParams, anim_t: Option<u32>) -> SubImage<&'a RgbaImage> {
     let (image_width, image_height) = object_img.dimensions();
-    let (mut frame_width, mut frame_height) = params.frame_size.unwrap_or((24, 24));
+    let (mut frame_width, mut frame_height) = params.frame_size;
     frame_width = u32::min(frame_width, image_width);
     frame_height = u32::min(frame_height, image_height);
     
@@ -395,10 +399,7 @@ fn pick_frame<'a>(rng: &mut impl Rng, object_img: &'a RgbaImage, params: &DrawPa
     let n_rows = image_height / frame_height;
     
     let n_frames_max = n_rows * frames_per_row;
-    let mut frame_range = params.frame_range.clone().unwrap_or_else(|| {
-        let n_frames = n_rows * frames_per_row;
-        0..n_frames
-    });
+    let mut frame_range = params.frame_range.clone();
     frame_range.end = u32::min(n_frames_max, frame_range.end);
 
     let frame = 
@@ -463,7 +464,7 @@ fn draw_elemental(ctx: &mut ScreenContext, curs: Cursor) {
     draw_object(ctx, curs.i, curs.proxy_id.into_variant(*variant));
 }
 
-fn draw_with_random_offset(ctx: &mut ScreenContext, curs: Cursor, range: RangeInclusive<i64>) {
+fn draw_with_random_offset(ctx: &mut ScreenContext, curs: Cursor, range: RangeInclusive<i32>) {
     let mut rng = ctx.seed.hasher(RngStep::Offset)
         .write(ctx.screen_pos)
         .write(ctx.layer)

@@ -1,8 +1,10 @@
-use std::{fs, ops::{Deref, DerefMut, Range, RangeInclusive}, path::Path};
+mod ini_util;
+
+use std::{fmt::Write, fs, ops::{Deref, DerefMut, Range, RangeInclusive}, path::Path};
 
 use anyhow::Result;
 use libks::map_bin::Tile;
-use libks_ini::Ini;
+use libks_ini::{Ini, VirtualSection};
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
@@ -10,6 +12,7 @@ use crate::{
     drawing::BlendMode,
     id::{ObjectId, ObjectVariant},
 };
+use ini_util::{unpack_color, VirtualSectionExt};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct ObjectDef {
@@ -28,9 +31,9 @@ pub struct ObjectDef {
     pub oco_support: OcoSupport,
     #[serde(default)]
     pub limit: Limit,
-    pub color_base: Option<i64>,
+    pub color_base: Option<i32>,
     #[serde(default)]
-    pub color_offsets: Vec<i64>,
+    pub color_offsets: Vec<i32>,
     #[serde(skip)]
     pub replace_colors: Vec<([u8; 3], [u8; 3])>,
     pub override_key: Option<String>,
@@ -78,15 +81,28 @@ pub struct DrawParams {
     #[serde(default)]
     pub blend_mode: BlendMode,
     pub alpha_range: Option<RangeInclusive<u8>>,
-    pub frame_size: Option<(u32, u32)>,
-    pub frame_range: Option<Range<u32>>,
-    pub offset: Option<(i64, i64)>,
+    #[serde(default = "DrawParams::default_frame_size")]
+    pub frame_size: (u32, u32),
+    #[serde(default = "DrawParams::default_frame_range")]
+    pub frame_range: Range<u32>,
+    #[serde(default)]
+    pub offset: (i32, i32),
     #[serde(default)]
     pub flip: bool,
     pub flip_variant: Option<ObjectVariant>,
 }
 
-#[derive(Debug, Clone, Copy, Default, Deserialize)]
+impl DrawParams {
+    const fn default_frame_size() -> (u32, u32) {
+        (24, 24)
+    }
+    
+    const fn default_frame_range() -> Range<u32> {
+        0..1
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 pub enum OffsetCombine {
     #[default]
     Add,
@@ -175,205 +191,33 @@ pub fn load_object_defs(path: impl AsRef<Path>) -> Result<ObjectDefs> {
 }
 
 pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
-    for section in ini.iter_sections() {
-        let key_lower = section.key().to_ascii_lowercase();
-
-        let Some(suffix) = key_lower.strip_prefix("custom object ") else {
-            continue;
-        };
-
-        let tile = match suffix.strip_prefix('b') {
-            Some(index) => {
-                let Ok(index) = str::parse::<u8>(index) else { continue };
-                Tile(254, index)
-            },
-            None => {
-                let Ok(index) = str::parse::<u8>(suffix) else { continue };
-                Tile(255, index)
-            },
-        };
-
-        let bank = section.get("Bank")
-            .and_then(|v| str::parse(v).ok())
-            .unwrap_or(0);
-        let object = section.get("Object")
-            .and_then(|v| str::parse(v).ok());
-
-        let path = section.get("Image").map(|v| v.to_owned());
-        if path.is_none() && bank != 7 {
-            continue;
+    const KEY_PREFIX: &'static str = "custom object ";
+    const KEY_PREFIX_LEN: usize = KEY_PREFIX.len();
+    const KEY_LEN_MAX: usize = "custom object b255".len();
+    
+    let mut key = String::with_capacity(KEY_LEN_MAX);
+    key.push_str(KEY_PREFIX);
+    
+    for i in 1..=255 {
+        key.truncate(KEY_PREFIX_LEN);
+        write!(key, "{i}").unwrap();
+        let id = ObjectId::from((255, i));
+        if let Some(def) = ini.section(&key)
+            .map(parse_co_props)
+            .and_then(|props| create_co_def(id, props, defs))
+        {
+            defs.insert(id, def);
         }
-
-        let mut frame_width: u32 = section.get("Tile Width")
-            .and_then(|v| str::parse(v).ok())
-            .unwrap_or(24);
-        let mut frame_height: u32 = section.get("Tile Height")
-            .and_then(|v| str::parse(v).ok())
-            .unwrap_or(24);
-        let mut offset_x: i64 = section.get("Offset X")
-            .and_then(|v| str::parse(v).ok())
-            .unwrap_or(0);
-        let mut offset_y: i64 = section.get("Offset Y")
-            .and_then(|v| str::parse(v).ok())
-            .unwrap_or(0);
-        let anim_to: Option<u32> = section.get("Init AnimTo")
-            .and_then(|v| str::parse(v).ok());
-        let anim_from: u32 = section.get("Init AnimFrom")
-            .and_then(|v| str::parse(v).ok())
-            .map(|v: u32| v.min(anim_to.unwrap_or(0)))
-            .unwrap_or(0);
-        let anim_loop_back: u32 = section.get("Init AnimLoopback")
-            .and_then(|v| str::parse(v).ok())
-            .map(|v: u32| v.min(anim_to.unwrap_or(0)))
-            .unwrap_or(0);
-        let anim_repeat: u32 = section.get("Init AnimRepeat")
-            .and_then(|v| str::parse(v).ok())
-            .unwrap_or(0);
-
-        // OCOs
         
-        let kind;
-        let frame_range;
-        let sync_params;
-        let editor_only;
-        let oco_support;
-        let limit;
-        let alpha_range;
-        let color_base = None;
-        let color_offsets = Vec::new();
-        let mut replace_colors = Vec::new();
-        let flip;
-
-        if let Some(object) = object {
-            let oco_id = ObjectId::from(Tile(bank, object));
-
-            if bank < 254
-                && let Some(oco_def) = defs.get(&oco_id)
-                && oco_def.oco_support != OcoSupport::None
-            {
-                kind = ObjectKind::OverrideObject(Tile(bank, object));
-                
-                let mut sync_north = Vec::new();
-                if oco_def.sync_params.sync_north.contains(&oco_id) {
-                    sync_north.push(ObjectId::from(tile));
-                }
-                
-                let mut sync_south = Vec::new();
-                if oco_def.sync_params.sync_south.contains(&oco_id) {
-                    sync_south.push(ObjectId::from(tile));
-                }
-                
-                let mut sync_west = Vec::new();
-                if oco_def.sync_params.sync_west.contains(&oco_id) {
-                    sync_west.push(ObjectId::from(tile));
-                }
-                
-                let mut sync_east = Vec::new();
-                if oco_def.sync_params.sync_east.contains(&oco_id) {
-                    sync_east.push(ObjectId::from(tile));
-                }
-                
-                sync_params = SyncParams {
-                    sync_to: oco_def.sync_params.sync_to,
-                    sync_west,
-                    sync_east,
-                    sync_north,
-                    sync_south,
-                    sync_offset: oco_def.sync_params.sync_offset,
-                    laser_phase: oco_def.sync_params.laser_phase,
-                };
-                
-                if oco_def.oco_support == OcoSupport::NoCustomGraphics {
-                    (frame_width, frame_height) = oco_def.draw_params.frame_size.unwrap_or((24, 24));
-                }
-                
-                frame_range = oco_def.draw_params.frame_range.clone();
-                editor_only = oco_def.editor_only;
-                oco_support = oco_def.oco_support;
-                limit = oco_def.limit;
-                alpha_range = oco_def.draw_params.alpha_range.clone();
-                flip = oco_def.draw_params.flip;
-
-                if let Some(offset) = oco_def.draw_params.offset {
-                    match oco_def.offset_combine {
-                        OffsetCombine::Add => {
-                            offset_x += offset.0;
-                            offset_y += offset.1;
-                        },
-                        OffsetCombine::Replace => {},
-                    }
-                }
-
-                if let Some(color_base) = oco_def.color_base {
-                    let color: i64 = section.get("Color")
-                        .and_then(|v| str::parse(v).ok())
-                        .unwrap_or(0);
-                    for offset in [0].iter().chain(oco_def.color_offsets.iter()) {
-                        let old_color = unpack_color(color_base + offset);
-                        let new_color = unpack_color(color + offset);
-                        replace_colors.push((old_color, new_color));
-                    }
-                }
-            }
-            else {
-                kind = ObjectKind::CustomObject;
-                sync_params = SyncParams::default();
-                frame_range = Some(0..1);
-                offset_x = 0;
-                offset_y = 0;
-                editor_only = false;
-                oco_support = OcoSupport::None;
-                limit = Limit::None;
-                alpha_range = None;
-                flip = false;
-            }
+        key.truncate(KEY_PREFIX_LEN);
+        write!(key, "b{i}").unwrap();
+        let id = ObjectId::from((254, i));
+        if let Some(def) = ini.section(&key)
+            .map(parse_co_props)
+            .and_then(|props| create_co_def(id, props, defs))
+        {
+            defs.insert(id, def);
         }
-        else {
-            kind = ObjectKind::CustomObject;
-            frame_range = match (anim_repeat, anim_to) {
-                (0, Some(anim_to)) => Some(anim_loop_back..anim_to + 1),
-                (_, Some(_)) => Some(anim_from..anim_from + 1),
-                _ => Some(0..1),
-            };
-            sync_params = SyncParams {
-                sync_to: AnimSync::Screen,
-                ..Default::default()
-            };
-            editor_only = false;
-            oco_support = OcoSupport::None;
-            limit = Limit::None;
-            alpha_range = None;
-            flip = false;
-        }
-
-        let draw_params = DrawParams {
-            blend_mode: BlendMode::Over,
-            alpha_range,
-            frame_size: Some((frame_width, frame_height)),
-            frame_range,
-            offset: Some((offset_x, offset_y)),
-            flip,
-            flip_variant: None,
-        };
-
-        let def = ObjectDef {
-            kind, 
-            path,
-            editor_only,
-            sync_params,
-            draw_params,
-            offset_combine: OffsetCombine::Replace,
-            oco_support,
-            limit,
-            color_base,
-            color_offsets,
-            replace_colors,
-            override_key: None,
-            override_frame_range: None,
-            is_overridden: false,
-        };
-
-        defs.insert(ObjectId::from(tile), def);
     }
     
     // Handle special graphics overrides for coins, artifacts, and powerups
@@ -387,19 +231,247 @@ pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
                 def.is_overridden = true;
                 def.path.replace(override_path.to_owned());
                 if let Some(frame_range) = def.override_frame_range.take() {
-                    def.draw_params.frame_range.replace(frame_range);
+                    def.draw_params.frame_range = frame_range;
                 }
             }
         }
     }
 }
 
-fn unpack_color(mut color: i64) -> [u8; 3] {
-    color %= 256 * 256 * 256;
+fn create_co_def(id: ObjectId, props: CustomObjectProps, defs: &ObjectDefs) -> Option<ObjectDef> {
+    match (props.bank, props.object) {
+        (_, 0) => {
+            create_regular_co_def(props)
+        }
+        (0..=253, 1..=255) => {
+            let bank = props.bank as u8;
+            let object = props.object as u8;
+            let oco_id = ObjectId::from((bank, object));
+            let def = defs.get(&oco_id);
+            match def.map(|def| def.oco_support) {
+                Some(OcoSupport::Full | OcoSupport::NoCustomGraphics) => {
+                    create_oco_def(id, oco_id, props, def.unwrap())
+                }
+                _ => create_botched_oco_def(props)
+            }
+        }
+        _ => create_botched_oco_def(props)
+    }
+}
 
-    let r = color & 0x0000FF;
-    let g = (color & 0x00FF00) >> 8;
-    let b = (color & 0xFF0000) >> 16;
+fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {   
+    let CustomObjectProps {
+        image,
+        tile_width,
+        tile_height,
+        offset_x,
+        offset_y,
+        anim_from,
+        anim_to,
+        anim_loopback,
+        anim_speed: _, // will be used soon
+        anim_repeat,
+        ..
+    } = props;
+    
+    if image == "" {
+        return None;
+    }
+    
+    let frame_range = if anim_repeat == 0 {
+            anim_loopback..(anim_to + 1)
+        }
+        else {
+            anim_from..(anim_from + 1)
+        };
+    
+    let sync_params = SyncParams {
+        sync_to: AnimSync::Screen,
+        ..Default::default()
+    };
+    
+    let draw_params = DrawParams {
+        blend_mode: BlendMode::Over,
+        alpha_range: None,
+        frame_size: (tile_width, tile_height),
+        frame_range,
+        offset: (offset_x, offset_y),
+        flip: false,
+        flip_variant: None,
+    };
 
-    [r as u8, g as u8, b as u8]
+    Some(ObjectDef {
+        kind: ObjectKind::CustomObject,
+        path: Some(image),
+        editor_only: false,
+        sync_params,
+        draw_params,
+        offset_combine: OffsetCombine::Replace,
+        oco_support: OcoSupport::None,
+        limit: Limit::None,
+        color_base: None,
+        color_offsets: Vec::new(),
+        replace_colors: Vec::new(),
+        override_key: None,
+        override_frame_range: None,
+        is_overridden: false,
+    })
+}
+
+#[inline]
+fn create_botched_oco_def(mut props: CustomObjectProps) -> Option<ObjectDef> {
+    props.anim_from = 0;
+    props.anim_to = 0;
+    props.anim_loopback = 0;
+    create_regular_co_def(props)
+}
+
+fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def: &ObjectDef) -> Option<ObjectDef> {
+    let CustomObjectProps {
+        image,
+        bank,
+        object,
+        mut tile_width,
+        mut tile_height,
+        mut offset_x,
+        mut offset_y,
+        color,
+        ..
+    } = props;
+    
+    assert!(bank < 254);
+    assert!(object > 0);
+    assert!(def.oco_support != OcoSupport::None);
+    
+    if image == "" && def.oco_support != OcoSupport::NoCustomGraphics {
+        return None;
+    }
+    
+    let sync_params = {
+        let mut sync_north = Vec::new();
+        if def.sync_params.sync_north.contains(&oco_id) {
+            sync_north.push(id);
+        }
+        
+        let mut sync_south = Vec::new();
+        if def.sync_params.sync_south.contains(&oco_id) {
+            sync_south.push(id);
+        }
+        
+        let mut sync_west = Vec::new();
+        if def.sync_params.sync_west.contains(&oco_id) {
+            sync_west.push(id);
+        }
+        
+        let mut sync_east = Vec::new();
+        if def.sync_params.sync_east.contains(&oco_id) {
+            sync_east.push(id);
+        }
+        
+        SyncParams {
+            sync_to: def.sync_params.sync_to,
+            sync_west,
+            sync_east,
+            sync_north,
+            sync_south,
+            sync_offset: def.sync_params.sync_offset,
+            laser_phase: def.sync_params.laser_phase,
+        }
+    };
+    
+    let draw_params = {
+        if def.oco_support == OcoSupport::NoCustomGraphics {
+            tile_width = def.draw_params.frame_size.0;
+            tile_height = def.draw_params.frame_size.1;
+        }
+        
+        if def.offset_combine == OffsetCombine::Add {
+            offset_x += def.draw_params.offset.0;
+            offset_y += def.draw_params.offset.1;
+        }
+        
+        DrawParams {
+            blend_mode: BlendMode::Over,
+            alpha_range: def.draw_params.alpha_range.clone(),
+            frame_size: (tile_width, tile_height),
+            frame_range: def.draw_params.frame_range.clone(),
+            offset: (offset_x, offset_y),
+            flip: def.draw_params.flip,
+            flip_variant: None,
+        }
+    };
+    
+    let mut replace_colors = Vec::new();
+    if let Some(color_base) = def.color_base {
+        for offset in [0].iter().chain(def.color_offsets.iter()) {
+            let old_color = unpack_color(color_base + offset);
+            let new_color = unpack_color(color + offset);
+            replace_colors.push((old_color, new_color));
+        }
+    }
+    
+    Some(ObjectDef {
+        kind: ObjectKind::OverrideObject(oco_id.0),
+        path: Some(image),
+        editor_only: def.editor_only,
+        sync_params,
+        draw_params,
+        offset_combine: def.offset_combine,
+        oco_support: def.oco_support,
+        limit: def.limit,
+        color_base: None,
+        color_offsets: Vec::new(),
+        replace_colors,
+        override_key: None,
+        override_frame_range: None,
+        is_overridden: false,
+    })
+}
+
+struct CustomObjectProps {
+    pub image: String,
+    pub bank: i32,
+    pub object: i32,
+    pub tile_width: u32,
+    pub tile_height: u32,
+    pub offset_x: i32,
+    pub offset_y: i32,
+    pub anim_from: u32,
+    pub anim_to: u32,
+    pub anim_loopback: u32,
+    pub anim_speed: u32,
+    pub anim_repeat: u32,
+    pub color: i32,
+}
+
+fn parse_co_props(section: VirtualSection<'_>) -> CustomObjectProps {
+    let image         = section.get_owned_or_default("image");
+    let bank          = section.get_i32_or("bank", 0);
+    let object        = section.get_i32_or("object", 0);
+    let tile_width    = section.get_i32_or("tile width", 24).max(0) as u32;
+    let tile_height   = section.get_i32_or("tile height", 24).max(0) as u32;
+    let offset_x      = section.get_i32_or("offset x", 0);
+    let offset_y      = section.get_i32_or("offset y", 0);
+    let anim_from     = section.get_i32_or("init animfrom", 0).max(0) as u32;
+    let anim_to       = section.get_i32_or("init animto", 0).max(0) as u32;
+    let anim_loopback = section.get_i32_or("init animloopback", 0).max(0) as u32;
+    let anim_speed    = section.get_i32_or("init animspeed", 500).clamp(1, 1000) as u32;
+    let anim_repeat   = section.get_i32_or("init animrepeat", 0).max(0) as u32;
+    let color         = section.get_i32_or("color", 8);
+    
+    CustomObjectProps {
+        image,
+        bank,
+        object,
+        tile_width,
+        tile_height,
+        offset_x,
+        offset_y,
+        anim_from,
+        anim_to,
+        anim_loopback,
+        anim_speed,
+        anim_repeat,
+        color,
+    }
 }
