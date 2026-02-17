@@ -109,7 +109,7 @@ macro_rules! test_case {
 }
 
 test_case!(lit_knob_3_20_and_14_1_test, "Lit Knob - 3-20 & 14-1 Test");
-test_case!(lit_knob_bank7_test, "Lit Knob - Bank 7 Test");
+test_case!(lit_knob_bank_7_test, "Lit Knob - Bank 7 Test");
 test_case!(lit_knob_bubble_test, "Lit Knob - Bubble Test");
 test_case!(lit_knob_combination_test, "Lit Knob - Combination Test");
 test_case!(lit_knob_custom_collectables_test, "Lit Knob - Custom Collectables Test");
