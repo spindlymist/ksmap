@@ -88,7 +88,9 @@ pub struct DrawParams {
     #[serde(default)]
     pub offset: (i32, i32),
     #[serde(default)]
-    pub flip: bool,
+    pub flip: Flip,
+    #[serde(default)]
+    pub flip_ocos: bool,
     pub flip_variant: Option<ObjectVariant>,
 }
 
@@ -125,6 +127,14 @@ pub enum Limit {
     First { n: usize },
     Random { n: usize },
     LogNPlusOne,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+pub enum Flip {
+    #[default]
+    Never,
+    Random,
+    Always,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -296,7 +306,8 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         frame_size: (tile_width, tile_height),
         frame_range,
         offset: (offset_x, offset_y),
-        flip: false,
+        flip: Flip::Never,
+        flip_ocos: false,
         flip_variant: None,
     };
 
@@ -390,13 +401,21 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
             offset_y += def.draw_params.offset.1;
         }
         
+        let flip = if def.draw_params.flip_ocos {
+                Flip::Always
+            }
+            else {
+                def.draw_params.flip
+            };
+        
         DrawParams {
             blend_mode: BlendMode::Over,
             alpha_range: def.draw_params.alpha_range.clone(),
             frame_size: (tile_width, tile_height),
             frame_range: def.draw_params.frame_range.clone(),
             offset: (offset_x, offset_y),
-            flip: def.draw_params.flip,
+            flip,
+            flip_ocos: def.draw_params.flip_ocos,
             flip_variant: None,
         }
     };

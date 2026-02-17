@@ -579,12 +579,12 @@ oco_support = "None"
 [2-9]
 sync_to = "Screen"
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [2-10]
 sync_to = "Screen"
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [2-11]
 sync_to = "Screen"
@@ -687,7 +687,7 @@ frame_range = { start = 0, end = 1 }
 
 [2-28]
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [2-29]
 sync_to = "Screen"
@@ -695,11 +695,11 @@ frame_range = { start = 0, end = 1 }
 
 [2-30]
 frame_range = { start = 0, end = 19 }
-flip = true
+flip = "Random"
 
 [2-31]
 frame_range = { start = 0, end = 16 }
-flip = true
+flip = "Random"
 
 [2-32]
 sync_to = "Screen"
@@ -711,46 +711,46 @@ frame_range = { start = 0, end = 4 }
 
 [3-1]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [3-2]
 frame_range = { start = 0, end = 14 }
-flip = true
+flip = "Random"
 
 [3-3]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [3-4]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [3-5]
 frame_range = { start = 0, end = 1 }
 
 [3-6]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [3-7]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [3-8]
 frame_range = { start = 0, end = 14 }
-flip = true
+flip = "Random"
 
 [3-9]
 frame_range = { start = 0, end = 9 }
-flip = true
+flip = "Random"
 
 [3-10]
 frame_range = { start = 0, end = 9 }
-flip = true
+flip = "Random"
 
 [3-11]
 frame_range = { start = 0, end = 10 }
-flip = true
+flip = "Random"
 
 [3-12]
 frame_range = { start = 0, end = 21 }
@@ -763,27 +763,27 @@ frame_range = { start = 0, end = 1 }
 
 [3-15]
 frame_range = { start = 0, end = 11 }
-flip = true
+flip = "Random"
 
 [3-16]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [3-17]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [3-18]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [3-19]
 frame_range = { start = 0, end = 9 }
-flip = true
+flip = "Random"
 
 [3-20]
 frame_range = { start = 0, end = 32 }
-flip = true
+flip = "Random"
 flip_variant = "Left"
 
 ["3-20 Left"]
@@ -794,15 +794,15 @@ frame_range = { start = 0, end = 25 }
 
 [3-22]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [3-23]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [3-24]
 frame_range = { start = 0, end = 14 }
-flip = true
+flip = "Random"
 
 [3-25]
 frame_range = { start = 0, end = 1 }
@@ -815,41 +815,41 @@ frame_range = { start = 0, end = 23 }
 
 [3-28]
 frame_range = { start = 0, end = 11 }
-flip = true
+flip = "Random"
 
 [3-29]
 frame_range = { start = 0, end = 9 }
-flip = true
+flip = "Random"
 oco_support = "None"
 
 [3-30]
 sync_to = "Screen"
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [3-31]
 frame_range = { start = 0, end = 11 }
-flip = true
+flip = "Random"
 
 [3-32]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [3-33]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [3-34]
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [3-35]
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [3-36]
 frame_range = { start = 0, end = 9 }
-flip = true
+flip = "Random"
 
 [3-37]
 frame_range = { start = 2, end = 3 }
@@ -862,7 +862,7 @@ frame_range = { start = 0, end = 23 }
 
 [3-40]
 frame_range = { start = 0, end = 11 }
-flip = true
+flip = "Random"
 
 [3-41]
 frame_range = { start = 0, end = 1 }
@@ -875,7 +875,7 @@ frame_range = { start = 0, end = 14 }
 
 [3-44]
 frame_range = { start = 0, end = 9 }
-flip = true
+flip = "Random"
 
 ################################################################################
 # Bank 4 Meanies
@@ -922,39 +922,39 @@ frame_range = { start = 0, end = 8 }
 [4-12]
 sync_to = "Screen"
 frame_range = { start = 0, end = 8 }
-flip = true
+flip = "Random"
 
 [4-13]
 frame_range = { start = 0, end = 1 }
 
 [4-14]
 frame_range = { start = 0, end = 11 }
-flip = true
+flip = "Random"
 
 [4-15]
 sync_to = "Screen"
 frame_range = { start = 0, end = 8 }
-flip = true
+flip = "Random"
 
 [4-16]
 sync_to = "Screen"
 frame_range = { start = 5, end = 13 }
-flip = true
+flip = "Random"
 
 [4-17]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [4-18]
 frame_range = { start = 3, end = 4 }
 
 [4-19]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [4-20]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [4-21]
 frame_range = { start = 0, end = 12 }
@@ -977,14 +977,14 @@ frame_size = [24, 48]
 offset = [0, 12]
 frame_range = { start = 0, end = 12 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 [5-3]
 frame_size = [24, 48]
 offset = [0, 12]
 frame_range = { start = 0, end = 12 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 ################################################################################
 # Bank 6 Traps
@@ -1269,11 +1269,11 @@ frame_range = { start = 0, end = 1 }
 
 [10-6]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [10-7]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [10-8]
 frame_range = { start = 3, end = 4 }
@@ -1299,47 +1299,47 @@ frame_range = { start = 0, end = 29 }
 
 [11-1]
 frame_range = { start = 0, end = 5 }
-flip = true
+flip = "Random"
 
 [11-2]
 frame_range = { start = 4, end = 8 }
-flip = true
+flip = "Random"
 
 [11-3]
 frame_range = { start = 0, end = 5 }
-flip = true
+flip = "Random"
 
 [11-4]
 frame_range = { start = 0, end = 5 }
-flip = true
+flip = "Random"
 
 [11-5]
 frame_range = { start = 0, end = 5 }
-flip = true
+flip = "Random"
 
 [11-6]
 frame_range = { start = 4, end = 8 }
-flip = true
+flip = "Random"
 
 [11-7]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [11-8]
 frame_range = { start = 0, end = 5 }
-flip = true
+flip = "Random"
 
 [11-9]
 frame_range = { start = 4, end = 8 }
-flip = true
+flip = "Random"
 
 [11-10]
 frame_range = { start = 0, end = 5 }
-flip = true
+flip = "Random"
 
 [11-11]
 frame_range = { start = 0, end = 5 }
-flip = true
+flip = "Random"
 
 ################################################################################
 # Bank 12 Ghosts
@@ -1351,7 +1351,7 @@ sync_to = "Screen"
 frame_size = [24, 28]
 frame_range = { start = 0, end = 10 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 [12-2]
 alpha_range = { start = 0, end = 96 }
@@ -1359,12 +1359,12 @@ sync_to = "Screen"
 frame_size = [24, 28]
 frame_range = { start = 0, end = 10 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 [12-3]
 frame_range = { start = 0, end = 6 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 [12-4]
 alpha_range = { start = 0, end = 96 }
@@ -1385,7 +1385,7 @@ frame_size = [48, 24]
 offset = [12, 0]
 frame_range = { start = 0, end = 14 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 [12-7]
 alpha_range = { start = 0, end = 96 }
@@ -1407,7 +1407,7 @@ frame_size = [48, 24]
 offset = [12, 0]
 frame_range = { start = 0, end = 14 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 [12-10]
 frame_size = [48, 48]
@@ -1421,7 +1421,7 @@ sync_to = "Screen"
 frame_size = [24, 28]
 frame_range = { start = 0, end = 10 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 [12-12]
 alpha_range = { start = 0, end = 96 }
@@ -1445,7 +1445,7 @@ frame_size = [24, 26]
 offset = [0, -1]
 frame_range = { start = 0, end = 6 }
 oco_support = "None"
-flip = true
+flip = "Random"
 
 [12-16]
 sync_to = "Screen"
@@ -1488,10 +1488,12 @@ oco_support = "None"
 [13-1]
 sync_to = "Screen"
 frame_range = { start = 0, end = 6 }
+flip_ocos = true
 
 [13-2]
 sync_to = "Screen"
 frame_range = { start = 0, end = 6 }
+flip_ocos = true
 
 [13-3]
 frame_size = [24, 96]
@@ -1505,7 +1507,7 @@ offset = [12, 12]
 
 [13-5]
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [13-6]
 sync_to = "Screen"
@@ -1562,6 +1564,7 @@ frame_range = { start = 0, end = 16 }
 [13-14]
 sync_to = "Screen"
 frame_range = { start = 0, end = 6 }
+flip_ocos = true
 
 ################################################################################
 # Bank 14 Earth Beings
@@ -1569,7 +1572,7 @@ frame_range = { start = 0, end = 6 }
 
 [14-1]
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 flip_variant = "Left"
 
 ["14-1 Left"]
@@ -1578,22 +1581,22 @@ frame_range = { start = 0, end = 12 }
 [14-2]
 sync_to = "Screen"
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [14-3]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [14-4]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [14-5]
 frame_range = { start = 0, end = 12 }
 
 [14-6]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [14-7]
 frame_range = { start = 0, end = 12 }
@@ -1601,11 +1604,11 @@ frame_range = { start = 0, end = 12 }
 [14-8]
 sync_to = "Screen"
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [14-9]
 frame_range = { start = 0, end = 8 }
-flip = true
+flip = "Random"
 
 [14-10]
 frame_range = { start = 0, end = 17 }
@@ -1613,22 +1616,22 @@ frame_range = { start = 0, end = 17 }
 [14-11]
 sync_to = "Screen"
 frame_range = { start = 0, end = 10 }
-flip = true
+flip = "Random"
 
 [14-12]
 frame_range = { start = 0, end = 14 }
 
 [14-13]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [14-14]
 frame_range = { start = 0, end = 8 }
-flip = true
+flip = "Random"
 
 [14-15]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [14-16]
 frame_size = [120, 72]
@@ -1639,7 +1642,7 @@ offset_combine = "Replace"
 [14-17]
 sync_to = "Screen"
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [14-18]
 frame_size = [120, 72]
@@ -2014,11 +2017,11 @@ oco_support = "None"
 [17-1]
 sync_to = "Screen"
 frame_range = { start = 6, end = 13 }
-flip = true
+flip = "Random"
 
 [17-2]
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [17-3]
 sync_to = "Screen" # synced with 18-6
@@ -2040,7 +2043,7 @@ frame_range = { start = 0, end = 9 }
 [17-7]
 sync_to = "Screen"
 frame_range = { start = 0, end = 17 }
-flip = true
+flip = "Random"
 
 [17-8]
 frame_range = { start = 0, end = 6 }
@@ -2089,6 +2092,7 @@ frame_range = { start = 0, end = 8 }
 [18-5]
 sync_to = "Screen"
 frame_range = { start = 0, end = 4 }
+flip_ocos = true
 
 [18-6]
 sync_to = "Screen" # synced with 17-3
@@ -2147,7 +2151,7 @@ limit = { pick = "First", n = 1 }
 [19-9]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [19-10]
 sync_to = "Screen"
@@ -2157,12 +2161,12 @@ limit = { pick = "First", n = 1 }
 [19-11]
 frame_range = { start = 0, end = 19 }
 limit = { pick = "First", n = 1 }
-flip = true
+flip = "Random"
 
 [19-12]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [19-13]
 frame_range = { start = 0, end = 1 }
@@ -2171,32 +2175,32 @@ limit = { pick = "First", n = 1 }
 [19-14]
 frame_range = { start = 0, end = 7 }
 limit = { pick = "First", n = 1 }
-flip = true
+flip = "Random"
 
 [19-15]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [19-16]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 9 }
-flip = true
+flip = "Random"
 
 [19-17]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 6 }
-flip = true
+flip = "Random"
 
 [19-18]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 9 }
-flip = true
+flip = "Random"
 
 [19-19]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 14 }
-flip = true
+flip = "Random"
 
 [19-20]
 frame_range = { start = 0, end = 1 }
@@ -2205,7 +2209,7 @@ limit = { pick = "First", n = 1 }
 [19-21]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [19-22]
 limit = { pick = "First", n = 1 }
@@ -2228,13 +2232,13 @@ limit = { pick = "First", n = 1 }
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 8 }
-flip = true
+flip = "Random"
 
 [19-27]
 sync_to = "Screen"
 frame_range = { start = 5, end = 13 }
 limit = { pick = "First", n = 1 }
-flip = true
+flip = "Random"
 
 [19-28]
 frame_range = { start = 3, end = 4 }
@@ -2243,7 +2247,7 @@ limit = { pick = "First", n = 1 }
 [19-29]
 frame_range = { start = 0, end = 6 }
 limit = { pick = "First", n = 1 }
-flip = true
+flip = "Random"
 
 [19-30]
 frame_range = { start = 0, end = 12 }
@@ -2282,29 +2286,29 @@ limit = { pick = "First", n = 1 }
 [19-38]
 frame_range = { start = 4, end = 8 }
 limit = { pick = "First", n = 1 }
-flip = true
+flip = "Random"
 
 [19-39]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 5 }
-flip = true
+flip = "Random"
 
 [19-40]
 frame_range = { start = 4, end = 8 }
 limit = { pick = "First", n = 1 }
-flip = true
+flip = "Random"
 
 [19-41]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 12 }
-flip = true
+flip = "Random"
 
 [19-42]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [19-43]
 frame_range = { start = 0, end = 17 }
@@ -2317,7 +2321,7 @@ frame_range = { start = 0, end = 14 }
 [19-45]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [19-46]
 frame_range = { start = 5, end = 6 }
@@ -2332,12 +2336,12 @@ limit = { pick = "First", n = 1 }
 sync_to = "Screen"
 frame_range = { start = 6, end = 13 }
 limit = { pick = "First", n = 1 }
-flip = true
+flip = "Random"
 
 [19-49]
 limit = { pick = "First", n = 1 }
 frame_range = { start = 0, end = 7 }
-flip = true
+flip = "Random"
 
 [19-50]
 frame_size = [24, 48]

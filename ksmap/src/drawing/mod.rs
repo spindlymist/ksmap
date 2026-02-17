@@ -7,7 +7,7 @@ use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::{Ini, VirtualSection};
 
 use crate::{
-    definitions::{AnimSync, DrawParams, ObjectDef, ObjectDefs, ObjectKind},
+    definitions::{AnimSync, DrawParams, Flip, ObjectDef, ObjectDefs, ObjectKind},
     graphics::Graphics,
     id::{ObjectId, ObjectVariant},
     partition::{Bounds, Partition},
@@ -309,13 +309,18 @@ fn draw_object_with_offset(
         Some(def) => def,
         None => &ObjectDef::default(),
     };
-    
-    let mut rng_flip = ctx.seed.hasher(RngStep::Flip)
-        .write(ctx.screen_pos)
-        .write(ctx.layer)
-        .write(at_index)
-        .into_rng();
-    let mut flip = def.draw_params.flip && rng_flip.random();
+
+    let mut flip = match def.draw_params.flip {
+        Flip::Never => false,
+        Flip::Random => {
+            ctx.seed.hasher(RngStep::Flip)
+                .write(ctx.screen_pos)
+                .write(ctx.layer)
+                .write(at_index)
+                .random()
+        }
+        Flip::Always => true,
+    };
     if flip && let Some(variant) = def.draw_params.flip_variant {
         object = object.into_variant(variant);
         flip = false;
