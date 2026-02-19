@@ -119,7 +119,9 @@ fn main() -> Result<()> {
     let output_dir = cli.output_dir.unwrap_or_else(|| {
         let author = ini.get_in("World", "Author").unwrap_or("Author");
         let name = ini.get_in("World", "Name").unwrap_or("Title");
-        format!("{author} - {name}").into()
+        format!("{author} - {name}")
+            .replace(['<', '>', ':', '"', '/', '\\', '|', '?', '*'], "_")
+            .into()
     });
     let output_is_dir = partitions.len() > 1;
     if output_is_dir {
