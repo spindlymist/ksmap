@@ -35,7 +35,9 @@ pub struct ObjectDef {
     #[serde(default)]
     pub color_offsets: Vec<i32>,
     #[serde(skip)]
-    pub replace_colors: Vec<([u8; 3], [u8; 3])>,
+    pub replace_colors: Vec<ColorReplacement>,
+    #[serde(default)]
+    pub no_oco_black_transparency: bool,
     pub override_key: Option<String>,
     pub override_frame_range: Option<Range<u32>>,
     #[serde(skip)]
@@ -142,6 +144,13 @@ pub enum LaserPhase {
     #[default]
     Red,
     Green,
+}
+
+#[derive(Debug, Clone)]
+pub struct ColorReplacement {
+    pub old: [u8; 3],
+    pub new: [u8; 3],
+    pub is_transparent: bool,
 }
 
 pub struct ObjectDefs {
@@ -323,6 +332,7 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         color_base: None,
         color_offsets: Vec::new(),
         replace_colors: Vec::new(),
+        no_oco_black_transparency: false,
         override_key: None,
         override_frame_range: None,
         is_overridden: false,
@@ -423,9 +433,14 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
     let mut replace_colors = Vec::new();
     if let Some(color_base) = def.color_base {
         for offset in [0].iter().chain(def.color_offsets.iter()) {
-            let old_color = unpack_color(color_base + offset);
-            let new_color = unpack_color(color + offset);
-            replace_colors.push((old_color, new_color));
+            let old = unpack_color(color_base + offset);
+            let new = unpack_color(color + offset);
+            let is_transparent = !def.no_oco_black_transparency && new == [0, 0, 0];
+            replace_colors.push(ColorReplacement {
+                old,
+                new,
+                is_transparent,
+            });
         }
     }
     
@@ -441,6 +456,7 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         color_base: None,
         color_offsets: Vec::new(),
         replace_colors,
+        no_oco_black_transparency: false,
         override_key: None,
         override_frame_range: None,
         is_overridden: false,

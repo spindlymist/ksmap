@@ -1057,7 +1057,7 @@ oco_support = "NoCustomGraphics"
 
 [7-2]
 frame_range = { start = 0, end = 13 }
-color_base = 0
+color_base = 8
 oco_support = "NoCustomGraphics"
 
 [7-3]
@@ -1072,6 +1072,7 @@ oco_support = "NoCustomGraphics"
 
 [7-5]
 color_base = 16711679
+no_oco_black_transparency = true
 alpha_range = { start = 0, end = 40 }
 frame_size = [20, 98]
 offset = [-2, 37]

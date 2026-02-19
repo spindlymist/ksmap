@@ -12,7 +12,7 @@ use libks::map_bin::AssetId;
 use rustc_hash::FxHashMap;
 
 use crate::{
-    definitions::{ObjectDef, ObjectDefs, ObjectKind, OcoSupport},
+    definitions::{ColorReplacement, ObjectDef, ObjectDefs, ObjectKind, OcoSupport},
     id::{ObjectId, ObjectVariant},
 };
 
@@ -258,13 +258,16 @@ impl<'a> Graphics<'a> {
         };
         
         let mut transformed_image = (*image).clone();
-        for pixel in transformed_image.pixels_mut() {
-            for (old, new) in &def.replace_colors {
-                if &pixel.0[0..3] == &old[0..3] {
-                    pixel.0[0] = new[0];
-                    pixel.0[1] = new[1];
-                    pixel.0[2] = new[2];
-                    // Alpha channel is preserved
+
+        for Rgba(pixel) in transformed_image.pixels_mut() {
+            for ColorReplacement { old, new, is_transparent } in &def.replace_colors {
+                if pixel[..3] == old[..3] {
+                    pixel[0] = new[0];
+                    pixel[1] = new[1];
+                    pixel[2] = new[2];
+                    if *is_transparent {
+                        pixel[3] = 0;
+                    }
                     break;
                 }
             }
@@ -272,7 +275,6 @@ impl<'a> Graphics<'a> {
         
         Ok(Some(Rc::new(transformed_image)))
     }
-
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
