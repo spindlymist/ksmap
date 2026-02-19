@@ -5,6 +5,20 @@ seeds = [
     "4D65A13236269171",
 ]
 
+["Lit Knob - Bank 7 Black Test"]
+seeds = [
+    "79B53093BD944866",
+    "8DAEAD398C51A7F9",
+    "A917F324569BFBFB",
+]
+
+["Lit Knob - Bank 7 Red Test"]
+seeds = [
+    "1824E8A55E5FAE66",
+    "6B139FFCAAB06758",
+    "B1D1549368A29307",
+]
+
 ["Lit Knob - Bank 7 Test"]
 seeds = [
     "9748937DB4B4D959",
