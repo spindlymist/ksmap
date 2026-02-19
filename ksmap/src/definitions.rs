@@ -292,7 +292,7 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
             anim_loopback..(anim_to + 1)
         }
         else {
-            anim_from..(anim_from + 1)
+            anim_to..anim_to + 1
         };
     
     let sync_params = SyncParams {
