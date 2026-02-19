@@ -297,11 +297,11 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         return None;
     }
     
-    let frame_range = if anim_repeat == 0 {
-            anim_loopback..(anim_to + 1)
+    let frame_range = if anim_repeat == 1 {
+            anim_to..anim_to + 1
         }
         else {
-            anim_to..anim_to + 1
+            anim_loopback..(anim_to + 1)
         };
     
     let sync_params = SyncParams {
