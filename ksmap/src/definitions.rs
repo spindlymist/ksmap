@@ -26,8 +26,6 @@ pub struct ObjectDef {
     #[serde(flatten)]
     pub draw_params: DrawParams,
     #[serde(default)]
-    pub offset_combine: OffsetCombine,
-    #[serde(default)]
     pub oco_support: OcoSupport,
     #[serde(default)]
     pub limit: Limit,
@@ -105,13 +103,6 @@ impl DrawParams {
     const fn default_frame_range() -> Range<u32> {
         0..1
     }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
-pub enum OffsetCombine {
-    #[default]
-    Add,
-    Replace,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -328,7 +319,6 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         editor_only: false,
         sync_params,
         draw_params,
-        offset_combine: OffsetCombine::Replace,
         oco_support: OcoSupport::None,
         limit: Limit::None,
         color_base: None,
@@ -408,11 +398,9 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
             tile_height = def.draw_params.frame_size.1;
         }
         
-        if def.offset_combine == OffsetCombine::Add {
-            let base_offset = def.draw_params.oco_offset.unwrap_or(def.draw_params.offset);
-            offset_x += base_offset.0;
-            offset_y += base_offset.1;
-        }
+        let base_offset = def.draw_params.oco_offset.unwrap_or(def.draw_params.offset);
+        offset_x += base_offset.0;
+        offset_y += base_offset.1;
         
         let flip = if def.draw_params.flip_ocos {
                 Flip::Always
@@ -454,7 +442,6 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         editor_only: def.editor_only,
         sync_params,
         draw_params,
-        offset_combine: def.offset_combine,
         oco_support: def.oco_support,
         limit: def.limit,
         color_base: None,

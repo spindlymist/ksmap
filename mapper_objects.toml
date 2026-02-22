@@ -1189,7 +1189,7 @@ frame_range = { start = 0, end = 8 }
 blend_mode = "Add"
 frame_size = [48, 24]
 offset = [12, 0]
-offset_combine = "Replace"
+oco_offset = [0, 0]
 frame_range = { start = 0, end = 9 }
 
 [8-8]
@@ -1644,7 +1644,7 @@ flip = "Random"
 frame_size = [120, 72]
 frame_range = { start = 3, end = 4 }
 offset = [0, -24]
-offset_combine = "Replace"
+oco_offset = [0, 0]
 
 [14-17]
 sync_to = "Screen"
@@ -1655,7 +1655,7 @@ flip = "Random"
 frame_size = [120, 72]
 frame_range = { start = 3, end = 4 }
 offset = [0, 24]
-offset_combine = "Replace"
+oco_offset = [0, 0]
 
 [14-19]
 frame_range = { start = 5, end = 6 }
@@ -2063,19 +2063,19 @@ oco_offset = [-1, 0]
 frame_size = [120, 72]
 frame_range = { start = 3, end = 4 }
 offset = [0, -24]
-offset_combine = "Replace"
+oco_offset = [0, 0]
 
 [17-11]
 frame_size = [72, 120]
 frame_range = { start = 3, end = 4 }
 offset = [24, 0]
-offset_combine = "Replace"
+oco_offset = [0, 0]
 
 [17-12]
 frame_size = [72, 120]
 frame_range = { start = 3, end = 4 }
 offset = [-24, 0]
-offset_combine = "Replace"
+oco_offset = [0, 0]
 
 ################################################################################
 # Bank 18 Water Creatures
