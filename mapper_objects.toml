@@ -1493,11 +1493,13 @@ oco_support = "None"
 sync_to = "Screen"
 frame_range = { start = 0, end = 6 }
 flip_ocos = true
+oco_offset = [1, 0]
 
 [13-2]
 sync_to = "Screen"
 frame_range = { start = 0, end = 6 }
 flip_ocos = true
+oco_offset = [1, 0]
 
 [13-3]
 frame_size = [24, 96]
@@ -1569,6 +1571,7 @@ frame_range = { start = 0, end = 16 }
 sync_to = "Screen"
 frame_range = { start = 0, end = 6 }
 flip_ocos = true
+oco_offset = [1, 0]
 
 ################################################################################
 # Bank 14 Earth Beings
@@ -2054,6 +2057,7 @@ frame_range = { start = 0, end = 6 }
 
 [17-9]
 frame_range = { start = 0, end = 6 }
+oco_offset = [-1, 0]
 
 [17-10]
 frame_size = [120, 72]

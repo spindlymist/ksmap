@@ -89,6 +89,7 @@ pub struct DrawParams {
     pub frame_range: Range<u32>,
     #[serde(default)]
     pub offset: (i32, i32),
+    pub oco_offset: Option<(i32, i32)>,
     #[serde(default)]
     pub flip: Flip,
     #[serde(default)]
@@ -315,6 +316,7 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         frame_size: (tile_width, tile_height),
         frame_range,
         offset: (offset_x, offset_y),
+        oco_offset: None,
         flip: Flip::Never,
         flip_ocos: false,
         flip_variant: None,
@@ -407,8 +409,9 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         }
         
         if def.offset_combine == OffsetCombine::Add {
-            offset_x += def.draw_params.offset.0;
-            offset_y += def.draw_params.offset.1;
+            let base_offset = def.draw_params.oco_offset.unwrap_or(def.draw_params.offset);
+            offset_x += base_offset.0;
+            offset_y += base_offset.1;
         }
         
         let flip = if def.draw_params.flip_ocos {
@@ -424,6 +427,7 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
             frame_size: (tile_width, tile_height),
             frame_range: def.draw_params.frame_range.clone(),
             offset: (offset_x, offset_y),
+            oco_offset: None,
             flip,
             flip_ocos: def.draw_params.flip_ocos,
             flip_variant: None,
