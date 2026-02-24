@@ -204,7 +204,7 @@ impl<'a> Graphics<'a> {
         id: &ObjectId,
         def: Option<&ObjectDef>,
     ) -> Result<MaybeImage> {
-        if let Some(def) = def && def.is_overridden {
+        if let Some(def) = def && def.base.is_overridden {
             return self.load_custom_object(def);
         }
         
@@ -236,7 +236,7 @@ impl<'a> Graphics<'a> {
     }
 
     fn load_override_object(&mut self, def: &ObjectDef) -> Result<MaybeImage> {
-        let image = match def.oco_support {
+        let image = match def.base.oco_support {
             OcoSupport::NoCustomGraphics => {
                 let ObjectKind::OverrideObject(original_tile) = def.kind else {
                     return Ok(None);

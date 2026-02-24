@@ -64,7 +64,7 @@ impl WorldSync {
                         let id = ObjectId::from(layer[i]);
                         let Some(def) = object_defs.get(&id) else { continue };
                         let j = i + OFFSET_NORTH_TO_SOUTH;
-                        for ObjectId(sync_tile, _) in &def.sync_params.sync_north {
+                        for ObjectId(sync_tile, _) in &def.sync.sync_north {
                             if screen_north.layers[4].0[j] == *sync_tile
                                 || screen_north.layers[5].0[j] == *sync_tile
                                 || screen_north.layers[6].0[j] == *sync_tile
@@ -86,7 +86,7 @@ impl WorldSync {
                         let id = ObjectId::from(layer[i]);
                         let Some(def) = object_defs.get(&id) else { continue };
                         let j = i + OFFSET_WEST_TO_EAST;
-                        for ObjectId(sync_tile, _) in &def.sync_params.sync_west {
+                        for ObjectId(sync_tile, _) in &def.sync.sync_west {
                             if screen_west.layers[4].0[j] == *sync_tile
                                 || screen_west.layers[5].0[j] == *sync_tile
                                 || screen_west.layers[6].0[j] == *sync_tile
@@ -184,7 +184,7 @@ impl ScreenSync {
             for tile in layer {
                 if tile.1 > 0
                     && let Some(def) = object_defs.get(&ObjectId::from(tile))
-                    && def.limit != Limit::None
+                    && def.sync.limit != Limit::None
                 {
                     let id = match &def.kind {
                         ObjectKind::OverrideObject(tile_original) => ObjectId::from(tile_original),
@@ -203,7 +203,7 @@ impl ScreenSync {
                 .write(id)
                 .into_rng();
             let Some(def) = object_defs.get(&id) else { continue };
-            match def.limit {
+            match def.sync.limit {
                 Limit::None => {},
                 Limit::First { n } => {
                     let limiter = Limiter::take(n);

@@ -19,27 +19,18 @@ pub struct ObjectDef {
     #[serde(skip)]
     pub kind: ObjectKind,
     pub path: Option<String>,
+    #[serde(flatten)]
+    pub base: BaseParams,
+    #[serde(flatten)]
+    pub sync: SyncParams,
+    #[serde(flatten)]
+    pub draw: DrawParams,
+    #[serde(flatten)]
+    pub anim: AnimParams,
     #[serde(default)]
     pub editor_only: bool,
-    #[serde(flatten)]
-    pub sync_params: SyncParams,
-    #[serde(flatten)]
-    pub draw_params: DrawParams,
-    #[serde(default)]
-    pub oco_support: OcoSupport,
-    #[serde(default)]
-    pub limit: Limit,
-    pub color_base: Option<i32>,
-    #[serde(default)]
-    pub color_offsets: Vec<i32>,
     #[serde(skip)]
     pub replace_colors: Vec<ColorReplacement>,
-    #[serde(default)]
-    pub no_oco_black_transparency: bool,
-    pub override_key: Option<String>,
-    pub override_frame_range: Option<Range<u32>>,
-    #[serde(skip)]
-    pub is_overridden: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -51,7 +42,27 @@ pub enum ObjectKind {
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
+pub struct BaseParams {
+    #[serde(default)]
+    pub oco_support: OcoSupport,
+    pub oco_offset: Option<(i32, i32)>,
+    #[serde(default)]
+    pub flip_ocos: bool,
+    #[serde(default)]
+    pub no_oco_black_transparency: bool,
+    pub color_base: Option<i32>,
+    #[serde(default)]
+    pub color_offsets: Vec<i32>,
+    pub override_key: Option<String>,
+    pub override_frame_range: Option<Range<u32>>,
+    #[serde(skip)]
+    pub is_overridden: bool,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct SyncParams {
+    #[serde(default)]
+    pub limit: Limit,
     #[serde(default)]
     pub sync_to: AnimSync,
     #[serde(default)]
@@ -68,34 +79,27 @@ pub struct SyncParams {
     pub laser_phase: Option<LaserPhase>,
 }
 
-#[derive(Debug, Clone, Copy, Default, Deserialize)]
-pub enum AnimSync {
-    #[default]
-    None,
-    Screen,
-    Group,
-}
-
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct DrawParams {
     #[serde(default)]
     pub blend_mode: BlendMode,
     pub alpha_range: Option<RangeInclusive<u8>>,
-    #[serde(default = "DrawParams::default_frame_size")]
-    pub frame_size: (u32, u32),
-    #[serde(default = "DrawParams::default_frame_range")]
-    pub frame_range: Range<u32>,
     #[serde(default)]
     pub offset: (i32, i32),
-    pub oco_offset: Option<(i32, i32)>,
     #[serde(default)]
     pub flip: Flip,
-    #[serde(default)]
-    pub flip_ocos: bool,
     pub flip_variant: Option<ObjectVariant>,
 }
 
-impl DrawParams {
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct AnimParams {
+    #[serde(default = "AnimParams::default_frame_size")]
+    pub frame_size: (u32, u32),
+    #[serde(default = "AnimParams::default_frame_range")]
+    pub frame_range: Range<u32>,
+}
+
+impl AnimParams {
     const fn default_frame_size() -> (u32, u32) {
         (24, 24)
     }
@@ -103,6 +107,14 @@ impl DrawParams {
     const fn default_frame_range() -> Range<u32> {
         0..1
     }
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub enum AnimSync {
+    #[default]
+    None,
+    Screen,
+    Group,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -235,14 +247,14 @@ pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
     // This needs to be done after parsing CO defs so OCOs don't inherit the changes
     if let Some(world_section) = ini.section("World") {
         for def in defs.values_mut() {
-            if let Some(override_key) = &def.override_key
+            if let Some(override_key) = &def.base.override_key
                 && let Some(override_path) = world_section.get(override_key)
                 && !override_path.is_empty()
             {
-                def.is_overridden = true;
+                def.base.is_overridden = true;
                 def.path.replace(override_path.to_owned());
-                if let Some(frame_range) = def.override_frame_range.take() {
-                    def.draw_params.frame_range = frame_range;
+                if let Some(frame_range) = def.base.override_frame_range.take() {
+                    def.anim.frame_range = frame_range;
                 }
             }
         }
@@ -259,7 +271,7 @@ fn create_co_def(id: ObjectId, props: CustomObjectProps, defs: &ObjectDefs) -> O
             let object = props.object as u8;
             let oco_id = ObjectId::from((bank, object));
             let def = defs.get(&oco_id);
-            match def.map(|def| def.oco_support) {
+            match def.map(|def| def.base.oco_support) {
                 Some(OcoSupport::Full | OcoSupport::NoCustomGraphics) => {
                     create_oco_def(id, oco_id, props, def.unwrap())
                 }
@@ -277,10 +289,10 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         tile_height,
         offset_x,
         offset_y,
-        anim_from,
+        anim_from: _,
         anim_to,
         anim_loopback,
-        anim_speed: _, // will be used soon
+        anim_speed: _,
         anim_repeat,
         ..
     } = props;
@@ -297,6 +309,7 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         };
     
     let sync_params = SyncParams {
+        limit: Limit::None,
         sync_to: AnimSync::Screen,
         ..Default::default()
     };
@@ -304,30 +317,25 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
     let draw_params = DrawParams {
         blend_mode: BlendMode::Over,
         alpha_range: None,
+        offset: (offset_x, offset_y),
+        flip: Flip::Never,
+        flip_variant: None,
+    };
+    
+    let anim_params = AnimParams {
         frame_size: (tile_width, tile_height),
         frame_range,
-        offset: (offset_x, offset_y),
-        oco_offset: None,
-        flip: Flip::Never,
-        flip_ocos: false,
-        flip_variant: None,
     };
 
     Some(ObjectDef {
         kind: ObjectKind::CustomObject,
         path: Some(image),
+        base: BaseParams::default(),
+        sync: sync_params,
+        draw: draw_params,
+        anim: anim_params,
         editor_only: false,
-        sync_params,
-        draw_params,
-        oco_support: OcoSupport::None,
-        limit: Limit::None,
-        color_base: None,
-        color_offsets: Vec::new(),
         replace_colors: Vec::new(),
-        no_oco_black_transparency: false,
-        override_key: None,
-        override_frame_range: None,
-        is_overridden: false,
     })
 }
 
@@ -354,80 +362,84 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
     
     assert!(bank < 254);
     assert!(object > 0);
-    assert!(def.oco_support != OcoSupport::None);
+    assert!(def.base.oco_support != OcoSupport::None);
     
-    if image == "" && def.oco_support != OcoSupport::NoCustomGraphics {
+    if image == "" && def.base.oco_support != OcoSupport::NoCustomGraphics {
         return None;
     }
     
     let sync_params = {
         let mut sync_north = Vec::new();
-        if def.sync_params.sync_north.contains(&oco_id) {
+        if def.sync.sync_north.contains(&oco_id) {
             sync_north.push(id);
         }
         
         let mut sync_south = Vec::new();
-        if def.sync_params.sync_south.contains(&oco_id) {
+        if def.sync.sync_south.contains(&oco_id) {
             sync_south.push(id);
         }
         
         let mut sync_west = Vec::new();
-        if def.sync_params.sync_west.contains(&oco_id) {
+        if def.sync.sync_west.contains(&oco_id) {
             sync_west.push(id);
         }
         
         let mut sync_east = Vec::new();
-        if def.sync_params.sync_east.contains(&oco_id) {
+        if def.sync.sync_east.contains(&oco_id) {
             sync_east.push(id);
         }
         
         SyncParams {
-            sync_to: def.sync_params.sync_to,
+            limit: def.sync.limit,
+            sync_to: def.sync.sync_to,
             sync_west,
             sync_east,
             sync_north,
             sync_south,
-            sync_offset: def.sync_params.sync_offset,
-            laser_phase: def.sync_params.laser_phase,
+            sync_offset: def.sync.sync_offset,
+            laser_phase: def.sync.laser_phase,
         }
     };
     
     let draw_params = {
-        if def.oco_support == OcoSupport::NoCustomGraphics {
-            tile_width = def.draw_params.frame_size.0;
-            tile_height = def.draw_params.frame_size.1;
-        }
-        
-        let base_offset = def.draw_params.oco_offset.unwrap_or(def.draw_params.offset);
+        let base_offset = def.base.oco_offset.unwrap_or(def.draw.offset);
         offset_x += base_offset.0;
         offset_y += base_offset.1;
         
-        let flip = if def.draw_params.flip_ocos {
+        let flip = if def.base.flip_ocos {
                 Flip::Always
             }
             else {
-                def.draw_params.flip
+                def.draw.flip
             };
         
         DrawParams {
             blend_mode: BlendMode::Over,
-            alpha_range: def.draw_params.alpha_range.clone(),
-            frame_size: (tile_width, tile_height),
-            frame_range: def.draw_params.frame_range.clone(),
+            alpha_range: def.draw.alpha_range.clone(),
             offset: (offset_x, offset_y),
-            oco_offset: None,
             flip,
-            flip_ocos: def.draw_params.flip_ocos,
             flip_variant: None,
         }
     };
     
+    let anim_params = {
+        if def.base.oco_support == OcoSupport::NoCustomGraphics {
+            tile_width = def.anim.frame_size.0;
+            tile_height = def.anim.frame_size.1;
+        }
+        
+        AnimParams {
+            frame_size: (tile_width, tile_height),
+            frame_range: def.anim.frame_range.clone(),
+        }
+    };
+    
     let mut replace_colors = Vec::new();
-    if let Some(color_base) = def.color_base {
-        for offset in [0].iter().chain(def.color_offsets.iter()) {
+    if let Some(color_base) = def.base.color_base {
+        for offset in [0].iter().chain(def.base.color_offsets.iter()) {
             let old = unpack_color(color_base + offset);
             let new = unpack_color(color + offset);
-            let is_transparent = !def.no_oco_black_transparency && new == [0, 0, 0];
+            let is_transparent = !def.base.no_oco_black_transparency && new == [0, 0, 0];
             replace_colors.push(ColorReplacement {
                 old,
                 new,
@@ -439,18 +451,15 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
     Some(ObjectDef {
         kind: ObjectKind::OverrideObject(oco_id.0),
         path: Some(image),
+        base: BaseParams {
+            oco_support: def.base.oco_support,
+            ..Default::default()
+        },
+        sync: sync_params,
+        draw: draw_params,
+        anim: anim_params,
         editor_only: def.editor_only,
-        sync_params,
-        draw_params,
-        oco_support: def.oco_support,
-        limit: def.limit,
-        color_base: None,
-        color_offsets: Vec::new(),
         replace_colors,
-        no_oco_black_transparency: false,
-        override_key: None,
-        override_frame_range: None,
-        is_overridden: false,
     })
 }
 

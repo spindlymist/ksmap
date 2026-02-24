@@ -84,7 +84,7 @@ pub fn count_laser_phases(screens: &[ScreenData], defs: &ObjectDefs) -> Vec<[usi
     let mut counts = vec![[0; 2]; screens.len()];
     let laser_objects: Vec<_> = defs.iter()
         .filter_map(|(id, def)| {
-            let phase = def.sync_params.laser_phase?;
+            let phase = def.sync.laser_phase?;
             Some((id.clone(), phase))
         })
         .collect();

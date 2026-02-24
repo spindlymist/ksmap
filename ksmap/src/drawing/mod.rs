@@ -7,7 +7,7 @@ use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::{Ini, VirtualSection};
 
 use crate::{
-    definitions::{AnimSync, DrawParams, Flip, ObjectDef, ObjectDefs, ObjectKind},
+    definitions::{AnimParams, AnimSync, DrawParams, Flip, ObjectDef, ObjectDefs, ObjectKind},
     graphics::Graphics,
     id::{ObjectId, ObjectVariant},
     partition::{Bounds, Partition},
@@ -267,7 +267,7 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
             continue;
         }
         if let Some(def) = object_def
-            && let Some(phase) = &def.sync_params.laser_phase
+            && let Some(phase) = &def.sync.laser_phase
             && *phase != ctx.sync.group.laser_phase
         {
             continue;
@@ -310,7 +310,7 @@ fn draw_object_with_offset(
         None => &ObjectDef::default(),
     };
 
-    let mut flip = match def.draw_params.flip {
+    let mut flip = match def.draw.flip {
         Flip::Never => false,
         Flip::Random => {
             ctx.seed.hasher(RngStep::Flip)
@@ -321,25 +321,25 @@ fn draw_object_with_offset(
         }
         Flip::Always => true,
     };
-    if flip && let Some(variant) = def.draw_params.flip_variant {
+    if flip && let Some(variant) = def.draw.flip_variant {
         object = object.into_variant(variant);
         flip = false;
         // Should technically fetch the variant def here but it doesn't matter for any existing object
     }
     let Some(obj_image) = ctx.gfx.object(&object) else { return };
     
-    let anim_t = match &def.sync_params.sync_to {
+    let anim_t = match &def.sync.sync_to {
         AnimSync::None => None,
         AnimSync::Screen => Some(ctx.sync.anim_t),
         AnimSync::Group => Some(ctx.sync.group.anim_t),
     };
-    draw_spritesheet(ctx, at_index as u8, &def.draw_params, anim_t, obj_image, offset, flip);
+    draw_spritesheet(ctx, at_index as u8, &def, anim_t, obj_image, offset, flip);
 }
 
 fn draw_spritesheet(
     ctx: &mut ScreenContext,
     at_index: u8,
-    params: &DrawParams,
+    def: &ObjectDef,
     anim_t: Option<u32>,
     obj_img: &RgbaImage,
     offset: (i32, i32),
@@ -350,12 +350,12 @@ fn draw_spritesheet(
         .write(ctx.layer)
         .write(at_index)
         .into_rng();
-    let mut frame = pick_frame(&mut rng_frame, &obj_img, params, anim_t);
+    let mut frame = pick_frame(&mut rng_frame, &obj_img, &def.anim, anim_t);
     let (screen_x, screen_y) = screen_index_to_pixels(at_index);
-    let (offset_x, offset_y) = params.offset;
+    let (offset_x, offset_y) = def.draw.offset;
 
     let (image_width, image_height) = obj_img.dimensions();
-    let (mut frame_width, mut frame_height) = params.frame_size;
+    let (mut frame_width, mut frame_height) = def.anim.frame_size;
     frame_width = u32::min(frame_width, image_width);
     frame_height = u32::min(frame_height, image_height);
     let final_x =
@@ -380,21 +380,21 @@ fn draw_spritesheet(
         None => frame,
     };
 
-    if let Some(alpha_range) = params.alpha_range.as_ref() {
+    if let Some(alpha_range) = def.draw.alpha_range.as_ref() {
         let mut rng_alpha = ctx.seed.hasher(RngStep::Alpha)
             .write(ctx.screen_pos)
             .write(ctx.layer)
             .write(at_index)
             .into_rng();
         let alpha = rng_alpha.random_range(alpha_range.clone()) as f32 / 255.0;
-        blend_modes::overlay_with_alpha(&mut ctx.image, &*frame, final_x, final_y, params.blend_mode, alpha);
+        blend_modes::overlay_with_alpha(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
     }
     else {
-        blend_modes::overlay(&mut ctx.image, &*frame, final_x, final_y, params.blend_mode);
+        blend_modes::overlay(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode);
     }
 }
 
-fn pick_frame<'a>(rng: &mut impl Rng, object_img: &'a RgbaImage, params: &DrawParams, anim_t: Option<u32>) -> SubImage<&'a RgbaImage> {
+fn pick_frame<'a>(rng: &mut impl Rng, object_img: &'a RgbaImage, params: &AnimParams, anim_t: Option<u32>) -> SubImage<&'a RgbaImage> {
     let (image_width, image_height) = object_img.dimensions();
     let (mut frame_width, mut frame_height) = params.frame_size;
     frame_width = u32::min(frame_width, image_width);
