@@ -13,7 +13,7 @@ pub struct Spritesheet {
     pub frame_height: u32,
     pub frame_range: Range<u32>,
     pub ticks_per_frame: u32,
-    pub tick_offset: u32,
+    pub frames_offset: u32,
 }
 
 impl Spritesheet {
@@ -41,10 +41,9 @@ impl Spritesheet {
         let n_frames = frame_range.end - frame_range.start;
         
         let ticks_per_frame = 1000u32.div_ceil(params.anim_speed);
-        let tick_offset =
+        let frames_offset =
             if anim_from != anim_loopback {
-                let n_frames_first_rep = anim_to - anim_from + 1;
-                n_frames_first_rep * ticks_per_frame
+                anim_to - anim_from + 1
             }
             else {
                 0
@@ -58,7 +57,7 @@ impl Spritesheet {
             frame_height,
             frame_range,
             ticks_per_frame,
-            tick_offset,
+            frames_offset,
         }
     }
     
@@ -69,9 +68,8 @@ impl Spritesheet {
     }
     
     pub fn frame_at_time(&self, t: u32) -> SubImage<&RgbaImage> {
-        let game_frame = t as u64 + (self.tick_offset / self.ticks_per_frame) as u64;
-        let anim_frame = (game_frame % self.n_frames as u64) as u32;
-        let i = self.frame_range.start + anim_frame;
+        let offset = ((t / self.ticks_per_frame) - self.frames_offset) % self.n_frames;
+        let i = self.frame_range.start + offset;
         self.frame(i)
     }
     
