@@ -69,8 +69,7 @@ impl Spritesheet {
     }
     
     pub fn frame_at_time(&self, t: u32) -> SubImage<&RgbaImage> {
-        // let game_frame = t as u64 + (self.tick_offset / self.ticks_per_frame) as u64;
-        let game_frame = t as u64;
+        let game_frame = t as u64 + (self.tick_offset / self.ticks_per_frame) as u64;
         let anim_frame = (game_frame % self.n_frames as u64) as u32;
         let i = self.frame_range.start + anim_frame;
         self.frame(i)
