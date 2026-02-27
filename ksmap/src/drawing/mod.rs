@@ -1,14 +1,14 @@
 use std::{fs, ops::RangeInclusive, path::Path};
 
 use anyhow::{anyhow, Result};
-use image::{codecs::png::PngEncoder, imageops, GenericImage, ImageEncoder, RgbaImage, SubImage};
+use image::{codecs::png::PngEncoder, imageops, GenericImage, ImageEncoder, RgbaImage};
 use rand::prelude::*;
 use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::{Ini, VirtualSection};
 
 use crate::{
-    definitions::{AnimParams, AnimSync, DrawParams, Flip, ObjectDef, ObjectDefs, ObjectKind},
-    graphics::Graphics,
+    definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind},
+    graphics::{Graphics, spritesheet::Spritesheet},
     id::{ObjectId, ObjectVariant},
     partition::{Bounds, Partition},
     screen_map::ScreenMap,
@@ -341,31 +341,32 @@ fn draw_spritesheet(
     at_index: u8,
     def: &ObjectDef,
     anim_t: Option<u32>,
-    obj_img: &RgbaImage,
+    spritesheet: &Spritesheet,
     offset: (i32, i32),
     flip: bool,
 ) {
-    let mut rng_frame = ctx.seed.hasher(RngStep::Frame)
-        .write(ctx.screen_pos)
-        .write(ctx.layer)
-        .write(at_index)
-        .into_rng();
-    let mut frame = pick_frame(&mut rng_frame, &obj_img, &def.anim, anim_t);
+    let mut frame = match anim_t {
+        Some(t) => spritesheet.frame_at_time(t),
+        None => {
+            let mut rng_frame = ctx.seed.hasher(RngStep::Frame)
+                .write(ctx.screen_pos)
+                .write(ctx.layer)
+                .write(at_index)
+                .into_rng();
+            spritesheet.random_frame(&mut rng_frame)
+        }
+    };
     let (screen_x, screen_y) = screen_index_to_pixels(at_index);
     let (offset_x, offset_y) = def.draw.offset;
 
-    let (image_width, image_height) = obj_img.dimensions();
-    let (mut frame_width, mut frame_height) = def.anim.frame_size;
-    frame_width = u32::min(frame_width, image_width);
-    frame_height = u32::min(frame_height, image_height);
     let final_x =
         (screen_x + 12) as i64
         + (offset_x + offset.0) as i64
-        - (frame_width / 2) as i64;
+        - (spritesheet.frame_width / 2) as i64;
     let final_y =
         (screen_y + 12) as i64
         + (offset_y + offset.1) as i64
-        - (frame_height / 2) as i64;
+        - (spritesheet.frame_height / 2) as i64;
     
     let flipped = if flip {
             let mut flipped = frame.to_image();
@@ -392,37 +393,6 @@ fn draw_spritesheet(
     else {
         blend_modes::overlay(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode);
     }
-}
-
-fn pick_frame<'a>(rng: &mut impl Rng, object_img: &'a RgbaImage, params: &AnimParams, anim_t: Option<u32>) -> SubImage<&'a RgbaImage> {
-    let (image_width, image_height) = object_img.dimensions();
-    let (mut frame_width, mut frame_height) = params.frame_size;
-    frame_width = u32::min(frame_width, image_width);
-    frame_height = u32::min(frame_height, image_height);
-    
-    let frames_per_row = image_width / frame_width;
-    let n_rows = image_height / frame_height;
-    
-    let n_frames_max = n_rows * frames_per_row;
-    let mut frame_range = params.frame_range.clone();
-    frame_range.end = u32::min(n_frames_max, frame_range.end);
-
-    let frame = 
-        if frame_range.is_empty() {
-            0
-        }
-        else if let Some(anim_t) = anim_t {
-            let n_frames = frame_range.end - frame_range.start;
-            (anim_t % n_frames) + frame_range.start
-        }
-        else {
-            rng.random_range(frame_range)
-        };
-
-    let frame_x = (frame % frames_per_row) * frame_width;
-    let frame_y = (frame / frames_per_row) * frame_height;
-
-    imageops::crop_imm(object_img, frame_x, frame_y, frame_width, frame_height)
 }
 
 fn draw_shift(ctx: &mut ScreenContext, curs: Cursor, vis_prop: &str, type_prop: &str) {

@@ -1,6 +1,6 @@
 mod ini_util;
 
-use std::{fmt::Write, fs, ops::{Deref, DerefMut, Range, RangeInclusive}, path::Path};
+use std::{fmt::Write, fs, ops::{Deref, DerefMut, RangeInclusive}, path::Path};
 
 use anyhow::Result;
 use libks::map_bin::Tile;
@@ -54,7 +54,7 @@ pub struct BaseParams {
     #[serde(default)]
     pub color_offsets: Vec<i32>,
     pub override_key: Option<String>,
-    pub override_frame_range: Option<Range<u32>>,
+    pub override_anim_range: Option<AnimRange>,
     #[serde(skip)]
     pub is_overridden: bool,
 }
@@ -95,8 +95,15 @@ pub struct DrawParams {
 pub struct AnimParams {
     #[serde(default = "AnimParams::default_frame_size")]
     pub frame_size: (u32, u32),
-    #[serde(default = "AnimParams::default_frame_range")]
-    pub frame_range: Range<u32>,
+    #[serde(default)]
+    pub anim_from: u32,
+    #[serde(default)]
+    pub anim_to: u32,
+    pub anim_loopback: Option<u32>,
+    #[serde(default = "AnimParams::default_anim_speed")]
+    pub anim_speed: u32,
+    #[serde(default)]
+    pub anim_repeat: u32,
 }
 
 impl AnimParams {
@@ -104,8 +111,8 @@ impl AnimParams {
         (24, 24)
     }
     
-    const fn default_frame_range() -> Range<u32> {
-        0..1
+    const fn default_anim_speed() -> u32 {
+        1000
     }
 }
 
@@ -155,6 +162,12 @@ pub struct ColorReplacement {
     pub old: [u8; 3],
     pub new: [u8; 3],
     pub is_transparent: bool,
+}
+
+#[derive(Debug, Clone, Copy, Default, Deserialize)]
+pub struct AnimRange {
+    pub from: u32,
+    pub to: u32,
 }
 
 pub struct ObjectDefs {
@@ -253,8 +266,10 @@ pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
             {
                 def.base.is_overridden = true;
                 def.path.replace(override_path.to_owned());
-                if let Some(frame_range) = def.base.override_frame_range.take() {
-                    def.anim.frame_range = frame_range;
+                if let Some(anim_range) = def.base.override_anim_range.take() {
+                    def.anim.anim_from = anim_range.from;
+                    def.anim.anim_loopback = Some(anim_range.from);
+                    def.anim.anim_to = anim_range.to;
                 }
             }
         }
@@ -289,10 +304,10 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         tile_height,
         offset_x,
         offset_y,
-        anim_from: _,
+        anim_from,
         anim_to,
         anim_loopback,
-        anim_speed: _,
+        anim_speed,
         anim_repeat,
         ..
     } = props;
@@ -300,13 +315,6 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
     if image == "" {
         return None;
     }
-    
-    let frame_range = if anim_repeat == 1 {
-            anim_to..anim_to + 1
-        }
-        else {
-            anim_loopback..(anim_to + 1)
-        };
     
     let sync_params = SyncParams {
         limit: Limit::None,
@@ -324,7 +332,11 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
     
     let anim_params = AnimParams {
         frame_size: (tile_width, tile_height),
-        frame_range,
+        anim_from,
+        anim_to,
+        anim_loopback: Some(anim_loopback),
+        anim_speed,
+        anim_repeat,
     };
 
     Some(ObjectDef {
@@ -430,7 +442,7 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         
         AnimParams {
             frame_size: (tile_width, tile_height),
-            frame_range: def.anim.frame_range.clone(),
+            ..def.anim
         }
     };
     

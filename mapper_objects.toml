@@ -5,75 +5,71 @@
 [0-1]
 sync_to = "Screen"
 blend_mode = "Add"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 oco_support = "None"
 
 [0-2]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-3]
 sync_to = "Screen"
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 override_key = "Powers"
-override_frame_range = { start = 0, end = 8 }
+override_anim_range = { from = 0, to = 7 }
 
 [0-4]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 8, end = 16 }
+override_anim_range = { from = 8, to = 15 }
 
 [0-5]
 sync_to = "Screen"
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 override_key = "Powers"
-override_frame_range = { start = 16, end = 24 }
+override_anim_range = { from = 16, to = 23 }
 
 [0-6]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 override_key = "Powers"
-override_frame_range = { start = 24, end = 32 }
+override_anim_range = { from = 24, to = 31 }
 
 [0-7]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 32, end = 40 }
+override_anim_range = { from = 32, to = 39 }
 
 [0-8]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 40, end = 48 }
+override_anim_range = { from = 40, to = 47 }
 
 [0-9]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 48, end = 56 }
+override_anim_range = { from = 48, to = 55 }
 
 [0-10]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 56, end = 64 }
+override_anim_range = { from = 56, to = 63 }
 
 [0-11]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-12]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-13]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-14]
@@ -82,17 +78,14 @@ oco_support = "None"
 ["0-14 Spot"]
 sync_to = "Screen"
 blend_mode = "Add"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 ["0-14 Floor"]
-frame_range = { start = 0, end = 1 }
 
 ["0-14 Circle"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 
 ["0-14 Square"]
-frame_range = { start = 0, end = 1 }
 
 [0-15]
 oco_support = "None"
@@ -101,20 +94,17 @@ oco_support = "None"
 path = "Bank0/Object14_Spot.png"
 sync_to = "Screen"
 blend_mode = "Add"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 ["0-15 Floor"]
 path = "Bank0/Object14_Floor.png"
-frame_range = { start = 0, end = 1 }
 
 ["0-15 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 
 ["0-15 Square"]
 path = "Bank0/Object14_Square.png"
-frame_range = { start = 0, end = 1 }
 
 [0-16]
 oco_support = "None"
@@ -123,98 +113,84 @@ oco_support = "None"
 path = "Bank0/Object14_Spot.png"
 sync_to = "Screen"
 blend_mode = "Add"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 ["0-16 Floor"]
 path = "Bank0/Object14_Floor.png"
-frame_range = { start = 0, end = 1 }
 
 ["0-16 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 
 ["0-16 Square"]
 path = "Bank0/Object14_Square.png"
-frame_range = { start = 0, end = 1 }
 
 [0-17]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-18]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-19]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-20]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-21]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 72, end = 73 }
+override_anim_range = { from = 72, to = 72 }
 
 [0-22]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 73, end = 74 }
+override_anim_range = { from = 73, to = 73 }
 
 [0-23]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 74, end = 75 }
+override_anim_range = { from = 74, to = 74 }
 
 [0-24]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 75, end = 76 }
+override_anim_range = { from = 75, to = 75 }
 
 [0-25]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-26]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-27]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-28]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-29]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-30]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-31]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-32]
@@ -223,20 +199,17 @@ oco_support = "None"
 ["0-32 Spot"]
 sync_to = "Screen"
 blend_mode = "Add"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 ["0-32 Floor"]
 path = "Bank0/Object14_Floor.png"
-frame_range = { start = 0, end = 1 }
 
 ["0-32 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 
 ["0-32 Square"]
 path = "Bank0/Object14_Square.png"
-frame_range = { start = 0, end = 1 }
 
 [0-33]
 oco_support = "None"
@@ -245,20 +218,17 @@ oco_support = "None"
 path = "Bank0/Object32_Spot.png"
 sync_to = "Screen"
 blend_mode = "Add"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 ["0-33 Floor"]
 path = "Bank0/Object14_Floor.png"
-frame_range = { start = 0, end = 1 }
 
 ["0-33 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 
 ["0-33 Square"]
 path = "Bank0/Object14_Square.png"
-frame_range = { start = 0, end = 1 }
 
 [0-34]
 oco_support = "None"
@@ -267,140 +237,114 @@ oco_support = "None"
 path = "Bank0/Object32_Spot.png"
 sync_to = "Screen"
 blend_mode = "Add"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 ["0-34 Floor"]
 path = "Bank0/Object14_Floor.png"
-frame_range = { start = 0, end = 1 }
 
 ["0-34 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 
 ["0-34 Square"]
 path = "Bank0/Object14_Square.png"
-frame_range = { start = 0, end = 1 }
 
 [0-35]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 override_key = "Powers"
-override_frame_range = { start = 64, end = 72 }
+override_anim_range = { from = 64, to = 71 }
 
 [0-36]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-37]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-38]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-39]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-40]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-41]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-42]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-43]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-44]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-45]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-46]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-47]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-48]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-49]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-247]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-248]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-249]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-250]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-251]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-252]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-253]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-254]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [0-255]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 ################################################################################
@@ -408,61 +352,56 @@ oco_support = "None"
 ################################################################################
 
 [1-1]
-frame_range = { start = 0, end = 16 }
+anim_to = 15
 
 [1-2]
-frame_range = { start = 0, end = 16 }
+anim_to = 15
 
 [1-3]
-frame_range = { start = 0, end = 18 }
+anim_to = 17
 
 [1-4]
-frame_range = { start = 0, end = 18 }
+anim_to = 17
 
 [1-5]
-frame_range = { start = 0, end = 39 }
+anim_to = 38
 
 ["1-5 Glow"]
 blend_mode = "Add"
 frame_size = [24, 96]
 offset = [0, -36]
-frame_range = { start = 0, end = 1 }
 
 [1-6]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [1-7]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-8]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-9]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-10]
 sync_west = ["1-10"]
 sync_east = ["1-10"]
-frame_range = { start = 0, end = 32 }
+anim_to = 31
 
 ["1-10 Glow"]
 sync_to = "Group"
 blend_mode = "Add"
 frame_size = [24, 96]
 offset = [0, -36]
-frame_range = { start = 0, end = 2 }
+anim_to = 1
 
 [1-11]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-12]
 sync_west = ["1-12"]
 sync_east = ["1-12"]
-frame_range = { start = 0, end = 32 }
+anim_to = 31
 
 ["1-12 Glow"]
 path = "Bank1/Object10_Glow.png"
@@ -470,73 +409,67 @@ sync_to = "Group"
 blend_mode = "Add"
 frame_size = [24, 96]
 offset = [0, -36]
-frame_range = { start = 0, end = 2 }
+anim_to = 1
 
 [1-13]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [1-14]
-frame_range = { start = 0, end = 16 }
+anim_to = 15
 
 [1-15]
-frame_range = { start = 0, end = 18 }
+anim_to = 17
 
 [1-16]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [1-17]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-18]
 blend_mode = "Add"
 frame_size = [25, 24]
-frame_range = { start = 0, end = 30 }
+anim_to = 29
 oco_support = "None"
 
 [1-19]
-frame_range = { start = 0, end = 24 }
+anim_to = 23
 
 [1-20]
-frame_range = { start = 0, end = 21 }
+anim_to = 20
 
 [1-21]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-22]
 sync_west = ["1-22"]
 sync_east = ["1-22"]
-frame_range = { start = 0, end = 24 }
+anim_to = 23
 
 ["1-22 Glow"]
 sync_to = "Group"
 blend_mode = "Add"
 frame_size = [24, 72]
 offset = [0, -24]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [1-23]
 blend_mode = "Add"
-frame_range = { start = 0, end = 21 }
+anim_to = 20
 
 [1-24]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-25]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-26]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [1-27]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 ################################################################################
@@ -545,339 +478,328 @@ oco_support = "None"
 
 [2-1]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [2-2]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [2-3]
 blend_mode = "Sub"
-frame_range = { start = 0, end = 1 }
 
 [2-4]
 blend_mode = "Sub"
-frame_range = { start = 0, end = 1 }
 
 [2-5]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [2-6]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [2-7]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [2-8]
 alpha_range = { start = 0, end = 255 }
-frame_range = { start = 0, end = 17 }
+anim_to = 16
 oco_support = "None"
 
 [2-9]
 sync_to = "Screen"
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [2-10]
 sync_to = "Screen"
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [2-11]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [2-12]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [2-13]
 alpha_range = { start = 0, end = 255 }
-frame_range = { start = 0, end = 33 }
+anim_to = 32
 oco_support = "None"
 
 [2-14]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [2-15]
 sync_to = "Screen"
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 
 [2-16]
 sync_to = "Screen"
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 
 [2-17]
 sync_to = "Screen"
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 
 [2-18]
 oco_support = "None"
 
 ["2-18 A"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 19 }
+anim_to = 18
 
 ["2-18 B"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 13 }
+anim_to = 12
 
 ["2-18 C"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 ["2-18 D"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [2-19]
 oco_support = "None"
 
 ["2-19 A"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 17 }
+anim_to = 16
 
 ["2-19 B"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 
 ["2-19 C"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 
 ["2-19 D"]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 
 [2-20]
 sync_to = "Screen"
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 
 [2-21]
 sync_to = "Screen"
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip_ocos = true
 
 [2-22]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [2-23]
-frame_range = { start = 0, end = 19 }
+anim_to = 18
 oco_support = "None"
 
 [2-24]
 sync_to = "Screen"
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 
 [2-25]
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 
 [2-26]
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 offset = [2, 0]
 
 [2-27]
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 flip_ocos = true
 
 [2-28]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [2-29]
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 
 [2-30]
-frame_range = { start = 0, end = 19 }
+anim_to = 18
 flip = "Random"
 
 [2-31]
-frame_range = { start = 0, end = 16 }
+anim_to = 15
 flip = "Random"
 
 [2-32]
 sync_to = "Screen"
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 
 ################################################################################
 # Bank 3 Knytt & Fluff
 ################################################################################
 
 [3-1]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [3-2]
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 flip = "Random"
 
 [3-3]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [3-4]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [3-5]
-frame_range = { start = 0, end = 1 }
 
 [3-6]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [3-7]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [3-8]
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 flip = "Random"
 
 [3-9]
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 flip = "Random"
 
 [3-10]
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 flip = "Random"
 
 [3-11]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 flip = "Random"
 
 [3-12]
-frame_range = { start = 0, end = 21 }
+anim_to = 20
 
 [3-13]
-frame_range = { start = 0, end = 17 }
+anim_to = 16
 
 [3-14]
-frame_range = { start = 0, end = 1 }
 
 [3-15]
-frame_range = { start = 0, end = 11 }
+anim_to = 10
 flip = "Random"
 
 [3-16]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [3-17]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [3-18]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [3-19]
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 flip = "Random"
 
 [3-20]
-frame_range = { start = 0, end = 32 }
+anim_to = 31
 flip = "Random"
 flip_variant = "Left"
 
 ["3-20 Left"]
-frame_range = { start = 0, end = 32 }
+anim_to = 31
 
 [3-21]
-frame_range = { start = 0, end = 25 }
+anim_to = 24
 
 [3-22]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [3-23]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [3-24]
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 flip = "Random"
 
 [3-25]
-frame_range = { start = 0, end = 1 }
 
 [3-26]
-frame_range = { start = 0, end = 1 }
 
 [3-27]
-frame_range = { start = 0, end = 23 }
+anim_to = 22
 
 [3-28]
-frame_range = { start = 0, end = 11 }
+anim_to = 10
 flip = "Random"
 
 [3-29]
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 flip = "Random"
 oco_support = "None"
 
 [3-30]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [3-31]
-frame_range = { start = 0, end = 11 }
+anim_to = 10
 flip = "Random"
 
 [3-32]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [3-33]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [3-34]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [3-35]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [3-36]
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 flip = "Random"
 
 [3-37]
-frame_range = { start = 2, end = 3 }
+anim_from = 2
+anim_to = 2
 
 [3-38]
-frame_range = { start = 0, end = 1 }
 
 [3-39]
-frame_range = { start = 0, end = 23 }
+anim_to = 22
 
 [3-40]
-frame_range = { start = 0, end = 11 }
+anim_to = 10
 flip = "Random"
 
 [3-41]
-frame_range = { start = 0, end = 1 }
 
 [3-42]
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 
 [3-43]
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 
 [3-44]
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 flip = "Random"
 
 ################################################################################
@@ -885,85 +807,80 @@ flip = "Random"
 ################################################################################
 
 [4-1]
-frame_range = { start = 0, end = 1 }
 
 [4-2]
-frame_range = { start = 0, end = 1 }
 
 [4-3]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 
 [4-4]
 sync_to = "Screen"
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 
 [4-5]
 sync_to = "Screen"
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 
 [4-6]
-frame_range = { start = 0, end = 1 }
 
 [4-7]
-frame_range = { start = 0, end = 1 }
 
 [4-8]
-frame_range = { start = 0, end = 1 }
 
 [4-9]
 frame_size = [48, 24]
-frame_range = { start = 0, end = 1 }
 offset = [12, 0]
 
 [4-10]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [4-11]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [4-12]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 flip = "Random"
 
 [4-13]
-frame_range = { start = 0, end = 1 }
 
 [4-14]
-frame_range = { start = 0, end = 11 }
+anim_to = 10
 flip = "Random"
 
 [4-15]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 flip = "Random"
 
 [4-16]
 sync_to = "Screen"
-frame_range = { start = 5, end = 13 }
+anim_from = 5
+anim_to = 12
 flip = "Random"
 
 [4-17]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [4-18]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 
 [4-19]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [4-20]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [4-21]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 
 [4-22]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 
 ################################################################################
 # Bank 5 Shadow People
@@ -972,20 +889,20 @@ frame_range = { start = 0, end = 12 }
 [5-1]
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 oco_support = "None"
 
 [5-2]
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 oco_support = "None"
 flip = "Random"
 
 [5-3]
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 oco_support = "None"
 flip = "Random"
 
@@ -996,58 +913,42 @@ flip = "Random"
 [6-1]
 frame_size = [96, 24]
 offset = [36, 0]
-frame_range = { start = 0, end = 1 }
 
 [6-2]
-frame_range = { start = 0, end = 1 }
 
 [6-3]
-frame_range = { start = 0, end = 1 }
 
 [6-4]
-frame_range = { start = 0, end = 1 }
 
 [6-5]
 frame_size = [48, 48]
-frame_range = { start = 0, end = 1 }
 offset = [12, -12]
 
 [6-6]
 blend_mode = "Add"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [6-7]
-frame_range = { start = 0, end = 1 }
 
 [6-8]
-frame_range = { start = 0, end = 1 }
 
 [6-9]
-frame_range = { start = 0, end = 1 }
 
 [6-10]
-frame_range = { start = 0, end = 1 }
 
 [6-11]
-frame_range = { start = 0, end = 1 }
 
 [6-12]
-frame_range = { start = 0, end = 1 }
 
 [6-13]
-frame_range = { start = 0, end = 1 }
 
 [6-14]
-frame_range = { start = 0, end = 1 }
 
 [6-15]
-frame_range = { start = 0, end = 1 }
 
 [6-16]
-frame_range = { start = 0, end = 1 }
 
 [6-17]
-frame_range = { start = 0, end = 1 }
 
 ################################################################################
 # Bank 7 Nature FX
@@ -1055,22 +956,19 @@ frame_range = { start = 0, end = 1 }
 
 [7-1]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-2]
-frame_range = { start = 0, end = 13 }
+anim_to = 12
 color_base = 8
 oco_support = "NoCustomGraphics"
 
 [7-3]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-4]
 color_base = 14408667
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-5]
@@ -1079,69 +977,60 @@ no_oco_black_transparency = true
 alpha_range = { start = 0, end = 40 }
 frame_size = [20, 98]
 offset = [-2, 37]
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-6]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-7]
-frame_range = { start = 0, end = 23 }
+anim_to = 22
 color_base = 10639221
 color_offsets = [989204, -1970198]
 oco_support = "NoCustomGraphics"
 
 [7-8]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-9]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 color_base = 8944745
 color_offsets = [-1249551]
 oco_support = "NoCustomGraphics"
 
 [7-10]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-11]
-frame_range = { start = 0, end = 23 }
+anim_to = 22
 color_base = 2709554
 oco_support = "NoCustomGraphics"
 
 [7-12]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-13]
-frame_range = { start = 0, end = 23 }
+anim_to = 22
 color_base = 16711679
 oco_support = "NoCustomGraphics"
 
 [7-14]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-15]
 color_base = 986895
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-16]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [7-17]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 ################################################################################
@@ -1152,85 +1041,83 @@ oco_support = "None"
 sync_to = "Group"
 sync_west = ["8-1"]
 sync_east = ["8-1"]
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 oco_support = "None"
 
 [8-2]
 sync_to = "Group"
 sync_north = ["8-2"]
 sync_south = ["8-2"]
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 oco_support = "None"
 
 [8-3]
 sync_to = "Group"
 sync_east = ["8-4", "8-5"]
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 oco_support = "None"
 
 [8-4]
 sync_to = "Group"
 sync_west = ["8-3", "8-4"]
 sync_east = ["8-4", "8-5"]
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 oco_support = "None"
 
 [8-5]
 sync_to = "Group"
 sync_west = ["8-3", "8-4"]
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 oco_support = "None"
 
 [8-6]
 blend_mode = "Add"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [8-7]
 blend_mode = "Add"
 frame_size = [48, 24]
 offset = [12, 0]
 oco_offset = [0, 0]
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [8-8]
 blend_mode = "Add"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [8-9]
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 
 [8-10]
 blend_mode = "Add"
 limit = { pick = "Random", n = 2 }
-frame_range = { start = 0, end = 24 }
+anim_to = 23
 
 [8-11]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [8-12]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 oco_support = "None"
 
 [8-13]
-frame_range = { start = 0, end = 13 }
+anim_to = 12
 
 [8-14]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [8-15]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 limit = { pick = "LogNPlusOne" }
 oco_support = "None"
 
 [8-16]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [8-17]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 ################################################################################
@@ -1238,111 +1125,111 @@ oco_support = "None"
 ################################################################################
 
 [9-1]
-frame_range = { start = 0, end = 1 }
 
 [9-2]
-frame_range = { start = 0, end = 1 }
 
 [9-3]
-frame_range = { start = 0, end = 1 }
 
 [9-4]
-frame_range = { start = 0, end = 1 }
 
 [9-5]
-frame_range = { start = 0, end = 1 }
 
 ################################################################################
 # Bank 10 Bouncers
 ################################################################################
 
 [10-1]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 
 [10-2]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 
 [10-3]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 
 [10-4]
-frame_range = { start = 0, end = 1 }
 
 [10-5]
-frame_range = { start = 0, end = 1 }
 
 [10-6]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [10-7]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [10-8]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 
 [10-9]
-frame_range = { start = 0, end = 19 }
+anim_to = 18
 
 [10-10]
-frame_range = { start = 0, end = 18 }
+anim_to = 17
 
 [10-11]
-frame_range = { start = 0, end = 11 }
+anim_to = 10
 
 [10-12]
-frame_range = { start = 0, end = 19 }
+anim_to = 18
 
 [10-13]
-frame_range = { start = 0, end = 29 }
+anim_to = 28
 
 ################################################################################
 # Bank 11 Disks
 ################################################################################
 
 [11-1]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 flip = "Random"
 
 [11-2]
-frame_range = { start = 4, end = 8 }
+anim_from = 4
+anim_to = 7
 flip = "Random"
 
 [11-3]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 flip = "Random"
 
 [11-4]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 flip = "Random"
 
 [11-5]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 flip = "Random"
 
 [11-6]
-frame_range = { start = 4, end = 8 }
+anim_from = 4
+anim_to = 7
 flip = "Random"
 
 [11-7]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [11-8]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 flip = "Random"
 
 [11-9]
-frame_range = { start = 4, end = 8 }
+anim_from = 4
+anim_to = 7
 flip = "Random"
 
 [11-10]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 flip = "Random"
 
 [11-11]
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 flip = "Random"
 
 ################################################################################
@@ -1353,7 +1240,7 @@ flip = "Random"
 alpha_range = { start = 0, end = 96 }
 sync_to = "Screen"
 frame_size = [24, 28]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 oco_support = "None"
 flip = "Random"
 
@@ -1361,12 +1248,12 @@ flip = "Random"
 alpha_range = { start = 0, end = 96 }
 sync_to = "Screen"
 frame_size = [24, 28]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 oco_support = "None"
 flip = "Random"
 
 [12-3]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 oco_support = "None"
 flip = "Random"
 
@@ -1375,19 +1262,18 @@ alpha_range = { start = 0, end = 96 }
 sync_to = "Screen"
 frame_size = [24, 29]
 offset = [0, -2]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 oco_support = "None"
 
 [12-5]
 alpha_range = { start = 0, end = 56 }
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [12-6]
 alpha_range = { start = 0, end = 96 }
 frame_size = [48, 24]
 offset = [12, 0]
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 oco_support = "None"
 flip = "Random"
 
@@ -1396,26 +1282,25 @@ alpha_range = { start = 0, end = 96 }
 sync_to = "Screen"
 frame_size = [24, 28]
 offset = [0, -2]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 oco_support = "None"
 
 [12-8]
 alpha_range = { start = 0, end = 96 }
 sync_to = "Screen"
-frame_range = { start = 0, end = 18 }
+anim_to = 17
 oco_support = "None"
 
 [12-9]
 alpha_range = { start = 0, end = 96 }
 frame_size = [48, 24]
 offset = [12, 0]
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 oco_support = "None"
 flip = "Random"
 
 [12-10]
 frame_size = [48, 48]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 offset = [12, -12]
 
@@ -1423,66 +1308,61 @@ offset = [12, -12]
 alpha_range = { start = 0, end = 96 }
 sync_to = "Screen"
 frame_size = [24, 28]
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 oco_support = "None"
 flip = "Random"
 
 [12-12]
 alpha_range = { start = 0, end = 96 }
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [12-13]
 alpha_range = { start = 0, end = 96 }
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [12-14]
 frame_size = [25, 72]
 offset = [0, 24]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [12-15]
 alpha_range = { start = 0, end = 96 }
 frame_size = [24, 26]
 offset = [0, -1]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 oco_support = "None"
 flip = "Random"
 
 [12-16]
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [12-17]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [12-18]
 blend_mode = "Add"
 sync_to = "Screen"
-frame_range = { start = 0, end = 2 }
+anim_to = 1
 oco_support = "None"
 
 [12-19]
 blend_mode = "Add"
 sync_to = "Screen"
-frame_range = { start = 0, end = 2 }
+anim_to = 1
 oco_support = "None"
 
 [12-20]
 blend_mode = "Add"
 sync_to = "Screen"
-frame_range = { start = 0, end = 2 }
+anim_to = 1
 oco_support = "None"
 
 [12-21]
 blend_mode = "Add"
 sync_to = "Screen"
-frame_range = { start = 0, end = 2 }
+anim_to = 1
 oco_support = "None"
 
 ################################################################################
@@ -1491,40 +1371,38 @@ oco_support = "None"
 
 [13-1]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip_ocos = true
 oco_offset = [1, 0]
 
 [13-2]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip_ocos = true
 oco_offset = [1, 0]
 
 [13-3]
 frame_size = [24, 96]
-frame_range = { start = 0, end = 1 }
 offset = [-7, 36]
 
 [13-4]
 frame_size = [48, 48]
-frame_range = { start = 0, end = 1 }
 offset = [12, 12]
 
 [13-5]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [13-6]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [13-7]
 sync_to = "Group"
 sync_west = ["13-7"]
 sync_east = ["13-7"]
 laser_phase = "Red"
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 
 [13-8]
 path = "Bank13/Object7.png"
@@ -1532,21 +1410,21 @@ sync_to = "Group"
 sync_west = ["13-8"]
 sync_east = ["13-8"]
 laser_phase = "Green"
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 
 [13-9]
 path = "Bank13/Object7.png"
 sync_to = "Group"
 sync_west = ["13-9"]
 sync_east = ["13-9"]
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 
 [13-10]
 sync_to = "Group"
 sync_north = ["13-10"]
 sync_south = ["13-10"]
 laser_phase = "Red"
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 
 [13-11]
 path = "Bank13/Object10.png"
@@ -1554,22 +1432,22 @@ sync_to = "Group"
 sync_north = ["13-11"]
 sync_south = ["13-11"]
 laser_phase = "Green"
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 
 [13-12]
 path = "Bank13/Object10.png"
 sync_to = "Group"
 sync_north = ["13-12"]
 sync_south = ["13-12"]
-frame_range = { start = 0, end = 3 }
+anim_to = 2
 
 [13-13]
 sync_to = "Screen"
-frame_range = { start = 0, end = 16 }
+anim_to = 15
 
 [13-14]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip_ocos = true
 oco_offset = [1, 0]
 
@@ -1578,290 +1456,268 @@ oco_offset = [1, 0]
 ################################################################################
 
 [14-1]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 flip_variant = "Left"
 
 ["14-1 Left"]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 
 [14-2]
 sync_to = "Screen"
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [14-3]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [14-4]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [14-5]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 
 [14-6]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [14-7]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 
 [14-8]
 sync_to = "Screen"
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [14-9]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 flip = "Random"
 
 [14-10]
-frame_range = { start = 0, end = 17 }
+anim_to = 16
 
 [14-11]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 flip = "Random"
 
 [14-12]
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 
 [14-13]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [14-14]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 flip = "Random"
 
 [14-15]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [14-16]
 frame_size = [120, 72]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 offset = [0, -24]
 oco_offset = [0, 0]
 
 [14-17]
 sync_to = "Screen"
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [14-18]
 frame_size = [120, 72]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 offset = [0, 24]
 oco_offset = [0, 0]
 
 [14-19]
-frame_range = { start = 5, end = 6 }
+anim_from = 5
+anim_to = 5
 
 [14-20]
-frame_range = { start = 5, end = 6 }
+anim_from = 5
+anim_to = 5
 
 [14-21]
 sync_to = "Screen"
-frame_range = { start = 4, end = 5 }
+anim_from = 4
+anim_to = 4
 
 [14-22]
 sync_to = "Screen"
-frame_range = { start = 4, end = 5 }
+anim_from = 4
+anim_to = 4
 
 [14-23]
 sync_to = "Screen"
-frame_range = { start = 4, end = 5 }
+anim_from = 4
+anim_to = 4
 
 [14-24]
 sync_to = "Screen"
-frame_range = { start = 4, end = 5 }
+anim_from = 4
+anim_to = 4
 
 ################################################################################
 # Bank 15 Objects & Areas
 ################################################################################
 
 [15-1]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-2]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-3]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-4]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-5]
 blend_mode = "Add"
-frame_range = { start = 0, end = 21 }
+anim_to = 20
 
 [15-6]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-7]
 sync_to = "Screen"
-frame_range = { start = 0, end = 24 }
+anim_to = 23
 oco_support = "None"
 
 [15-8]
 path = "Bank15/Object1.png"
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-9]
 path = "Bank15/Object2.png"
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-10]
 path = "Bank15/Object3.png"
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-11]
 path = "Bank15/Object4.png"
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-12]
-frame_range = { start = 0, end = 1 }
 
 [15-13]
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-14]
 path = "Bank15/Object13.png"
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-15]
 path = "Bank15/Object13.png"
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-16]
 path = "Bank15/Object13.png"
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-17]
 path = "Bank15/Object13.png"
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-18]
 path = "Bank15/Object13.png"
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-19]
 path = "Bank15/Object13.png"
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-20]
 path = "Bank15/Object13.png"
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-21]
 path = "Bank15/Object13.png"
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-22]
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 
 [15-23]
-frame_range = { start = 0, end = 1 }
 
 [15-24]
-frame_range = { start = 0, end = 1 }
 
 [15-25]
 alpha_range = { start = 0, end = 80 }
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-26]
 frame_size = [24, 48]
 offset = [0, 12]
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [15-27]
-frame_range = { start = 0, end = 1 }
 
 [15-28]
-frame_range = { start = 0, end = 1 }
 
 [15-29]
-frame_range = { start = 0, end = 1 }
 
 [15-30]
-frame_range = { start = 0, end = 1 }
 
 [15-31]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [15-32]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [15-33]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [15-34]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [15-35]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [15-36]
 sync_to = "Screen"
-frame_range = { start = 0, end = 10 }
+anim_to = 9
 
 [15-37]
-frame_range = { start = 0, end = 1 }
 
 [15-38]
 path = "Bank15/Object4.png"
-frame_range = { start = 0, end = 1 }
 
 ################################################################################
 # Bank 16 Invisible
@@ -1869,152 +1725,122 @@ frame_range = { start = 0, end = 1 }
 
 [16-1]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-2]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-3]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-4]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-5]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-6]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-7]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-8]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-9]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-10]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-11]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-12]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-13]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-14]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-15]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-16]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-17]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-18]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-19]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-20]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-21]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-22]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-23]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-24]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-25]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-26]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-27]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-28]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-29]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 [16-30]
 editor_only = true
-frame_range = { start = 0, end = 1 }
 oco_support = "None"
 
 ################################################################################
@@ -2023,57 +1849,59 @@ oco_support = "None"
 
 [17-1]
 sync_to = "Screen"
-frame_range = { start = 6, end = 13 }
+anim_from = 6
+anim_to = 12
 flip = "Random"
 
 [17-2]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [17-3]
 sync_to = "Screen" # synced with 18-6
 frame_size = [24, 48]
-frame_range = { start = 0, end = 16 }
+anim_to = 15
 offset = [0, 12]
 limit = { pick = "Random", n = 1 }
 
 [17-4]
-frame_range = { start = 0, end = 1 }
 
 [17-5]
-frame_range = { start = 0, end = 1 }
 
 [17-6]
 sync_to = "Screen"
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [17-7]
 sync_to = "Screen"
-frame_range = { start = 0, end = 17 }
+anim_to = 16
 flip = "Random"
 
 [17-8]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 
 [17-9]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 oco_offset = [-1, 0]
 
 [17-10]
 frame_size = [120, 72]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 offset = [0, -24]
 oco_offset = [0, 0]
 
 [17-11]
 frame_size = [72, 120]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 offset = [24, 0]
 oco_offset = [0, 0]
 
 [17-12]
 frame_size = [72, 120]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 offset = [-24, 0]
 oco_offset = [0, 0]
 
@@ -2083,29 +1911,29 @@ oco_offset = [0, 0]
 
 [18-1]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [18-2]
 sync_to = "Screen"
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 
 [18-3]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [18-4]
 sync_to = "Screen"
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 
 [18-5]
 sync_to = "Screen"
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 flip_ocos = true
 
 [18-6]
 sync_to = "Screen" # synced with 17-3
 frame_size = [24, 48]
-frame_range = { start = 0, end = 16 }
+anim_to = 15
 offset = [0, 12]
 limit = { pick = "Random", n = 1 }
 
@@ -2118,242 +1946,237 @@ limit = { pick = "Random", n = 1 }
 [19-1]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [19-2]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [19-3]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [19-4]
 alpha_range = { start = 0, end = 255 }
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 1 }
 oco_support = "NoCustomGraphics"
 
 [19-5]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 
 [19-6]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 4 }
+anim_to = 3
 
 [19-7]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 
 [19-8]
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-9]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [19-10]
 sync_to = "Screen"
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-11]
-frame_range = { start = 0, end = 19 }
+anim_to = 18
 limit = { pick = "First", n = 1 }
 flip = "Random"
 
 [19-12]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [19-13]
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-14]
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 limit = { pick = "First", n = 1 }
 flip = "Random"
 
 [19-15]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [19-16]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 flip = "Random"
 
 [19-17]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 flip = "Random"
 
 [19-18]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 flip = "Random"
 
 [19-19]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 flip = "Random"
 
 [19-20]
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-21]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [19-22]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 
 [19-23]
 sync_to = "Screen"
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 limit = { pick = "First", n = 1 }
 
 [19-24]
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-25]
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 limit = { pick = "First", n = 1 }
 
 [19-26]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 8 }
+anim_to = 7
 flip = "Random"
 
 [19-27]
 sync_to = "Screen"
-frame_range = { start = 5, end = 13 }
+anim_from = 5
+anim_to = 12
 limit = { pick = "First", n = 1 }
 flip = "Random"
 
 [19-28]
-frame_range = { start = 3, end = 4 }
+anim_from = 3
+anim_to = 3
 limit = { pick = "First", n = 1 }
 
 [19-29]
-frame_range = { start = 0, end = 6 }
+anim_to = 5
 limit = { pick = "First", n = 1 }
 flip = "Random"
 
 [19-30]
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 limit = { pick = "First", n = 1 }
 
 [19-31]
 frame_size = [48, 48]
-frame_range = { start = 0, end = 1 }
 offset = [12, -12]
 limit = { pick = "First", n = 1 }
 
 [19-32]
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-33]
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-34]
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-35]
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-36]
-frame_range = { start = 0, end = 1 }
 limit = { pick = "First", n = 1 }
 
 [19-37]
-frame_range = { start = 0, end = 29 }
+anim_to = 28
 limit = { pick = "First", n = 1 }
 
 [19-38]
-frame_range = { start = 4, end = 8 }
+anim_from = 4
+anim_to = 7
 limit = { pick = "First", n = 1 }
 flip = "Random"
 
 [19-39]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 5 }
+anim_to = 4
 flip = "Random"
 
 [19-40]
-frame_range = { start = 4, end = 8 }
+anim_from = 4
+anim_to = 7
 limit = { pick = "First", n = 1 }
 flip = "Random"
 
 [19-41]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 12 }
+anim_to = 11
 flip = "Random"
 
 [19-42]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [19-43]
-frame_range = { start = 0, end = 17 }
+anim_to = 16
 limit = { pick = "First", n = 1 }
 
 [19-44]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 14 }
+anim_to = 13
 
 [19-45]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [19-46]
-frame_range = { start = 5, end = 6 }
+anim_from = 5
+anim_to = 5
 limit = { pick = "First", n = 1 }
 
 [19-47]
 sync_to = "Screen"
-frame_range = { start = 4, end = 5 }
+anim_from = 4
+anim_to = 4
 limit = { pick = "First", n = 1 }
 
 [19-48]
 sync_to = "Screen"
-frame_range = { start = 6, end = 13 }
+anim_from = 6
+anim_to = 12
 limit = { pick = "First", n = 1 }
 flip = "Random"
 
 [19-49]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 7 }
+anim_to = 6
 flip = "Random"
 
 [19-50]
 frame_size = [24, 48]
-frame_range = { start = 0, end = 16 }
+anim_to = 15
 offset = [0, 12]
 limit = { pick = "Random", n = 1 }
 
@@ -2362,7 +2185,7 @@ limit = { pick = "Random", n = 1 }
 [19-51]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2370,7 +2193,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2378,7 +2201,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2386,7 +2209,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2394,7 +2217,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2402,7 +2225,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2410,7 +2233,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2418,7 +2241,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2426,7 +2249,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2434,7 +2257,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2442,7 +2265,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2450,7 +2273,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2458,7 +2281,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2466,7 +2289,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2474,7 +2297,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2482,7 +2305,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2490,7 +2313,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2498,7 +2321,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2506,7 +2329,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2514,7 +2337,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2522,7 +2345,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2530,7 +2353,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2538,7 +2361,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2546,7 +2369,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2554,7 +2377,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2562,7 +2385,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2570,7 +2393,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2578,7 +2401,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2586,7 +2409,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2594,7 +2417,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2602,7 +2425,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2610,7 +2433,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2618,7 +2441,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2626,7 +2449,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2634,7 +2457,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2642,7 +2465,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2650,7 +2473,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2658,7 +2481,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2666,7 +2489,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2674,7 +2497,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2682,7 +2505,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2690,7 +2513,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2698,7 +2521,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2706,7 +2529,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2714,7 +2537,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2722,7 +2545,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2730,7 +2553,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2738,7 +2561,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2746,7 +2569,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2754,7 +2577,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2762,7 +2585,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2770,7 +2593,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2778,7 +2601,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2786,7 +2609,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2794,7 +2617,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2802,7 +2625,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2810,7 +2633,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2818,7 +2641,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2826,7 +2649,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2834,7 +2657,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2842,7 +2665,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2850,7 +2673,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2858,7 +2681,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2866,7 +2689,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2874,7 +2697,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2882,7 +2705,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2890,7 +2713,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2898,7 +2721,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2906,7 +2729,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2914,7 +2737,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2922,7 +2745,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2930,7 +2753,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2938,7 +2761,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2946,7 +2769,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2954,7 +2777,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2962,7 +2785,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2970,7 +2793,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2978,7 +2801,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2986,7 +2809,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -2994,7 +2817,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3002,7 +2825,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3010,7 +2833,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3018,7 +2841,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3026,7 +2849,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3034,7 +2857,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3042,7 +2865,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3050,7 +2873,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3058,7 +2881,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3066,7 +2889,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3074,7 +2897,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3082,7 +2905,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3090,7 +2913,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3098,7 +2921,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3106,7 +2929,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3114,7 +2937,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3122,7 +2945,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3130,7 +2953,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3138,7 +2961,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3146,7 +2969,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3154,7 +2977,7 @@ oco_support = "None"
 path = "Bank19/Object51.png"
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 9 }
+anim_to = 8
 override_key = "Coin"
 oco_support = "None"
 
@@ -3162,129 +2985,129 @@ oco_support = "None"
 
 [19-151]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact1"
 
 [19-152]
 path = "Bank19/Object151.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact1"
 
 [19-153]
 path = "Bank19/Object151.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact1"
 
 [19-154]
 path = "Bank19/Object151.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact1"
 
 [19-155]
 path = "Bank19/Object151.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact1"
 
 [19-156]
 path = "Bank19/Object151.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact1"
 
 [19-157]
 path = "Bank19/Object151.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact1"
 
 ##### Yellow Artifacts
 
 [19-158]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact2"
 
 [19-159]
 path = "Bank19/Object158.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact2"
 
 [19-160]
 path = "Bank19/Object158.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact2"
 
 [19-161]
 path = "Bank19/Object158.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact2"
 
 [19-162]
 path = "Bank19/Object158.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact2"
 
 [19-163]
 path = "Bank19/Object158.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact2"
 
 [19-164]
 path = "Bank19/Object158.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact2"
 
 ##### Blue Artifacts
 
 [19-165]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact3"
 
 [19-166]
 path = "Bank19/Object165.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact3"
 
 [19-167]
 path = "Bank19/Object165.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact3"
 
 [19-168]
 path = "Bank19/Object165.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact3"
 
 [19-169]
 path = "Bank19/Object165.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact3"
 
 [19-170]
 path = "Bank19/Object165.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact3"
 
 [19-171]
 path = "Bank19/Object165.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact3"
 
 ##### Purple Artifacts
@@ -3292,170 +3115,170 @@ override_key = "Artifact3"
 
 [19-172]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact4"
 
 [19-173]
 path = "Bank19/Object172.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact4"
 
 [19-174]
 path = "Bank19/Object172.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact4"
 
 [19-175]
 path = "Bank19/Object172.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact4"
 
 [19-176]
 path = "Bank19/Object172.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact4"
 
 [19-177]
 path = "Bank19/Object172.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact4"
 
 [19-178]
 path = "Bank19/Object172.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact4"
 
 ##### Green Artifacts
 
 [19-179]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact5"
 
 [19-180]
 path = "Bank19/Object179.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact5"
 
 [19-181]
 path = "Bank19/Object179.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact5"
 
 [19-182]
 path = "Bank19/Object179.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact5"
 
 [19-183]
 path = "Bank19/Object179.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact5"
 
 [19-184]
 path = "Bank19/Object179.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact5"
 
 [19-185]
 path = "Bank19/Object179.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact5"
 
 ##### Pink Artifacts
 
 [19-186]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact6"
 
 [19-187]
 path = "Bank19/Object186.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact6"
 
 [19-188]
 path = "Bank19/Object186.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact6"
 
 [19-189]
 path = "Bank19/Object186.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact6"
 
 [19-190]
 path = "Bank19/Object186.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact6"
 
 [19-191]
 path = "Bank19/Object186.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact6"
 
 [19-192]
 path = "Bank19/Object186.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact6"
 
 ##### Cyan Artifacts
 
 [19-193]
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact7"
 
 [19-194]
 path = "Bank19/Object193.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact7"
 
 [19-195]
 path = "Bank19/Object193.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact7"
 
 [19-196]
 path = "Bank19/Object193.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact7"
 
 [19-197]
 path = "Bank19/Object193.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact7"
 
 [19-198]
 path = "Bank19/Object193.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact7"
 
 [19-199]
 path = "Bank19/Object193.png"
 limit = { pick = "First", n = 1 }
-frame_range = { start = 0, end = 15 }
+anim_to = 14
 override_key = "Artifact7"

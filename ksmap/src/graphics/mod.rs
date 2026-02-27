@@ -1,3 +1,6 @@
+pub mod spritesheet;
+mod png_decoder;
+
 use std::{
     collections::hash_map::Entry,
     fs::OpenOptions,
@@ -15,8 +18,7 @@ use crate::{
     definitions::{ColorReplacement, ObjectDef, ObjectDefs, ObjectKind, OcoSupport},
     id::{ObjectId, ObjectVariant},
 };
-
-mod png_decoder;
+use spritesheet::Spritesheet;
 
 type MaybeImage = Option<Rc<RgbaImage>>;
 
@@ -26,7 +28,7 @@ pub struct Graphics<'a> {
     cache: FxHashMap<(PathBuf, MagicColor), MaybeImage>,
     tilesets: FxHashMap<AssetId, Rc<RgbaImage>>,
     gradients: FxHashMap<AssetId, Rc<RgbaImage>>,
-    objects: FxHashMap<ObjectId, Rc<RgbaImage>>,
+    objects: FxHashMap<ObjectId, Spritesheet>,
 }
 
 pub struct Paths {
@@ -86,9 +88,8 @@ impl<'a> Graphics<'a> {
             .map(Rc::as_ref)
     }
 
-    pub fn object(&self, id: &ObjectId) -> Option<&RgbaImage> {
+    pub fn object(&self, id: &ObjectId) -> Option<&Spritesheet> {
         self.objects.get(&id)
-            .map(Rc::as_ref)
     }
     
     pub fn load_tilesets(&mut self, ids: &[AssetId]) -> Result<()> {
@@ -111,14 +112,15 @@ impl<'a> Graphics<'a> {
     
     pub fn load_objects(&mut self, ids: &[ObjectId]) -> Result<()> {
         for id in ids {
-            let def = self.object_defs.get(id);
-            let image = match def.map(|def| &def.kind) {
-                Some(ObjectKind::Object) | None => self.load_stock_object(id, def)?,
-                Some(ObjectKind::CustomObject) => self.load_custom_object(def.unwrap())?,
-                Some(ObjectKind::OverrideObject(_)) => self.load_override_object(def.unwrap())?,
+            let Some(def) = self.object_defs.get(id) else { continue };
+            let image = match &def.kind {
+                ObjectKind::Object => self.load_stock_object(id, def)?,
+                ObjectKind::CustomObject => self.load_custom_object(def)?,
+                ObjectKind::OverrideObject(_) => self.load_override_object(def)?,
             };
             if let Some(image) = image {
-                self.objects.insert(id.clone(), image);
+                let spritesheet = Spritesheet::new(image, &def.anim);
+                self.objects.insert(id.clone(), spritesheet);
             }
         }
         Ok(())
@@ -202,14 +204,14 @@ impl<'a> Graphics<'a> {
     fn load_stock_object(
         &mut self,
         id: &ObjectId,
-        def: Option<&ObjectDef>,
+        def: &ObjectDef,
     ) -> Result<MaybeImage> {
-        if let Some(def) = def && def.base.is_overridden {
+        if def.base.is_overridden {
             return self.load_custom_object(def);
         }
         
         let ObjectId(tile, variant) = id;
-        let suffix = match def.and_then(|def| def.path.as_ref()) {
+        let suffix = match def.path.as_ref() {
             Some(path) => path,
             None => match variant {
                 ObjectVariant::None => &format!("Bank{}/Object{}.png", tile.0, tile.1),
@@ -245,7 +247,7 @@ impl<'a> Graphics<'a> {
                 let Some(original_def) = self.object_defs.get(&original_id) else {
                     return Ok(None);
                 };
-                self.load_stock_object(&original_id, Some(original_def))?
+                self.load_stock_object(&original_id, original_def)?
             }
             _ => self.load_custom_object(def)?
         };
