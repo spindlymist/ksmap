@@ -232,6 +232,26 @@ pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
     const KEY_PREFIX_LEN: usize = KEY_PREFIX.len();
     const KEY_LEN_MAX: usize = "custom object b255".len();
     
+    let mut locked_sizes = FxHashMap::<String, (u32, u32)>::default();
+    if let Some(world_section) = ini.section("World") {
+        for key in [
+            "Coin",
+            "Powers",
+            "Artifact1",
+            "Artifact2",
+            "Artifact3",
+            "Artifact4",
+            "Artifact5",
+            "Artifact6",
+            "Artifact7",
+        ] {
+            if let Some(path) = world_section.get(key) {
+                let path_lower = path.to_ascii_lowercase();
+                locked_sizes.insert(path_lower, (24, 24));
+            }
+        }
+    }
+    
     let mut key = String::with_capacity(KEY_LEN_MAX);
     key.push_str(KEY_PREFIX);
     
@@ -239,20 +259,36 @@ pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
         key.truncate(KEY_PREFIX_LEN);
         write!(key, "{i}").unwrap();
         let id = ObjectId::from((255, i));
-        if let Some(def) = ini.section(&key)
+        if let Some(mut def) = ini.section(&key)
             .map(parse_co_props)
             .and_then(|props| create_co_def(id, props, defs))
         {
+            if let Some(ref path) = def.path {
+                let path_lower = path.to_ascii_lowercase();
+                let new_size = locked_sizes.entry(path_lower)
+                    .or_insert(def.anim.frame_size);
+                if def.base.oco_support != OcoSupport::NoCustomGraphics {
+                    def.anim.frame_size = *new_size;
+                }
+            }
             defs.insert(id, def);
         }
         
         key.truncate(KEY_PREFIX_LEN);
         write!(key, "b{i}").unwrap();
         let id = ObjectId::from((254, i));
-        if let Some(def) = ini.section(&key)
+        if let Some(mut def) = ini.section(&key)
             .map(parse_co_props)
             .and_then(|props| create_co_def(id, props, defs))
         {
+            if let Some(ref path) = def.path {
+                let path_lower = path.to_ascii_lowercase();
+                let size = locked_sizes.entry(path_lower)
+                    .or_insert(def.anim.frame_size);
+                if def.base.oco_support != OcoSupport::NoCustomGraphics {
+                    def.anim.frame_size = *size;
+                }
+            }
             defs.insert(id, def);
         }
     }
