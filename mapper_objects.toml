@@ -18,6 +18,7 @@ sync_to = "Screen"
 anim_to = 11
 override_key = "Powers"
 override_anim_range = { from = 0, to = 7 }
+override_anim_speed = 500
 anim_speed = 250
 
 [0-4]
@@ -32,6 +33,7 @@ sync_to = "Screen"
 anim_to = 6
 override_key = "Powers"
 override_anim_range = { from = 16, to = 23 }
+override_anim_speed = 500
 anim_speed = 250
 
 [0-6]
@@ -39,6 +41,7 @@ sync_to = "Screen"
 anim_to = 5
 override_key = "Powers"
 override_anim_range = { from = 24, to = 31 }
+override_anim_speed = 500
 anim_speed = 250
 
 [0-7]
@@ -46,6 +49,7 @@ sync_to = "Screen"
 anim_to = 7
 override_key = "Powers"
 override_anim_range = { from = 32, to = 39 }
+override_anim_speed = 500
 anim_speed = 120
 
 [0-8]
@@ -53,6 +57,7 @@ sync_to = "Screen"
 anim_to = 7
 override_key = "Powers"
 override_anim_range = { from = 40, to = 47 }
+override_anim_speed = 500
 anim_speed = 250
 
 [0-9]
@@ -60,6 +65,7 @@ sync_to = "Screen"
 anim_to = 7
 override_key = "Powers"
 override_anim_range = { from = 48, to = 55 }
+anim_speed = 500
 
 [0-10]
 sync_to = "Screen"
@@ -93,6 +99,7 @@ anim_speed = 250
 
 ["0-14 Circle"]
 sync_to = "Screen"
+anim_to = 2
 
 ["0-14 Square"]
 
@@ -112,6 +119,7 @@ path = "Bank0/Object14_Floor.png"
 ["0-15 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
+anim_to = 2
 
 ["0-15 Square"]
 path = "Bank0/Object14_Square.png"
@@ -132,6 +140,7 @@ path = "Bank0/Object14_Floor.png"
 ["0-16 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
+anim_to = 2
 
 ["0-16 Square"]
 path = "Bank0/Object14_Square.png"
@@ -157,24 +166,28 @@ sync_to = "Screen"
 anim_to = 7
 override_key = "Powers"
 override_anim_range = { from = 72, to = 72 }
+anim_speed = 500
 
 [0-22]
 sync_to = "Screen"
 anim_to = 7
 override_key = "Powers"
 override_anim_range = { from = 73, to = 73 }
+anim_speed = 500
 
 [0-23]
 sync_to = "Screen"
 anim_to = 7
 override_key = "Powers"
 override_anim_range = { from = 74, to = 74 }
+anim_speed = 500
 
 [0-24]
 sync_to = "Screen"
 anim_to = 7
 override_key = "Powers"
 override_anim_range = { from = 75, to = 75 }
+anim_speed = 500
 
 [0-25]
 editor_only = true
@@ -219,6 +232,7 @@ path = "Bank0/Object14_Floor.png"
 ["0-32 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
+anim_to = 2
 
 ["0-32 Square"]
 path = "Bank0/Object14_Square.png"
@@ -239,6 +253,7 @@ path = "Bank0/Object14_Floor.png"
 ["0-33 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
+anim_to = 2
 
 ["0-33 Square"]
 path = "Bank0/Object14_Square.png"
@@ -259,6 +274,7 @@ path = "Bank0/Object14_Floor.png"
 ["0-34 Circle"]
 path = "Bank0/Object14_Circle.png"
 sync_to = "Screen"
+anim_to = 2
 
 ["0-34 Square"]
 path = "Bank0/Object14_Square.png"

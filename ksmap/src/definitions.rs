@@ -55,6 +55,7 @@ pub struct BaseParams {
     pub color_offsets: Vec<i32>,
     pub override_key: Option<String>,
     pub override_anim_range: Option<AnimRange>,
+    pub override_anim_speed: Option<u32>,
     #[serde(skip)]
     pub is_overridden: bool,
 }
@@ -270,6 +271,9 @@ pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
                     def.anim.anim_from = anim_range.from;
                     def.anim.anim_loopback = Some(anim_range.from);
                     def.anim.anim_to = anim_range.to;
+                }
+                if let Some(anim_speed) = def.base.override_anim_speed.take() {
+                    def.anim.anim_speed = anim_speed;
                 }
             }
         }
