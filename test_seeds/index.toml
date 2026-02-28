@@ -33,6 +33,20 @@ seeds = [
     "B6FC86F98CAB65E3",
 ]
 
+["Lit Knob - CO Frame Size Test"]
+seeds = [
+    "057E6BB1D322E536",
+    "B14BECD908C5E9D7",
+    "61FFAAF22A35B64D",
+]
+
+["Lit Knob - CO Speed Test"]
+seeds = [
+    "3C1419E38AC63F50",
+    "43313E7B5941A64C",
+    "C77A9D8BF156735D",
+]
+
 ["Lit Knob - Combination Test"]
 seeds = [
     "36A4CA2207354896",
@@ -94,6 +108,13 @@ seeds = [
     "4B9EE1A68DD26E72",
     "EBA57E954F15900C",
     "5517A51CC1868A52",
+]
+
+["Lit Knob - Supported OCO Test"]
+seeds = [
+    "0FC83115F7CA3695",
+    "59B7FD47A7013CEE",
+    "98EA9BB88B4527C6",
 ]
 
 ["Lit Knob - Umbrella and Keys Test"]
