@@ -128,7 +128,7 @@ fn make_seeds(args: MakeSeedsArgs) -> Result<()> {
         }
         std::fs::create_dir_all(&output_dir)?;
         
-        render_seeds(&level_dir, &seeds, &output_dir);
+        render_seeds(&level_dir, &seeds, &output_dir, &level_name);
     }
     
     let seed_index_serialized = toml::to_string_pretty(&seed_index)?;
@@ -153,13 +153,13 @@ fn render(args: RenderArgs) -> Result<()> {
         }
         std::fs::create_dir_all(&output_dir)?;
         
-        render_seeds(&level_dir, &index_entry.seeds, &output_dir);
+        render_seeds(&level_dir, &index_entry.seeds, &output_dir, &level_name);
     }
     
     Ok(())
 }
 
-fn render_seeds(level_dir: &Path, seeds: &[MapSeed], output_dir: &Path) {
+fn render_seeds(level_dir: &Path, seeds: &[MapSeed], output_dir: &Path, level_name: &str) {
     let ini = world_ini::load_ini_from_dir(&level_dir)
         .expect("World.ini should be valid");
     let screens = map_bin::parse_map_file(level_dir.join("Map.bin"))
@@ -199,6 +199,8 @@ fn render_seeds(level_dir: &Path, seeds: &[MapSeed], output_dir: &Path) {
     };
     
     for seed in seeds.iter().cloned() {
+        println!("{seed} {level_name}");
+        
         let world_sync = WorldSync::new(seed, &screen_map, &object_defs, &sync_options);
         
         let draw_context = DrawContext {
