@@ -117,6 +117,7 @@ test_case!(lit_knob_co_frame_size_test, "Lit Knob - CO Frame Size Test");
 test_case!(lit_knob_co_speed_test, "Lit Knob - CO Speed Test");
 test_case!(lit_knob_combination_test, "Lit Knob - Combination Test");
 test_case!(lit_knob_custom_collectables_test, "Lit Knob - Custom Collectables Test");
+test_case!(lit_knob_duplicate_co_ini_test, "Lit Knob - Duplicate CO Ini Test");
 test_case!(lit_knob_global_sync_test, "Lit Knob - Global Sync Test");
 test_case!(lit_knob_laser_visibility_test, "Lit Knob - Laser Visibility Test");
 test_case!(lit_knob_layer_test, "Lit Knob - Layer Test");

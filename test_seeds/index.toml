@@ -61,6 +61,13 @@ seeds = [
     "5C0A675D15D85DC3",
 ]
 
+["Lit Knob - Duplicate CO Ini Test"]
+seeds = [
+    "BED5F13D956818BD",
+    "CE3C37B9633731A8",
+    "0C5BB7E2BF427AFA",
+]
+
 ["Lit Knob - Global Sync Test"]
 seeds = [
     "5E602A28F6B3D6D2",
