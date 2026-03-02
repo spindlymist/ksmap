@@ -234,6 +234,17 @@ impl<'a> Graphics<'a> {
 
     fn load_custom_object(&mut self, def: &ObjectDef) -> Result<MaybeImage> {
         let Some(path) = def.path.as_ref() else { return Ok(None) };
+        
+        // PathBuf::join sees /xyz as an absolute path and replaces the base path
+        // KS joins paths by simple string concatenation, so leading slashes are meaningless
+        let path = match path.char_indices()
+            .skip_while(|(_, ch)| *ch == '/' || *ch == '\\')
+            .next()
+        {
+            Some((i, _)) => &path[i..],
+            None => return Ok(None),
+        };
+        
         self.load_image(self.paths.custom_objects.join(path), MagicColor::BLACK)
     }
 
