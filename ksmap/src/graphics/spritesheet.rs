@@ -28,16 +28,21 @@ impl Spritesheet {
         let anim_to = params.anim_to.min(n_frames_total - 1);
         let anim_from = params.anim_from.min(anim_to);
         let anim_loopback = params.anim_loopback
-                .unwrap_or(params.anim_from)
-                .min(params.anim_to);
+                .unwrap_or(anim_from)
+                .min(anim_to);
         
-        let frame_range =
+        let mut frame_range =
             if params.anim_repeat == 1 {
                 anim_to..(anim_to + 1)
             }
             else {
                 anim_loopback..(anim_to + 1)
             };
+        if frame_range.is_empty() {
+            // This shouldn't happen, but Rng::random_range will panic
+            // if the range is empty
+            frame_range.end += 1;
+        }
         let n_frames = frame_range.end - frame_range.start;
         
         let ticks_per_frame = 1000u32.div_ceil(params.anim_speed);
