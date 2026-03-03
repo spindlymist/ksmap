@@ -228,10 +228,13 @@ pub fn load_object_defs(path: impl AsRef<Path>) -> Result<ObjectDefs> {
 }
 
 pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
-    const KEY_PREFIX: &'static str = "custom object ";
-    const KEY_PREFIX_LEN: usize = KEY_PREFIX.len();
-    const KEY_LEN_MAX: usize = "custom object b255".len();
-    
+    // KS only supports a single frame size per unique Image property (case insensitive)
+    // Even if they refer to the same file, different strings can have different sizes
+    // Most custom graphics in the [World] section also lock frame sizes
+    // Priority:
+    //     - The [World] section has the highest priority
+    //     - Lower indices have priority over higher indices
+    //     - Bank 255 has priority over bank 254 at the same index
     let mut locked_sizes = FxHashMap::<String, (u32, u32)>::default();
     if let Some(world_section) = ini.section("World") {
         for key in [
@@ -252,43 +255,23 @@ pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
         }
     }
     
+    const KEY_PREFIX: &'static str = "custom object ";
+    const KEY_LEN_MAX: usize = "custom object b255".len();
     let mut key = String::with_capacity(KEY_LEN_MAX);
     key.push_str(KEY_PREFIX);
     
     for i in 1..=255 {
-        key.truncate(KEY_PREFIX_LEN);
-        write!(key, "{i}").unwrap();
+        key.truncate(KEY_PREFIX.len());
+        let _ = write!(key, "{i}");
         let id = ObjectId::from((255, i));
-        if let Some(mut def) = ini.section(&key)
-            .map(parse_co_props)
-            .and_then(|props| create_co_def(id, props, defs))
-        {
-            if let Some(ref path) = def.path {
-                let path_lower = path.to_ascii_lowercase();
-                let new_size = locked_sizes.entry(path_lower)
-                    .or_insert(def.anim.frame_size);
-                if def.base.oco_support != OcoSupport::NoCustomGraphics {
-                    def.anim.frame_size = *new_size;
-                }
-            }
+        if let Some(def) = co_def_from_ini(&key, id, ini, defs, &mut locked_sizes) {
             defs.insert(id, def);
         }
         
-        key.truncate(KEY_PREFIX_LEN);
-        write!(key, "b{i}").unwrap();
+        key.truncate(KEY_PREFIX.len());
+        let _ = write!(key, "b{i}");
         let id = ObjectId::from((254, i));
-        if let Some(mut def) = ini.section(&key)
-            .map(parse_co_props)
-            .and_then(|props| create_co_def(id, props, defs))
-        {
-            if let Some(ref path) = def.path {
-                let path_lower = path.to_ascii_lowercase();
-                let size = locked_sizes.entry(path_lower)
-                    .or_insert(def.anim.frame_size);
-                if def.base.oco_support != OcoSupport::NoCustomGraphics {
-                    def.anim.frame_size = *size;
-                }
-            }
+        if let Some(def) = co_def_from_ini(&key, id, ini, defs, &mut locked_sizes) {
             defs.insert(id, def);
         }
     }
@@ -316,8 +299,19 @@ pub fn insert_custom_obj_defs(defs: &mut ObjectDefs, ini: &Ini) {
     }
 }
 
-fn create_co_def(id: ObjectId, props: CustomObjectProps, defs: &ObjectDefs) -> Option<ObjectDef> {
-    match (props.bank, props.object) {
+fn co_def_from_ini(
+    key: &str,
+    id: ObjectId,
+    ini: &Ini,
+    defs: &ObjectDefs,
+    locked_sizes: &mut FxHashMap<String, (u32, u32)>
+) -> Option<ObjectDef> {
+    let section = ini.section(key)?;
+    let props = parse_co_props(section);
+    let tile_width = props.tile_width;
+    let tile_height = props.tile_height;
+    
+    let mut def = match (props.bank, props.object) {
         (_, 0) => {
             create_regular_co_def(props)
         }
@@ -325,16 +319,34 @@ fn create_co_def(id: ObjectId, props: CustomObjectProps, defs: &ObjectDefs) -> O
             let bank = props.bank as u8;
             let object = props.object as u8;
             let oco_id = ObjectId::from((bank, object));
-            let def = defs.get(&oco_id);
-            match def.map(|def| def.base.oco_support) {
+            let oco_def = defs.get(&oco_id);
+            match oco_def.map(|def| def.base.oco_support) {
                 Some(OcoSupport::Full | OcoSupport::NoCustomGraphics) => {
-                    create_oco_def(id, oco_id, props, def.unwrap())
+                    create_oco_def(id, oco_id, props, oco_def.unwrap())
                 }
                 _ => create_botched_oco_def(props)
             }
         }
         _ => create_botched_oco_def(props)
+    };
+    
+    if let Some(def) = &mut def
+        && let Some(path) = &def.path
+    {
+        let path_lower = path.to_ascii_lowercase();
+        // It's important that the Tile Width and Tile Height properties are
+        // used here, not the frame size from the definition.
+        // KS+ indiscriminately loads all CO images and locks the frame size to
+        // the values in World.ini even for OCOs that don't use those graphics
+        // and inherit a different frame size from the base object.
+        let new_size = locked_sizes.entry(path_lower)
+            .or_insert((tile_width, tile_height));
+        if def.base.oco_support != OcoSupport::NoCustomGraphics {
+            def.anim.frame_size = *new_size;
+        }
     }
+    
+    def
 }
 
 fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {   
