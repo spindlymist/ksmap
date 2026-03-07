@@ -542,7 +542,7 @@ anim_to = 8
 anim_speed = 500
 
 [2-8]
-alpha_range = { start = 0, end = 255 }
+trans_sim = "Firefly"
 anim_to = 16
 oco_support = "None"
 
@@ -569,7 +569,7 @@ anim_to = 9
 anim_speed = 200
 
 [2-13]
-alpha_range = { start = 0, end = 255 }
+trans_sim = "Firefly"
 anim_to = 32
 oco_support = "None"
 
@@ -1030,7 +1030,7 @@ oco_support = "NoCustomGraphics"
 [7-5]
 color_base = 16711679
 no_oco_black_transparency = true
-alpha_range = { start = 0, end = 40 }
+trans_sim = "Ray"
 frame_size = [20, 98]
 offset = [-2, 37]
 oco_support = "NoCustomGraphics"
@@ -1299,7 +1299,8 @@ flip = "Random"
 ################################################################################
 
 [12-1]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 sync_to = "Screen"
 frame_size = [24, 28]
 anim_to = 9
@@ -1308,7 +1309,8 @@ flip = "Random"
 anim_speed = 200
 
 [12-2]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 sync_to = "Screen"
 frame_size = [24, 28]
 anim_to = 9
@@ -1322,7 +1324,8 @@ oco_support = "None"
 flip = "Random"
 
 [12-4]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 sync_to = "Screen"
 frame_size = [24, 29]
 offset = [0, -2]
@@ -1331,11 +1334,13 @@ oco_support = "None"
 anim_speed = 250
 
 [12-5]
-alpha_range = { start = 0, end = 56 }
+trans_sim = "Ghost"
+trans_min = 100
 oco_support = "None"
 
 [12-6]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 frame_size = [48, 24]
 offset = [12, 0]
 anim_to = 13
@@ -1343,7 +1348,8 @@ oco_support = "None"
 flip = "Random"
 
 [12-7]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 sync_to = "Screen"
 frame_size = [24, 28]
 offset = [0, -2]
@@ -1352,14 +1358,16 @@ oco_support = "None"
 anim_speed = 200
 
 [12-8]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 sync_to = "Screen"
 anim_to = 17
 oco_support = "None"
 anim_speed = 500
 
 [12-9]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 frame_size = [48, 24]
 offset = [12, 0]
 anim_to = 13
@@ -1372,7 +1380,8 @@ oco_support = "None"
 offset = [12, -12]
 
 [12-11]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 sync_to = "Screen"
 frame_size = [24, 28]
 anim_to = 9
@@ -1381,11 +1390,13 @@ flip = "Random"
 anim_speed = 150
 
 [12-12]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 oco_support = "None"
 
 [12-13]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 oco_support = "None"
 
 [12-14]
@@ -1394,7 +1405,8 @@ offset = [0, 24]
 oco_support = "None"
 
 [12-15]
-alpha_range = { start = 0, end = 96 }
+trans_sim = "Ghost"
+trans_min = 80
 frame_size = [24, 26]
 offset = [0, -1]
 anim_to = 5
@@ -1758,7 +1770,7 @@ offset = [0, 12]
 [15-24]
 
 [15-25]
-alpha_range = { start = 0, end = 80 }
+trans_sim = "FadeBlock"
 oco_support = "None"
 
 [15-26]
@@ -2058,7 +2070,7 @@ anim_to = 8
 anim_speed = 500
 
 [19-4]
-alpha_range = { start = 0, end = 255 }
+trans_sim = "Firefly"
 limit = { pick = "First", n = 1 }
 oco_support = "NoCustomGraphics"
 

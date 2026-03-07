@@ -7,7 +7,7 @@ use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::{Ini, VirtualSection};
 
 use crate::{
-    definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind},
+    definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransparencySim},
     graphics::{Graphics, spritesheet::Spritesheet},
     id::{ObjectId, ObjectVariant},
     partition::{Bounds, Partition},
@@ -15,6 +15,9 @@ use crate::{
     seed::{MapSeed, RngStep},
     synchronization::{ScreenSync, WorldSync},
 };
+
+mod alpha_sim;
+use alpha_sim::*;
 
 mod blend_modes;
 pub use blend_modes::BlendMode;
@@ -381,18 +384,26 @@ fn draw_spritesheet(
         None => frame,
     };
 
-    if let Some(alpha_range) = def.draw.alpha_range.as_ref() {
-        let mut rng_alpha = ctx.seed.hasher(RngStep::Alpha)
+    let make_alpha_rng = || {
+        ctx.seed.hasher(RngStep::Alpha)
             .write(ctx.screen_pos)
             .write(ctx.layer)
             .write(at_index)
-            .into_rng();
-        let alpha = rng_alpha.random_range(alpha_range.clone()) as f32 / 255.0;
-        blend_modes::overlay_with_alpha(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
-    }
-    else {
-        blend_modes::overlay(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode);
-    }
+            .into_rng()
+    };
+    let alpha = match def.draw.trans_sim {
+        TransparencySim::None => 1.0,
+        TransparencySim::Firefly =>
+            sim_firefly(&mut make_alpha_rng(), 250, def.draw.trans_max),
+        TransparencySim::Ghost =>
+            sim_ghost(&mut make_alpha_rng(), 250, def.draw.trans_min, def.draw.trans_max),
+        TransparencySim::FadeBlock =>
+            sim_fade_block(&mut make_alpha_rng(), 250, def.draw.trans_max),
+        TransparencySim::Ray =>
+            sim_light_ray(&mut make_alpha_rng(), 250, def.draw.trans_max),
+    };
+    
+    blend_modes::overlay_with_alpha(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
 }
 
 fn draw_shift(ctx: &mut ScreenContext, curs: Cursor, vis_prop: &str, type_prop: &str) {

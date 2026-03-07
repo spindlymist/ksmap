@@ -1,6 +1,6 @@
 mod ini_util;
 
-use std::{fmt::Write, fs, ops::{Deref, DerefMut, RangeInclusive}, path::Path};
+use std::{fmt::Write, fs, ops::{Deref, DerefMut}, path::Path};
 
 use anyhow::Result;
 use libks::map_bin::Tile;
@@ -84,12 +84,23 @@ pub struct SyncParams {
 pub struct DrawParams {
     #[serde(default)]
     pub blend_mode: BlendMode,
-    pub alpha_range: Option<RangeInclusive<u8>>,
+    #[serde(default)]
+    pub trans_sim: TransparencySim,
+    #[serde(default)]
+    pub trans_min: u8,
+    #[serde(default = "DrawParams::default_trans_max")]
+    pub trans_max: u8,
     #[serde(default)]
     pub offset: (i32, i32),
     #[serde(default)]
     pub flip: Flip,
     pub flip_variant: Option<ObjectVariant>,
+}
+
+impl DrawParams {
+    const fn default_trans_max() -> u8 {
+        128
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -115,6 +126,16 @@ impl AnimParams {
     const fn default_anim_speed() -> u32 {
         1000
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+pub enum TransparencySim {
+    #[default]
+    None,
+    Firefly,
+    Ghost,
+    FadeBlock,
+    Ray,
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -376,7 +397,9 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
     
     let draw_params = DrawParams {
         blend_mode: BlendMode::Over,
-        alpha_range: None,
+        trans_sim: TransparencySim::None,
+        trans_min: 0,
+        trans_max: 0,
         offset: (offset_x, offset_y),
         flip: Flip::Never,
         flip_variant: None,
@@ -479,7 +502,9 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         
         DrawParams {
             blend_mode: BlendMode::Over,
-            alpha_range: def.draw.alpha_range.clone(),
+            trans_sim: def.draw.trans_sim,
+            trans_min: def.draw.trans_min,
+            trans_max: def.draw.trans_max,
             offset: (offset_x, offset_y),
             flip,
             flip_variant: None,
