@@ -64,12 +64,8 @@ fn verify_seeds(level_name: &str, seeds: &[MapSeed]) {
     assert!(partitions.len() == 1);
     let partition = &partitions[0];
     
-    let draw_options = DrawOptions {
-        editor_only: false,
-    };
-    let sync_options = SyncOptions {
-        maximize_visible_lasers: true,
-    };
+    let draw_options = DrawOptions::default();
+    let sync_options = SyncOptions::default();
     
     for seed in seeds.iter().cloned() {
         let world_sync = WorldSync::new(seed, &screen_map, &object_defs, &sync_options);

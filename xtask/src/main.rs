@@ -191,12 +191,8 @@ fn render_seeds(level_dir: &Path, seeds: &[MapSeed], output_dir: &Path, level_na
     assert!(partitions.len() == 1);
     let partition = &partitions[0];
     
-    let draw_options = DrawOptions {
-        editor_only: false,
-    };
-    let sync_options = SyncOptions {
-        maximize_visible_lasers: true,
-    };
+    let draw_options = DrawOptions::default();
+    let sync_options = SyncOptions::default();
     
     for seed in seeds.iter().cloned() {
         println!("{seed} {level_name}");

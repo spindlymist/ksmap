@@ -7,17 +7,17 @@ use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::{Ini, VirtualSection};
 
 use crate::{
-    definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransparencySim},
+    definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransAlgorithm},
     graphics::{Graphics, spritesheet::Spritesheet},
     id::{ObjectId, ObjectVariant},
     partition::{Bounds, Partition},
     screen_map::ScreenMap,
     seed::{MapSeed, RngStep},
-    synchronization::{ScreenSync, WorldSync},
+    synchronization::{ScreenSync, WorldSync}
 };
 
-mod alpha_sim;
-use alpha_sim::*;
+mod transparency;
+pub use transparency::{trans_to_alpha, alpha_to_trans};
 
 mod blend_modes;
 pub use blend_modes::BlendMode;
@@ -59,9 +59,27 @@ struct ScreenContext<'a> {
     opts: DrawOptions,
 }
 
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy)]
 pub struct DrawOptions {
     pub editor_only: bool,
+    /// Overrides the maximum transparency for objects that have random opacity to ensure they are visible.
+    /// 0 is fully opaque and 128 is fully transparent.
+    pub trans_max_override: u8,
+    /// The number of object instances (per screen) required to ignore the transparency override.
+    pub trans_max_threshold: u32,
+    /// The number of frames to simulate for transparency.
+    pub trans_frames: u32,
+}
+
+impl Default for DrawOptions {
+    fn default() -> Self {
+        Self {
+            editor_only: false,
+            trans_max_override: 122,
+            trans_max_threshold: 5,
+            trans_frames: 150,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -163,7 +181,7 @@ pub fn draw_screen(
     gfx: &Graphics,
     defs: &ObjectDefs,
     ini: &Ini,
-    options: DrawOptions,
+    opts: DrawOptions,
     world_sync: &WorldSync,
 ) -> Result<RgbaImage> {
     let ini_section = ini.section(&format!("x{}y{}", screen.position.0, screen.position.1));
@@ -177,7 +195,7 @@ pub fn draw_screen(
 
     // Create context
     let group = world_sync.groups[index_screen];
-    let sync = ScreenSync::new(seed, screen, defs, group);
+    let sync = ScreenSync::new(seed, screen, defs, group, opts.trans_max_override, opts.trans_max_threshold);
     let mut ctx = ScreenContext {
         seed,
         screen_pos: screen.position,
@@ -189,7 +207,7 @@ pub fn draw_screen(
         defs,
         ini_section,
         sync,
-        opts: options,
+        opts,
     };
     
     // Draw gradient
@@ -305,10 +323,10 @@ fn draw_object(
 fn draw_object_with_offset(
     ctx: &mut ScreenContext,
     at_index: usize,
-    mut object: ObjectId,
+    mut id: ObjectId,
     offset: (i32, i32),
 ) {
-    let def = match ctx.defs.get(&object) {
+    let def = match ctx.defs.get(&id) {
         Some(def) => def,
         None => &ObjectDef::default(),
     };
@@ -325,23 +343,24 @@ fn draw_object_with_offset(
         Flip::Always => true,
     };
     if flip && let Some(variant) = def.draw.flip_variant {
-        object = object.into_variant(variant);
+        id = id.into_variant(variant);
         flip = false;
         // Should technically fetch the variant def here but it doesn't matter for any existing object
     }
-    let Some(obj_image) = ctx.gfx.object(&object) else { return };
+    let Some(obj_image) = ctx.gfx.object(&id) else { return };
     
     let anim_t = match &def.sync.sync_to {
         AnimSync::None => None,
         AnimSync::Screen => Some(ctx.sync.anim_t),
         AnimSync::Group => Some(ctx.sync.group.anim_t),
     };
-    draw_spritesheet(ctx, at_index as u8, &def, anim_t, obj_image, offset, flip);
+    draw_spritesheet(ctx, at_index as u8, id, &def, anim_t, obj_image, offset, flip);
 }
 
 fn draw_spritesheet(
     ctx: &mut ScreenContext,
     at_index: u8,
+    id: ObjectId,
     def: &ObjectDef,
     anim_t: Option<u32>,
     spritesheet: &Spritesheet,
@@ -383,25 +402,21 @@ fn draw_spritesheet(
         Some(flipped) => imageops::crop_imm(flipped, 0, 0, flipped.width(), flipped.height()),
         None => frame,
     };
-
-    let make_alpha_rng = || {
-        ctx.seed.hasher(RngStep::Alpha)
-            .write(ctx.screen_pos)
-            .write(ctx.layer)
-            .write(at_index)
-            .into_rng()
-    };
-    let alpha = match def.draw.trans_sim {
-        TransparencySim::None => 1.0,
-        TransparencySim::Firefly =>
-            sim_firefly(&mut make_alpha_rng(), 250, def.draw.trans_max),
-        TransparencySim::Ghost =>
-            sim_ghost(&mut make_alpha_rng(), 250, def.draw.trans_min, def.draw.trans_max),
-        TransparencySim::FadeBlock =>
-            sim_fade_block(&mut make_alpha_rng(), 250, def.draw.trans_max),
-        TransparencySim::Ray =>
-            sim_light_ray(&mut make_alpha_rng(), 250, def.draw.trans_max),
-    };
+    
+    let alpha =
+        if def.draw.trans_algo == TransAlgorithm::None {
+            1.0
+        }
+        else {
+            let mut rng_alpha = ctx.seed.hasher(RngStep::Alpha)
+                .write(ctx.screen_pos)
+                .write(ctx.layer)
+                .write(at_index)
+                .into_rng();
+            let params = ctx.sync.trans_overrides.get(&id)
+                .unwrap_or(&def.draw.trans);
+            transparency::simulate(def.draw.trans_algo, &mut rng_alpha, params, ctx.opts.trans_frames)
+        };
     
     blend_modes::overlay_with_alpha(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
 }

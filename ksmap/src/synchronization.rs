@@ -7,7 +7,7 @@ use libks::{constants::{SCREEN_WIDTH, TILES_PER_LAYER}, map_bin::{LayerData, Scr
 
 use crate::{
     analysis::count_laser_phases,
-    definitions::{LaserPhase, Limit, ObjectDefs, ObjectKind},
+    definitions::{LaserPhase, Limit, ObjectDefs, ObjectKind, TransAlgorithm, TransParams},
     id::ObjectId,
     screen_map::ScreenMap,
     seed::{MapSeed, RngStep},
@@ -27,6 +27,7 @@ pub struct ScreenSync {
     pub group: GroupSync,
     pub anim_t: u32,
     pub limiters: FxHashMap<ObjectId, Limiter>,
+    pub trans_overrides: FxHashMap<ObjectId, TransParams>,
 }
 
 pub struct Limiter {
@@ -172,32 +173,49 @@ fn pick_laser_phase(
 }
 
 impl ScreenSync {
-    pub fn new(seed: MapSeed, screen: &ScreenData, object_defs: &ObjectDefs, group: GroupSync) -> Self {
+    pub fn new(
+        seed: MapSeed,
+        screen: &ScreenData,
+        object_defs: &ObjectDefs,
+        group: GroupSync,
+        trans_max_override: u8,
+        trans_max_threshold: u32,
+    ) -> Self {
         let anim_t = seed.hasher(RngStep::ScreenAnimationTime)
             .write(screen.position)
             .next_u32();
         
-        let mut limiters = FxHashMap::default();
-        let mut counts = FxHashMap::default();
+        let mut limit_counts = FxHashMap::default();
+        let mut trans_counts = FxHashMap::default();
 
         for LayerData(layer) in &screen.layers[4..] {
             for tile in layer {
-                if tile.1 > 0
-                    && let Some(def) = object_defs.get(&ObjectId::from(tile))
-                    && def.sync.limit != Limit::None
-                {
+                if tile.1 == 0 { continue }
+                let Some(def) = object_defs.get(&ObjectId::from(tile)) else { continue };
+                
+                if def.sync.limit != Limit::None {
                     let id = match &def.kind {
                         ObjectKind::OverrideObject(tile_original) => ObjectId::from(tile_original),
                         _ => ObjectId::from(tile),
                     };
-                    counts.entry(id)
+                    limit_counts.entry(id)
+                        .and_modify(|count| *count += 1)
+                        .or_insert(1);
+                }
+                
+                if def.draw.trans_algo == TransAlgorithm::Ghost
+                    || def.draw.trans_algo == TransAlgorithm::Firefly
+                {
+                    let id = ObjectId::from(tile);
+                    trans_counts.entry(id)
                         .and_modify(|count| *count += 1)
                         .or_insert(1);
                 }
             }
         }
-
-        for (id, count) in counts {
+        
+        let mut limiters = FxHashMap::default();
+        for (id, count) in limit_counts {
             let mut rng = seed.hasher(RngStep::Limiters)
                 .write(screen.position)
                 .write(id)
@@ -223,11 +241,22 @@ impl ScreenSync {
                 },
             }
         }
+        
+        let mut trans_overrides = FxHashMap::default();
+        for (id, count) in trans_counts {
+            if count >= trans_max_threshold { continue }
+            let Some(def) = object_defs.get(&id) else { continue };
+            let mut params = def.draw.trans;
+            params.max = trans_max_override;
+            params.sanitize();
+            trans_overrides.insert(id, params);
+        }
     
         Self {
             group,
             anim_t,
             limiters,
+            trans_overrides,
         }
     }
 }

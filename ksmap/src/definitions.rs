@@ -84,23 +84,15 @@ pub struct SyncParams {
 pub struct DrawParams {
     #[serde(default)]
     pub blend_mode: BlendMode,
-    #[serde(default)]
-    pub trans_sim: TransparencySim,
-    #[serde(default)]
-    pub trans_min: u8,
-    #[serde(default = "DrawParams::default_trans_max")]
-    pub trans_max: u8,
+    #[serde(default, rename = "transparency_algo")]
+    pub trans_algo: TransAlgorithm,
+    #[serde(default, flatten)]
+    pub trans: TransParams,
     #[serde(default)]
     pub offset: (i32, i32),
     #[serde(default)]
     pub flip: Flip,
     pub flip_variant: Option<ObjectVariant>,
-}
-
-impl DrawParams {
-    const fn default_trans_max() -> u8 {
-        128
-    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -129,13 +121,45 @@ impl AnimParams {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
-pub enum TransparencySim {
+pub enum TransAlgorithm {
     #[default]
     None,
     Firefly,
     Ghost,
     FadeBlock,
     Ray,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct TransParams {
+    #[serde(rename = "transparency_init", default)]
+    pub init: u8,
+    #[serde(rename = "transparency_min", default)]
+    pub min: u8,
+    #[serde(rename = "transparency_max", default = "TransParams::default_max")]
+    pub max: u8,
+}
+
+impl Default for TransParams {
+    fn default() -> Self {
+        Self {
+            init: 0,
+            min: 0,
+            max: Self::default_max(),
+        }
+    }
+}
+
+impl TransParams {
+    const fn default_max() -> u8 {
+        128
+    }
+    
+    pub fn sanitize(&mut self) {
+        self.max = self.max.min(128);
+        self.min = self.min.min(self.max);
+        self.init = self.init.clamp(self.min, self.max);
+    }
 }
 
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
@@ -230,7 +254,8 @@ pub fn load_object_defs(path: impl AsRef<Path>) -> Result<ObjectDefs> {
     for (key, value) in table.into_iter() {
         if let toml::Value::Table(table) = value {
             let id = ObjectId::try_from(key)?;
-            let def = table.try_into()?;
+            let mut def: ObjectDef = table.try_into()?;
+            def.draw.trans.sanitize();
             
             if id.1 != ObjectVariant::None {
                 variants.entry(id.0)
@@ -397,9 +422,8 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
     
     let draw_params = DrawParams {
         blend_mode: BlendMode::Over,
-        trans_sim: TransparencySim::None,
-        trans_min: 0,
-        trans_max: 0,
+        trans_algo: TransAlgorithm::None,
+        trans: TransParams::default(),
         offset: (offset_x, offset_y),
         flip: Flip::Never,
         flip_variant: None,
@@ -502,9 +526,8 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         
         DrawParams {
             blend_mode: BlendMode::Over,
-            trans_sim: def.draw.trans_sim,
-            trans_min: def.draw.trans_min,
-            trans_max: def.draw.trans_max,
+            trans_algo: def.draw.trans_algo,
+            trans: def.draw.trans,
             offset: (offset_x, offset_y),
             flip,
             flip_variant: None,

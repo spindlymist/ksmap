@@ -105,6 +105,9 @@ fn main() -> Result<()> {
 
     let draw_options = DrawOptions {
         editor_only: cli.editor_only,
+        trans_max_override: drawing::alpha_to_trans(cli.min_alpha),
+        trans_max_threshold: cli.min_alpha_threshold,
+        trans_frames: cli.alpha_sim_frames,
     };
     let draw_context = DrawContext {
         seed,

@@ -33,6 +33,17 @@ pub struct Cli {
     /// Always pick a random laser phase (red/green) rather than the one with the most lasers
     #[arg(long)]
     pub randomize_lasers: bool,
+    /// The minimum alpha value (0-255) for objects that have random opacity.
+    /// Helps ensure objects such as ghosts are visible on the map.
+    #[arg(long, default_value = "12")]
+    pub min_alpha: u8,
+    /// How many copies of an object a screen must have to ignore the `--min-alpha` argument.
+    /// This allows for more natural variation when an object appears many times on one screen.
+    #[arg(long, default_value = "5")]
+    pub min_alpha_threshold: u32,
+    /// How many game frames to simulate for objects that have random opacity (50 = 1 second).
+    #[arg(long, default_value = "150")]
+    pub alpha_sim_frames: u32,
     /// Don't use the multithreaded PNG encoder
     #[arg(long)]
     pub single_threaded_encoder: bool,
