@@ -247,7 +247,7 @@ impl ScreenSync {
             if count >= trans_max_threshold { continue }
             let Some(def) = object_defs.get(&id) else { continue };
             let mut params = def.draw.trans;
-            params.max = trans_max_override;
+            params.max = params.max.min(trans_max_override);
             params.sanitize();
             trans_overrides.insert(id, params);
         }

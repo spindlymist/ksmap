@@ -2087,7 +2087,8 @@ anim_speed = 500
 
 [19-4]
 transparency_algo = "Firefly"
-transparency_init = 100
+transparency_init = 50
+transparency_max = 64
 limit = { pick = "First", n = 1 }
 oco_support = "NoCustomGraphics"
 
