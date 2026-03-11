@@ -156,8 +156,8 @@ impl TransParams {
     }
     
     pub fn sanitize(&mut self) {
-        self.max = self.max.min(128);
-        self.min = self.min.min(self.max);
+        self.min = self.min.min(128);
+        self.max = self.max.max(self.min);
         self.init = self.init.clamp(self.min, self.max);
     }
 }
