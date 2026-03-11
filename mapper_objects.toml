@@ -1787,6 +1787,7 @@ offset = [0, 12]
 
 [15-25]
 transparency_algo = "FadeBlock"
+transparency_min = 88
 oco_support = "None"
 
 [15-26]

@@ -69,10 +69,10 @@ pub fn sim_fade_block(rng: &mut SmallRng, params: &TransParams, frames: u32) -> 
     
     let delta = {
         let cycle_rad = (cycle as f32).to_radians();
-        let delta = 40.0 * f32::sin(cycle_rad);
+        let delta = (trans_max - trans_min) as f32 * f32::sin(cycle_rad);
         delta as i32
     };
-    let trans = (88 + delta).clamp(trans_min, trans_max);
+    let trans = trans_min + delta;
     
     trans_to_alpha(trans)
 }
