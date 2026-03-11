@@ -103,6 +103,13 @@ seeds = [
     "E79309E532192DE4",
 ]
 
+["Lit Knob - Random Transparency Test"]
+seeds = [
+    "3ED9015BC773920B",
+    "B70DFDA9802C96FF",
+    "AFA9AA07A72FFECB",
+]
+
 ["Lit Knob - Shift Test"]
 seeds = [
     "0ABE6B30E3126538",

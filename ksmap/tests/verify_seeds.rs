@@ -105,9 +105,9 @@ macro_rules! test_case {
 }
 
 test_case!(lit_knob_3_20_and_14_1_test, "Lit Knob - 3-20 & 14-1 Test");
-test_case!(lit_knob_bank7_black_test, "Lit Knob - Bank 7 Black Test");
-test_case!(lit_knob_bank7_red_test, "Lit Knob - Bank 7 Red Test");
-test_case!(lit_knob_bank7_test, "Lit Knob - Bank 7 Test");
+test_case!(lit_knob_bank_7_black_test, "Lit Knob - Bank 7 Black Test");
+test_case!(lit_knob_bank_7_red_test, "Lit Knob - Bank 7 Red Test");
+test_case!(lit_knob_bank_7_test, "Lit Knob - Bank 7 Test");
 test_case!(lit_knob_bubble_test, "Lit Knob - Bubble Test");
 test_case!(lit_knob_co_frame_size_test, "Lit Knob - CO Frame Size Test");
 test_case!(lit_knob_co_speed_test, "Lit Knob - CO Speed Test");
@@ -119,6 +119,7 @@ test_case!(lit_knob_laser_visibility_test, "Lit Knob - Laser Visibility Test");
 test_case!(lit_knob_layer_test, "Lit Knob - Layer Test");
 test_case!(lit_knob_object_test, "Lit Knob - Object Test");
 test_case!(lit_knob_out_of_range_test, "Lit Knob - Out of Range Test");
+test_case!(lit_knob_random_transparency_test, "Lit Knob - Random Transparency Test");
 test_case!(lit_knob_shift_test, "Lit Knob - Shift Test");
 test_case!(lit_knob_starting_frame_test, "Lit Knob - Starting Frame Test");
 test_case!(lit_knob_supported_oco_test, "Lit Knob - Supported OCO Test");
