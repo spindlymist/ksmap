@@ -10,6 +10,7 @@ use crate::{
     definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransAlgorithm},
     graphics::{Graphics, spritesheet::Spritesheet},
     id::{ObjectId, ObjectVariant},
+    ini_util::{unpack_color, VirtualSectionExt},
     partition::{Bounds, Partition},
     screen_map::ScreenMap,
     seed::{MapSeed, RngStep},
@@ -235,6 +236,8 @@ pub fn draw_screen(
     }
     ctx.layer = 7;
     draw_object_layer(&mut ctx, &screen.layers[7]);
+    
+    apply_tint(&mut ctx);
 
     Ok(ctx.image)
 }
@@ -474,4 +477,38 @@ fn draw_with_random_offset(ctx: &mut ScreenContext, curs: Cursor, range: RangeIn
     let offset_x = rng.random_range(range.clone());
     let offset_y = rng.random_range(range);
     draw_object_with_offset(ctx, curs.i, curs.actual_id, (offset_x, offset_y));
+}
+
+
+fn apply_tint(ctx: &mut ScreenContext) {
+    let Some(section) = ctx.ini_section.as_ref() else { return };
+    
+    let tint = section.get_i32_or("Tint", 0);
+    if tint <= 0 {
+        return;
+    }
+    
+    let [r, g, b] = unpack_color(tint);
+    let mut a: u8 = 255;
+    let blend_mode = match section.get("TintInk")
+        .unwrap_or("")
+        .to_ascii_lowercase()
+        .as_str()
+    {
+        "add" => BlendMode::Add,
+        "sub" => BlendMode::Sub,
+        "and" => BlendMode::And,
+        "or" => BlendMode::Or,
+        "xor" => BlendMode::Xor,
+        _ => {
+            let tint_trans = section.get_i32_or("TintTrans", 46) % 128;
+            a = (trans_to_alpha(tint_trans) * 255.0) as u8;
+            BlendMode::Over
+        }
+    };
+    let tint_final = image::Rgba([r, g, b, a]);
+    
+    for pixel in ctx.image.pixels_mut() {
+        blend_modes::blend_pixels(pixel, tint_final, blend_mode);
+    }
 }

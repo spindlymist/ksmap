@@ -1,5 +1,3 @@
-mod ini_util;
-
 use std::{fmt::Write, fs, ops::{Deref, DerefMut}, path::Path};
 
 use anyhow::Result;
@@ -11,8 +9,8 @@ use serde::Deserialize;
 use crate::{
     drawing::BlendMode,
     id::{ObjectId, ObjectVariant},
+    ini_util::{unpack_color, VirtualSectionExt},
 };
-use ini_util::{unpack_color, VirtualSectionExt};
 
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct ObjectDef {
