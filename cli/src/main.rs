@@ -108,6 +108,7 @@ fn main() -> Result<()> {
         trans_max_override: drawing::alpha_to_trans(cli.min_alpha),
         trans_max_threshold: cli.min_alpha_threshold,
         trans_frames: cli.alpha_sim_frames,
+        tint_strategy: cli.tints.into(),
     };
     let draw_context = DrawContext {
         seed,

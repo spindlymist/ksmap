@@ -70,6 +70,7 @@ pub struct DrawOptions {
     pub trans_max_threshold: u32,
     /// The number of frames to simulate for transparency.
     pub trans_frames: u32,
+    pub tint_strategy: TintStrategy,
 }
 
 impl Default for DrawOptions {
@@ -79,8 +80,15 @@ impl Default for DrawOptions {
             trans_max_override: 122,
             trans_max_threshold: 5,
             trans_frames: 150,
+            tint_strategy: TintStrategy::Ignore,
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum TintStrategy {
+    Ignore,
+    Explicit,
 }
 
 #[derive(Debug, Clone)]
@@ -481,6 +489,10 @@ fn draw_with_random_offset(ctx: &mut ScreenContext, curs: Cursor, range: RangeIn
 
 
 fn apply_tint(ctx: &mut ScreenContext) {
+    if ctx.opts.tint_strategy == TintStrategy::Ignore {
+        return;
+    }
+    
     let Some(section) = ctx.ini_section.as_ref() else { return };
     
     let tint = section.get_i32_or("Tint", 0);

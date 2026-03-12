@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser};
+use ksmap::drawing::TintStrategy;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -30,6 +31,9 @@ pub struct Cli {
     /// Draw objects that are only visible in the editor
     #[arg(long)]
     pub editor_only: bool,
+    /// How to handle screen tints.
+    #[arg(long, default_value = "ignore")]
+    pub tints: TintStrategyCli,
     /// Always pick a random laser phase (red/green) rather than the one with the most lasers
     #[arg(long)]
     pub randomize_lasers: bool,
@@ -97,4 +101,22 @@ pub struct GridArgs {
     /// If unspecified, it will be calculated from max width
     #[arg(short, long, help_heading = "Grid partitioner")]
     pub cols: Option<u64>,
+}
+
+#[derive(Clone, Copy, Default, clap::ValueEnum)]
+pub enum TintStrategyCli {
+    /// Ignore screen tints.
+    #[default]
+    Ignore,
+    /// Apply tints to screens that explicitly have one.
+    Explicit,
+}
+
+impl Into<TintStrategy> for TintStrategyCli {
+    fn into(self) -> TintStrategy {
+        match self {
+            TintStrategyCli::Ignore => TintStrategy::Ignore,
+            TintStrategyCli::Explicit => TintStrategy::Explicit,
+        }
+    }
 }
