@@ -418,7 +418,7 @@ fn draw_spritesheet(
             transparency::simulate(def.draw.trans_algo, &mut rng_alpha, params, ctx.opts.trans_frames)
         };
     
-    blend_modes::overlay_with_alpha(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
+    blend_modes::overlay(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
 }
 
 fn draw_shift(ctx: &mut ScreenContext, curs: Cursor, vis_prop: &str, type_prop: &str) {
