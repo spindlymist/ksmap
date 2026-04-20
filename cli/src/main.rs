@@ -104,7 +104,8 @@ fn main() -> Result<()> {
         cli.force);
 
     let draw_options = DrawOptions {
-        editor_only: cli.editor_only,
+        show_invisible: cli.show_invisible,
+        show_proximity: cli.show_proximity,
         trans_max_override: drawing::alpha_to_trans(cli.min_alpha),
         trans_max_threshold: cli.min_alpha_threshold,
         trans_frames: cli.alpha_sim_frames,

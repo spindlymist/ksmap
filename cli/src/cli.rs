@@ -28,9 +28,12 @@ pub struct Cli {
     pub islands_args: IslandsArgs,
     #[command(flatten)]
     pub grid_args: GridArgs,
-    /// Draw objects that are only visible in the editor
-    #[arg(long)]
-    pub editor_only: bool,
+    /// Draw editor icons for invisible objects
+    #[arg(long, visible_alias("invis"))]
+    pub show_invisible: bool,
+    /// Draw objects that are only visible when Juni is nearby
+    #[arg(long, visible_alias("prox"))]
+    pub show_proximity: bool,
     /// How to handle screen tints.
     #[arg(long, default_value = "ignore")]
     pub tints: TintStrategyCli,

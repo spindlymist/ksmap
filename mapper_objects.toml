@@ -10,7 +10,7 @@ oco_support = "None"
 anim_speed = 250
 
 [0-2]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-3]
@@ -75,15 +75,15 @@ override_anim_range = { from = 56, to = 63 }
 anim_speed = 500
 
 [0-11]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-12]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-13]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-14]
@@ -146,19 +146,19 @@ anim_to = 2
 path = "Bank0/Object14_Square.png"
 
 [0-17]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-18]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-19]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-20]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-21]
@@ -190,31 +190,31 @@ override_anim_range = { from = 75, to = 75 }
 anim_speed = 500
 
 [0-25]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-26]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-27]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-28]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-29]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-30]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-31]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-32]
@@ -287,95 +287,95 @@ override_anim_range = { from = 64, to = 71 }
 anim_speed = 500
 
 [0-36]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-37]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-38]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-39]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-40]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-41]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-42]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-43]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-44]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-45]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-46]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-47]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-48]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-49]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-247]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-248]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-249]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-250]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-251]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-252]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-253]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-254]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [0-255]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 ################################################################################
@@ -495,15 +495,15 @@ anim_to = 20
 oco_support = "None"
 
 [1-25]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [1-26]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [1-27]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 ################################################################################
@@ -949,6 +949,7 @@ frame_size = [24, 48]
 offset = [0, 12]
 anim_to = 7
 oco_support = "None"
+visibility = "Proximity"
 
 [5-2]
 frame_size = [24, 48]
@@ -993,12 +994,16 @@ anim_to = 7
 [6-9]
 
 [6-10]
+visibility = "Proximity"
 
 [6-11]
+visibility = "Proximity"
 
 [6-12]
+visibility = "Proximity"
 
 [6-13]
+visibility = "Proximity"
 
 [6-14]
 
@@ -1013,7 +1018,7 @@ anim_to = 7
 ################################################################################
 
 [7-1]
-editor_only = true
+visibility = "Never"
 oco_support = "NoCustomGraphics"
 
 [7-2]
@@ -1022,7 +1027,7 @@ color_base = 8
 oco_support = "NoCustomGraphics"
 
 [7-3]
-editor_only = true
+visibility = "Never"
 oco_support = "NoCustomGraphics"
 
 [7-4]
@@ -1040,7 +1045,7 @@ offset = [-2, 37]
 oco_support = "NoCustomGraphics"
 
 [7-6]
-editor_only = true
+visibility = "Never"
 oco_support = "NoCustomGraphics"
 
 [7-7]
@@ -1050,7 +1055,7 @@ color_offsets = [989204, -1970198]
 oco_support = "NoCustomGraphics"
 
 [7-8]
-editor_only = true
+visibility = "Never"
 oco_support = "NoCustomGraphics"
 
 [7-9]
@@ -1060,7 +1065,7 @@ color_offsets = [-1249551]
 oco_support = "NoCustomGraphics"
 
 [7-10]
-editor_only = true
+visibility = "Never"
 oco_support = "NoCustomGraphics"
 
 [7-11]
@@ -1069,7 +1074,7 @@ color_base = 2709554
 oco_support = "NoCustomGraphics"
 
 [7-12]
-editor_only = true
+visibility = "Never"
 oco_support = "NoCustomGraphics"
 
 [7-13]
@@ -1078,7 +1083,7 @@ color_base = 16711679
 oco_support = "NoCustomGraphics"
 
 [7-14]
-editor_only = true
+visibility = "Never"
 oco_support = "NoCustomGraphics"
 
 [7-15]
@@ -1086,11 +1091,11 @@ color_base = 986895
 oco_support = "NoCustomGraphics"
 
 [7-16]
-editor_only = true
+visibility = "Never"
 oco_support = "NoCustomGraphics"
 
 [7-17]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 ################################################################################
@@ -1179,11 +1184,11 @@ limit = { pick = "LogNPlusOne" }
 oco_support = "None"
 
 [8-16]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [8-17]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 ################################################################################
@@ -1418,6 +1423,7 @@ oco_support = "None"
 frame_size = [25, 72]
 offset = [0, 24]
 oco_support = "None"
+visibility = "Proximity"
 
 [12-15]
 transparency_algo = "Ghost"
@@ -1434,7 +1440,7 @@ sync_to = "Screen"
 oco_support = "None"
 
 [12-17]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [12-18]
@@ -1651,10 +1657,12 @@ oco_offset = [0, 0]
 [14-19]
 anim_from = 5
 anim_to = 5
+visibility = "Proximity"
 
 [14-20]
 anim_from = 5
 anim_to = 5
+visibility = "Proximity"
 
 [14-21]
 sync_to = "Screen"
@@ -1697,7 +1705,8 @@ blend_mode = "Add"
 anim_to = 20
 
 [15-6]
-editor_only = true
+path = "Bank15/Object7.png"
+visibility = "Proximity"
 oco_support = "None"
 
 [15-7]
@@ -1843,123 +1852,123 @@ path = "Bank15/Object4.png"
 ################################################################################
 
 [16-1]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-2]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-3]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-4]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-5]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-6]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-7]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-8]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-9]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-10]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-11]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-12]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-13]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-14]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-15]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-16]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-17]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-18]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-19]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-20]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-21]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-22]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-23]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-24]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-25]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-26]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-27]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-28]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-29]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 [16-30]
-editor_only = true
+visibility = "Never"
 oco_support = "None"
 
 ################################################################################
@@ -2288,6 +2297,7 @@ flip = "Random"
 anim_from = 5
 anim_to = 5
 limit = { pick = "First", n = 1 }
+visibility = "Proximity"
 
 [19-47]
 sync_to = "Screen"

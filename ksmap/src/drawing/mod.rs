@@ -7,10 +7,10 @@ use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::{Ini, VirtualSection};
 
 use crate::{
-    definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransAlgorithm},
+    definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransAlgorithm, Visibility},
     graphics::{Graphics, spritesheet::Spritesheet},
     id::{ObjectId, ObjectVariant},
-    ini_util::{unpack_color, VirtualSectionExt},
+    ini_util::{VirtualSectionExt, unpack_color},
     partition::{Bounds, Partition},
     screen_map::ScreenMap,
     seed::{MapSeed, RngStep},
@@ -62,7 +62,8 @@ struct ScreenContext<'a> {
 
 #[derive(Clone, Copy)]
 pub struct DrawOptions {
-    pub editor_only: bool,
+    pub show_invisible: bool,
+    pub show_proximity: bool,
     /// Overrides the maximum transparency for objects that have random opacity to ensure they are visible.
     /// 0 is fully opaque and 128 is fully transparent.
     pub trans_max_override: u8,
@@ -76,7 +77,8 @@ pub struct DrawOptions {
 impl Default for DrawOptions {
     fn default() -> Self {
         Self {
-            editor_only: false,
+            show_invisible: false,
+            show_proximity: false,
             trans_max_override: 122,
             trans_max_threshold: 5,
             trans_frames: 150,
@@ -293,9 +295,11 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
         {
             continue;
         }
-        if !ctx.opts.editor_only
-            && object_def.is_some_and(|object| object.editor_only)
-        {
+        if object_def.is_some_and(|object| match object.draw.visibility {
+            Visibility::Never => !ctx.opts.show_invisible,
+            Visibility::Proximity => !ctx.opts.show_proximity,
+            Visibility::Always => false,
+        }) {
             continue;
         }
         if let Some(def) = object_def
@@ -433,13 +437,17 @@ fn draw_spritesheet(
 }
 
 fn draw_shift(ctx: &mut ScreenContext, curs: Cursor, vis_prop: &str, type_prop: &str) {
-    let shift_visible = !ctx.ini_section
+    let is_invisible = ctx.ini_section
         .as_ref()
         .and_then(|section| section.get(vis_prop))
-        .unwrap_or("True")
-        .eq_ignore_ascii_case("False");
+        .map(|value| value.eq_ignore_ascii_case("false"))
+        .unwrap_or(false);
 
-    if !shift_visible {
+    if is_invisible {
+        if ctx.opts.show_invisible {
+            // Draw editor icon
+            draw_object(ctx, curs.i, curs.proxy_id);
+        }
         return;
     }
 

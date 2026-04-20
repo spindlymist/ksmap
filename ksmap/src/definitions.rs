@@ -25,8 +25,6 @@ pub struct ObjectDef {
     pub draw: DrawParams,
     #[serde(flatten)]
     pub anim: AnimParams,
-    #[serde(default)]
-    pub editor_only: bool,
     #[serde(skip)]
     pub replace_colors: Vec<ColorReplacement>,
 }
@@ -81,6 +79,8 @@ pub struct SyncParams {
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct DrawParams {
     #[serde(default)]
+    pub visibility: Visibility,
+    #[serde(default)]
     pub blend_mode: BlendMode,
     #[serde(default, rename = "transparency_algo")]
     pub trans_algo: TransAlgorithm,
@@ -116,6 +116,14 @@ impl AnimParams {
     const fn default_anim_speed() -> u32 {
         1000
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Deserialize)]
+pub enum Visibility {
+    Never,
+    Proximity,
+    #[default]
+    Always,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -419,6 +427,7 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
     };
     
     let draw_params = DrawParams {
+        visibility: Visibility::Always,
         blend_mode: BlendMode::Over,
         trans_algo: TransAlgorithm::None,
         trans: TransParams::default(),
@@ -443,7 +452,6 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         sync: sync_params,
         draw: draw_params,
         anim: anim_params,
-        editor_only: false,
         replace_colors: Vec::new(),
     })
 }
@@ -523,6 +531,7 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
             };
         
         DrawParams {
+            visibility: def.draw.visibility,
             blend_mode: BlendMode::Over,
             trans_algo: def.draw.trans_algo,
             trans: def.draw.trans,
@@ -568,7 +577,6 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         sync: sync_params,
         draw: draw_params,
         anim: anim_params,
-        editor_only: def.editor_only,
         replace_colors,
     })
 }
