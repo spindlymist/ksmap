@@ -1707,7 +1707,10 @@ anim_to = 20
 [15-6]
 path = "Bank15/Object7.png"
 visibility = "Proximity"
+sync_to = "Screen"
+anim_to = 23
 oco_support = "None"
+anim_speed = 300
 
 [15-7]
 sync_to = "Screen"
