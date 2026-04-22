@@ -279,33 +279,43 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
         if tile.1 == 0 { continue }
 
         let actual_id = ObjectId::from(tile);
-        let object_def = ctx.defs.get(&actual_id);
-        let proxy_id = match object_def.map(|def| &def.kind) {
-            Some(ObjectKind::OverrideObject(tile_original)) => ObjectId::from(tile_original),
+        let Some(object_def) = ctx.defs.get(&actual_id) else { continue };
+        let proxy_id = match object_def.kind {
+            ObjectKind::OverrideObject(tile_original) => ObjectId::from(tile_original),
             _ => ObjectId::from(tile),
         };
-        let curs = Cursor {
+        let mut curs = Cursor {
             i,
             actual_id,
             proxy_id,
         };
-
-        if ctx.sync.limiters.get_mut(&curs.proxy_id)
-            .is_some_and(|limiter| !limiter.increment())
-        {
-            continue;
-        }
-        if object_def.is_some_and(|object| match object.draw.visibility {
+        
+        let is_limited = ctx.sync.limiters.get_mut(&curs.proxy_id)
+            .is_some_and(|limiter| !limiter.increment());
+        let is_invisible = match object_def.draw.visibility {
             Visibility::Never => !ctx.opts.show_invisible,
-            Visibility::Proximity => !ctx.opts.show_proximity,
+            Visibility::Proximity => {
+                // Hack for 19-46
+                if ctx.opts.show_proximity {
+                    false
+                }
+                else if let Some(placeholder) = object_def.draw.placeholder_variant {
+                    curs.proxy_id = curs.proxy_id.into_variant(placeholder);
+                    curs.actual_id = curs.proxy_id;
+                    false
+                }
+                else {
+                    true
+                }
+            }
             Visibility::Always => false,
-        }) {
-            continue;
-        }
-        if let Some(def) = object_def
-            && let Some(phase) = &def.sync.laser_phase
-            && *phase != ctx.sync.group.laser_phase
-        {
+        };
+        let is_out_of_phase = object_def.sync.laser_phase
+            .as_ref()
+            .is_some_and(|phase| {
+                *phase != ctx.sync.group.laser_phase
+            });
+        if is_limited || is_invisible || is_out_of_phase {
             continue;
         }
 

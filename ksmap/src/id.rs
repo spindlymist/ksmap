@@ -33,6 +33,7 @@ pub enum ObjectVariant {
     B,
     C,
     D,
+    Placeholder,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -127,6 +128,7 @@ impl Display for ObjectVariant {
             ObjectVariant::B => "B",
             ObjectVariant::C => "C",
             ObjectVariant::D => "D",
+            ObjectVariant::Placeholder => "Placeholder",
         };
         f.write_str(s)
     }
@@ -148,6 +150,7 @@ impl TryFrom<&str> for ObjectVariant {
             "B" => ObjectVariant::B,
             "C" => ObjectVariant::C,
             "D" => ObjectVariant::D,
+            "Placeholder" => ObjectVariant::Placeholder,
             _ => return Err(ObjectVariantParseError::UnknownVariant(value.to_owned())),
         };
         Ok(variant)

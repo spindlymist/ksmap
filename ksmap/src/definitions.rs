@@ -80,6 +80,7 @@ pub struct SyncParams {
 pub struct DrawParams {
     #[serde(default)]
     pub visibility: Visibility,
+    pub placeholder_variant: Option<ObjectVariant>,
     #[serde(default)]
     pub blend_mode: BlendMode,
     #[serde(default, rename = "transparency_algo")]
@@ -428,6 +429,7 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
     
     let draw_params = DrawParams {
         visibility: Visibility::Always,
+        placeholder_variant: None,
         blend_mode: BlendMode::Over,
         trans_algo: TransAlgorithm::None,
         trans: TransParams::default(),
@@ -532,6 +534,7 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         
         DrawParams {
             visibility: def.draw.visibility,
+            placeholder_variant: def.draw.placeholder_variant,
             blend_mode: BlendMode::Over,
             trans_algo: def.draw.trans_algo,
             trans: def.draw.trans,
