@@ -72,6 +72,7 @@ pub struct DrawOptions {
     /// The number of frames to simulate for transparency.
     pub trans_frames: u32,
     pub tint_strategy: TintStrategy,
+    pub ignore_laser_phase: bool,
 }
 
 impl Default for DrawOptions {
@@ -83,6 +84,7 @@ impl Default for DrawOptions {
             trans_max_threshold: 5,
             trans_frames: 150,
             tint_strategy: TintStrategy::Ignore,
+            ignore_laser_phase: false,
         }
     }
 }
@@ -310,7 +312,9 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
             }
             Visibility::Always => false,
         };
-        let is_out_of_phase = object_def.sync.laser_phase
+        let is_out_of_phase =
+            !ctx.opts.ignore_laser_phase
+            && object_def.sync.laser_phase
             .as_ref()
             .is_some_and(|phase| {
                 *phase != ctx.sync.group.laser_phase

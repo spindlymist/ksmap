@@ -16,7 +16,7 @@ use ksmap::drawing::{self, DrawContext, DrawOptions};
 use ksmap::graphics::Graphics;
 use ksmap::screen_map::ScreenMap;
 
-use crate::cli::{Cli, GridArgs, IslandsArgs, PartitionStrategy};
+use crate::cli::{Cli, GridArgs, IslandsArgs, LaserStrategy, PartitionStrategy};
 use crate::timing::Timespan;
 
 fn main() -> Result<()> {
@@ -89,7 +89,7 @@ fn main() -> Result<()> {
     
     let world_sync = time_it!("Synchronizing map", {
         let sync_options = SyncOptions {
-            maximize_visible_lasers: !cli.randomize_lasers,
+            maximize_visible_lasers: cli.lasers == LaserStrategy::Randomize,
         };
         WorldSync::new(seed, &screen_map, &object_defs, &sync_options)
     });
@@ -110,6 +110,7 @@ fn main() -> Result<()> {
         trans_max_threshold: cli.min_alpha_threshold,
         trans_frames: cli.alpha_sim_frames,
         tint_strategy: cli.tints.into(),
+        ignore_laser_phase: cli.lasers == LaserStrategy::All,
     };
     let draw_context = DrawContext {
         seed,

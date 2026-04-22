@@ -34,12 +34,12 @@ pub struct Cli {
     /// Draw objects that are only visible when Juni is nearby
     #[arg(long, visible_alias("prox"))]
     pub show_proximity: bool,
+    /// How to handle laser phases
+    #[arg(long, default_value = "maximize")]
+    pub lasers: LaserStrategy,
     /// How to handle screen tints.
     #[arg(long, default_value = "ignore")]
     pub tints: TintStrategyCli,
-    /// Always pick a random laser phase (red/green) rather than the one with the most lasers
-    #[arg(long)]
-    pub randomize_lasers: bool,
     /// The minimum alpha value (0-255) for objects that have random opacity.
     /// Helps ensure objects such as ghosts are visible on the map.
     #[arg(long, default_value = "12")]
@@ -122,4 +122,15 @@ impl Into<TintStrategy> for TintStrategyCli {
             TintStrategyCli::Explicit => TintStrategy::Explicit,
         }
     }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Default, clap::ValueEnum)]
+pub enum LaserStrategy {
+    /// Choose the phase (red/green) with the most lasers
+    #[default]
+    Maximize,
+    /// Choose a random phase
+    Randomize,
+    /// Draw all lasers regardless of phase
+    All,
 }
