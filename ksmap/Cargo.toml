@@ -9,7 +9,7 @@ edition = "2024"
 anyhow = { version = "1.0.102", features = ["backtrace"] }
 byteorder-lite = "0.1.0"
 clap = { version = "4.6.1", features = ["derive"] }
-image = "0.25.10"
+image = { git = "https://github.com/spindlymist/image-rs.git", branch = "version-0.25" }
 libks = { git = "https://github.com/spindlymist/libks.git" }
 libks_ini = { git = "https://github.com/spindlymist/libks.git" }
 mtpng = { git = "https://github.com/spindlymist/mtpng.git" }

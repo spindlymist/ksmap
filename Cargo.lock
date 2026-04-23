@@ -973,6 +973,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "image"
+version = "0.25.10"
+source = "git+https://github.com/spindlymist/image-rs.git?branch=version-0.25#ee6ecbf897ce0ad733849a0535f55d6fa6eb237c"
+dependencies = [
+ "bytemuck",
+ "byteorder-lite",
+ "color_quant",
+ "exr",
+ "gif",
+ "image-webp",
+ "moxcms",
+ "num-traits",
+ "png 0.18.1",
+ "qoi",
+ "ravif",
+ "rayon",
+ "rgb",
+ "tiff",
+ "zune-core",
+ "zune-jpeg",
+]
+
+[[package]]
 name = "image-webp"
 version = "0.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1043,7 +1066,7 @@ version = "0.1.0"
 source = "git+https://github.com/spindlymist/imgui_app#3fa573724cffd36979d84ea941e227c59b7fe654"
 dependencies = [
  "byteorder-lite",
- "image",
+ "image 0.25.10 (registry+https://github.com/rust-lang/crates.io-index)",
  "imgui",
  "imgui-sdl2-support",
  "imgui-sys",
@@ -1208,7 +1231,7 @@ dependencies = [
  "anyhow",
  "byteorder-lite",
  "clap",
- "image",
+ "image 0.25.10 (git+https://github.com/spindlymist/image-rs.git?branch=version-0.25)",
  "libks",
  "libks_ini",
  "mtpng",
