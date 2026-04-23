@@ -2,6 +2,7 @@
 members = [
     "ksmap",
     "cli",
+    "gui",
     "xtask",
 ]
 resolver = "2"

@@ -7,4 +7,4 @@ edition = "2024"
 anyhow = "1.0.100"
 clap = { version = "4.5.54", features = ["derive"] }
 ksmap = { path = "../ksmap" }
-libks = { path = "../../libks/libks" }
+libks = { git = "https://github.com/spindlymist/libks.git" }

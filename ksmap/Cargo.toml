@@ -10,8 +10,8 @@ anyhow = { version = "1.0.100", features = ["backtrace"] }
 byteorder-lite = "0.1.0"
 clap = { version = "4.5.54", features = ["derive"] }
 image = "0.25.9"
-libks = { path = "../../libks/libks" }
-libks_ini = { path = "../../libks/libks_ini" }
+libks = { git = "https://github.com/spindlymist/libks.git" }
+libks_ini = { git = "https://github.com/spindlymist/libks.git" }
 mtpng = { git = "https://github.com/spindlymist/mtpng.git" }
 petgraph = "0.8.3"
 png = { git = "https://github.com/spindlymist/image-png" }
