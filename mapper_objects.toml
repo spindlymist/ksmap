@@ -2298,6 +2298,9 @@ anim_from = 5
 anim_to = 5
 limit = { pick = "First", n = 1 }
 visibility = "Proximity"
+placeholder_variant = "Placeholder"
+
+["19-46 Placeholder"]
 
 [19-47]
 sync_to = "Screen"
