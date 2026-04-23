@@ -89,7 +89,7 @@ fn main() -> Result<()> {
     
     let world_sync = time_it!("Synchronizing map", {
         let sync_options = SyncOptions {
-            maximize_visible_lasers: cli.lasers == LaserStrategy::Randomize,
+            maximize_visible_lasers: cli.lasers == LaserStrategy::Maximize,
         };
         WorldSync::new(seed, &screen_map, &object_defs, &sync_options)
     });
