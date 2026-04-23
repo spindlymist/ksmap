@@ -1,4 +1,4 @@
-use rand::{Rng, rngs::SmallRng};
+use rand::{RngExt, rngs::SmallRng};
 
 use crate::definitions::{TransAlgorithm, TransParams};
 

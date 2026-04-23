@@ -1,7 +1,7 @@
 use std::{ops::Range, rc::Rc};
 
 use image::{RgbaImage, SubImage, imageops};
-use rand::Rng;
+use rand::{Rng, RngExt};
 
 use crate::definitions::AnimParams;
 

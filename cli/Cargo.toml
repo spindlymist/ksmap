@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.100"
-clap = { version = "4.5.54", features = ["derive"] }
+anyhow = "1.0.102"
+clap = { version = "4.6.1", features = ["derive"] }
 ksmap = { path = "../ksmap" }
 libks = { git = "https://github.com/spindlymist/libks.git" }
