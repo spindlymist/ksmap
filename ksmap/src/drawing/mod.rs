@@ -125,15 +125,15 @@ fn make_canvas(bounds: &Bounds) -> Result<RgbaImage> {
 
     let Ok(Some(width)) = u32::try_from(width)
         .map(|width| width.checked_mul(600))
-    else {
-        return Err(anyhow!("Partition is too large: {bounds}"));
-    };
+        else {
+            return Err(anyhow!("Partition is too large: {bounds}"));
+        };
 
     let Ok(Some(height)) = u32::try_from(height)
         .map(|height| height.checked_mul(240))
-    else {
-        return Err(anyhow!("Partition {bounds} is too large"));
-    };
+        else {
+            return Err(anyhow!("Partition is too large: {bounds}"));
+        };
     
     Ok(RgbaImage::new(width, height))
 }
@@ -294,6 +294,10 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
         
         let is_limited = ctx.sync.limiters.get_mut(&curs.proxy_id)
             .is_some_and(|limiter| !limiter.increment());
+        if is_limited {
+            continue;
+        }
+        
         let is_invisible = match object_def.draw.visibility {
             Visibility::Never => !ctx.opts.show_invisible,
             Visibility::Proximity => {
@@ -312,6 +316,10 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
             }
             Visibility::Always => false,
         };
+        if is_invisible {
+            continue;
+        }
+        
         let is_out_of_phase =
             !ctx.opts.ignore_laser_phase
             && object_def.sync.laser_phase
@@ -319,7 +327,7 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
             .is_some_and(|phase| {
                 *phase != ctx.sync.group.laser_phase
             });
-        if is_limited || is_invisible || is_out_of_phase {
+        if is_out_of_phase {
             continue;
         }
 
@@ -339,7 +347,6 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
     }
 }
 
-#[inline]
 fn draw_object(
     ctx: &mut ScreenContext,
     at_index: usize,
@@ -348,7 +355,6 @@ fn draw_object(
     draw_object_with_offset(ctx, at_index, object, (0, 0));
 }
 
-#[inline]
 fn draw_object_with_offset(
     ctx: &mut ScreenContext,
     at_index: usize,
@@ -376,6 +382,7 @@ fn draw_object_with_offset(
         flip = false;
         // Should technically fetch the variant def here but it doesn't matter for any existing object
     }
+    
     let Some(obj_image) = ctx.gfx.object(&id) else { return };
     
     let anim_t = match &def.sync.sync_to {
@@ -407,9 +414,23 @@ fn draw_spritesheet(
             spritesheet.random_frame(&mut rng_frame)
         }
     };
+    
+    // A bit awkward. The flipped image must live till the end of the function because frame is only a reference.
+    let flipped =
+        if flip {
+            let mut flipped = frame.to_image();
+            imageops::flip_horizontal_in_place(&mut flipped);
+            Some(flipped)
+        }
+        else {
+            None
+        };
+    if let Some(flipped) = flipped.as_ref() {
+        frame = imageops::crop_imm(flipped, 0, 0, flipped.width(), flipped.height());
+    }
+    
     let (screen_x, screen_y) = screen_index_to_pixels(at_index);
     let (offset_x, offset_y) = def.draw.offset;
-
     let final_x =
         (screen_x + 12) as i64
         + (offset_x + offset.0) as i64
@@ -418,19 +439,6 @@ fn draw_spritesheet(
         (screen_y + 12) as i64
         + (offset_y + offset.1) as i64
         - (spritesheet.frame_height / 2) as i64;
-    
-    let flipped = if flip {
-            let mut flipped = frame.to_image();
-            imageops::flip_horizontal_in_place(&mut flipped);
-            Some(flipped)
-        }
-        else {
-            None
-        };
-    frame = match flipped.as_ref() {
-        Some(flipped) => imageops::crop_imm(flipped, 0, 0, flipped.width(), flipped.height()),
-        None => frame,
-    };
     
     let alpha =
         if def.draw.trans_algo == TransAlgorithm::None {
@@ -509,7 +517,6 @@ fn draw_with_random_offset(ctx: &mut ScreenContext, curs: Cursor, range: RangeIn
     draw_object_with_offset(ctx, curs.i, curs.actual_id, (offset_x, offset_y));
 }
 
-
 fn apply_tint(ctx: &mut ScreenContext) {
     if ctx.opts.tint_strategy == TintStrategy::Ignore {
         return;
@@ -523,7 +530,7 @@ fn apply_tint(ctx: &mut ScreenContext) {
     }
     
     let [r, g, b] = unpack_color(tint);
-    let mut a: u8 = 255;
+    let mut a = 255u8;
     let blend_mode = match section.get("TintInk")
         .unwrap_or("")
         .to_ascii_lowercase()
