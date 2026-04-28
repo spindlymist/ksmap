@@ -1,7 +1,7 @@
 use std::{fs, ops::RangeInclusive, path::Path};
 
 use anyhow::{anyhow, Result};
-use image::{codecs::png::PngEncoder, imageops, GenericImage, ImageEncoder, RgbaImage};
+use image::{GenericImage, ImageEncoder, Rgba, RgbaImage, codecs::png::PngEncoder, imageops};
 use rand::prelude::*;
 use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::{Ini, VirtualSection};
@@ -213,7 +213,7 @@ pub fn draw_screen(
         seed,
         screen_pos: screen.position,
         layer: 0,
-        image: RgbaImage::new(600, 240),
+        image: RgbaImage::from_pixel(600, 240, Rgba([255, 255, 255, 255])),
         tileset_a: gfx.tileset(screen.assets.tileset_a),
         tileset_b: gfx.tileset(screen.assets.tileset_b),
         gfx,
