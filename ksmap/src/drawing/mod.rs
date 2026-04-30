@@ -225,7 +225,14 @@ pub fn draw_screen(
     
     // Draw gradient
     if let Some(gradient) = ctx.gfx.gradient(screen.assets.gradient) {
-        imageops::tile(&mut ctx.image, gradient);
+        // The number of times the gradient repeats is rounded down. As a result, if 600 cannot be evenly divided by
+        // the gradient's width, it will not cover the entire background. If the gradient's width is more than 600,
+        // nothing will be drawn.
+        let reps = 600 / gradient.width();
+        for i in 0..reps {
+            let x = i * gradient.width();
+            imageops::overlay(&mut ctx.image, gradient, x as i64, 0);
+        }
     }
     
     // Draw tile layers

@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::{Context, Result};
-use image::{DynamicImage, Rgba, RgbaImage};
+use image::{DynamicImage, Pixel, Rgba, RgbaImage, imageops};
 use libks::map_bin::AssetId;
 use rustc_hash::FxHashMap;
 
@@ -20,12 +20,10 @@ use crate::{
 };
 use spritesheet::Spritesheet;
 
-type MaybeImage = Option<Rc<RgbaImage>>;
-
 pub struct Graphics<'a> {
     paths: Paths,
     object_defs: &'a ObjectDefs,
-    cache: FxHashMap<(PathBuf, MagicColor), MaybeImage>,
+    cache: FxHashMap<(PathBuf, MagicColor), Option<ImageInfo>>,
     tilesets: FxHashMap<AssetId, Rc<RgbaImage>>,
     gradients: FxHashMap<AssetId, Rc<RgbaImage>>,
     objects: FxHashMap<ObjectId, Spritesheet>,
@@ -39,6 +37,20 @@ pub struct Paths {
     level_gradients: PathBuf,
     custom_objects: PathBuf,
     templates: PathBuf,
+}
+
+struct ImageInfo {
+    image: Rc<RgbaImage>,
+    has_alpha: bool,
+}
+
+impl Clone for ImageInfo {
+    fn clone(&self) -> Self {
+        Self {
+            image: Rc::clone(&self.image),
+            has_alpha: self.has_alpha,
+        }
+    }
 }
 
 impl Paths {
@@ -126,16 +138,15 @@ impl<'a> Graphics<'a> {
         Ok(())
     }
     
-    fn load_image(&mut self, path: PathBuf, magic_color: MagicColor) -> Result<MaybeImage> {
+    fn load_image(&mut self, path: PathBuf, magic_color: MagicColor) -> Result<Option<ImageInfo>> {
         let cached_image = match self.cache.entry((path, magic_color)) {
             Entry::Occupied(entry) => {
-                return Ok(entry.get()
-                    .as_ref()
-                    .map(Rc::clone))
+                return match entry.get() {
+                    Some(info) => Ok(Some(info.clone())),
+                    None => Ok(None),
+                };
             },
-            Entry::Vacant(entry) => {
-                entry
-            },
+            Entry::Vacant(entry) => entry,
         };
         let (path, magic_color) = cached_image.key();
         
@@ -152,10 +163,10 @@ impl<'a> Graphics<'a> {
         let image = DynamicImage::from_decoder(decoder)
             .with_context(|| format!("Error while decoding {path:?}"))?;
 
-        let is_24_bpp = matches!(image, DynamicImage::ImageRgb8(_));
+        let has_alpha = image.has_alpha();
         let mut image = image.into_rgba8();
 
-        if is_24_bpp || magic_color.force {
+        if !has_alpha || magic_color.force {
             for pixel in image.pixels_mut() {
                 if *pixel == magic_color.rgba {
                     pixel.0 = [0, 0, 0, 0];
@@ -163,49 +174,118 @@ impl<'a> Graphics<'a> {
             }
         }
         
-        let image_rc = Rc::new(image);
-        cached_image.insert(Some(Rc::clone(&image_rc)));
+        let info = ImageInfo {
+            image: Rc::new(image),
+            has_alpha,
+        };
+        cached_image.insert(Some(info.clone()));
 
-        Ok(Some(image_rc))
+        Ok(Some(info))
     }
 
-    fn load_tileset(&mut self, id: AssetId) -> Result<MaybeImage> {
+    fn load_tileset(&mut self, id: AssetId) -> Result<Option<Rc<RgbaImage>>> {
         let suffix = format!("Tileset{id}.png");
         
-        let image = self.load_image(self.paths.level_tilesets.join(&suffix), MagicColor::MAGENTA)?;
-        if image.is_some() {
-            return Ok(image);
+        if let Some(info) = self.load_image(self.paths.level_tilesets.join(&suffix), MagicColor::MAGENTA)? {
+            let image = self.preprocess_tileset(info);
+            return Ok(Some(image));
         }
         
-        let image = self.load_image(self.paths.data_tilesets.join(&suffix), MagicColor::MAGENTA)?;
-        if image.is_some() {
-            return Ok(image);
+        if let Some(info) = self.load_image(self.paths.data_tilesets.join(&suffix), MagicColor::MAGENTA)? {
+            let image = self.preprocess_tileset(info);
+            return Ok(Some(image));
         }
         
         Ok(None)
     }
 
-    fn load_gradient(&mut self, id: AssetId) -> Result<MaybeImage> {
-        let suffix = format!("Gradient{id}.png");
-        
-        let image = self.load_image(self.paths.level_gradients.join(&suffix), MagicColor::MAGENTA)?;
-        if image.is_some() {
-            return Ok(image);
+    fn preprocess_tileset(&mut self, info: ImageInfo) -> Rc<RgbaImage> {
+        let image = info.image;
+
+        // If a tileset is undersized such that it has partially incomplete tiles, and it has no alpha channel, the
+        // remaining pixels of those tiles (beyond the borders of the image) will become black. If the image has an
+        // alpha channel, they will become transparent instead. Tiles that would lie wholly outside the borders of
+        // the image will be completely transparent regardless of whether the image has an alpha channel.
+        if info.has_alpha {
+            return image;
         }
         
-        let image = self.load_image(self.paths.data_gradients.join(&suffix), MagicColor::MAGENTA)?;
-        if image.is_some() {
-            return Ok(image);
+        let width_original = image.width().min(384);
+        let width_remainder = width_original % 24;
+        let mut width_padding = 0;
+        if width_original < 384 && width_remainder > 0 {
+            width_padding = 24 - width_remainder;
+        }
+        
+        let height_original = image.height().min(192);
+        let height_remainder = height_original % 24;
+        let mut height_padding = 0;
+        if height_original < 192 && height_remainder > 0 {
+            height_padding = 24 - height_remainder;
+        }
+        
+        if width_padding > 0 || height_padding > 0 {
+            let width_new = width_original + width_padding;
+            let height_new = height_original + height_padding;
+            let processed = resize_image_canvas(image.as_ref(), width_new, height_new, Rgba([0, 0, 0, 255]));
+            Rc::new(processed)
+        }
+        else {
+            image
+        }
+    }
+
+    fn load_gradient(&mut self, id: AssetId) -> Result<Option<Rc<RgbaImage>>> {
+        let suffix = format!("Gradient{id}.png");
+        
+        if let Some(info) = self.load_image(self.paths.level_gradients.join(&suffix), MagicColor::MAGENTA)? {
+            let image = self.preprocess_gradient(info);
+            return Ok(Some(image));
+        }
+        
+        if let Some(info) = self.load_image(self.paths.data_gradients.join(&suffix), MagicColor::MAGENTA)? {
+            let image = self.preprocess_gradient(info);
+            return Ok(Some(image));
         }
         
         Ok(None)
+    }
+
+    fn preprocess_gradient(&mut self, info: ImageInfo) -> Rc<RgbaImage> {
+        let mut image = info.image;
+        
+        // If a gradient is transparent, it will be blended with the base layer, which is white.
+        // Oddly, the gradient is drawn twice, so the resulting pixels are less white and more similar to the source
+        // colors than they should be.
+        let has_transparent_pixel = image.pixels().any(|pixel| pixel.alpha() < 255);
+        if has_transparent_pixel {
+            let mut processed = RgbaImage::from_pixel(image.width(), image.height(), Rgba([255, 255, 255, 255]));
+            imageops::overlay(&mut processed, image.as_ref(), 0, 0);
+            imageops::overlay(&mut processed, image.as_ref(), 0, 0);
+            image = Rc::new(processed);
+        }
+        
+        // If a gradient is less than 240 pixels tall, and the source image lacked an alpha channel, then the gradient
+        // is padded with black pixels. Otherwise, it's padded with transparent pixels, exposing the white base layer.
+        if image.height() < 240 {
+            let processed =
+                if info.has_alpha { 
+                    resize_image_canvas(image.as_ref(), image.width(), 240, Rgba([255, 255, 255, 255]))
+                }
+                else {
+                    resize_image_canvas(image.as_ref(), image.width(), 240, Rgba([0, 0, 0, 255]))
+                };
+            image = Rc::new(processed);
+        }
+        
+        image
     }
 
     fn load_stock_object(
         &mut self,
         id: &ObjectId,
         def: &ObjectDef,
-    ) -> Result<MaybeImage> {
+    ) -> Result<Option<Rc<RgbaImage>>> {
         if def.base.is_overridden {
             return self.load_custom_object(def);
         }
@@ -219,20 +299,18 @@ impl<'a> Graphics<'a> {
             },
         };
         
-        let image = self.load_image(self.paths.templates.join(suffix), MagicColor::FORCE_MAGENTA)?;
-        if image.is_some() {
-            return Ok(image);
+        if let Some(info) = self.load_image(self.paths.templates.join(suffix), MagicColor::FORCE_MAGENTA)? {
+            return Ok(Some(info.image));
         }
         
-        let image = self.load_image(self.paths.editor_objects.join(suffix), MagicColor::FORCE_MAGENTA)?;
-        if image.is_some() {
-            return Ok(image);
+        if let Some(info) = self.load_image(self.paths.editor_objects.join(suffix), MagicColor::FORCE_MAGENTA)? {
+            return Ok(Some(info.image));
         }
         
         Ok(None)
     }
 
-    fn load_custom_object(&mut self, def: &ObjectDef) -> Result<MaybeImage> {
+    fn load_custom_object(&mut self, def: &ObjectDef) -> Result<Option<Rc<RgbaImage>>> {
         let Some(path) = def.path.as_ref() else { return Ok(None) };
         
         // PathBuf::join sees /xyz as an absolute path and replaces the base path
@@ -246,9 +324,10 @@ impl<'a> Graphics<'a> {
         };
         
         self.load_image(self.paths.custom_objects.join(path), MagicColor::BLACK)
+            .map(|maybe_info| maybe_info.map(|info| info.image))
     }
 
-    fn load_override_object(&mut self, def: &ObjectDef) -> Result<MaybeImage> {
+    fn load_override_object(&mut self, def: &ObjectDef) -> Result<Option<Rc<RgbaImage>>> {
         let image = match def.base.oco_support {
             OcoSupport::NoCustomGraphics => {
                 let ObjectKind::OverrideObject(original_tile) = def.kind else {
@@ -288,6 +367,21 @@ impl<'a> Graphics<'a> {
         
         Ok(Some(Rc::new(transformed_image)))
     }
+}
+
+fn resize_image_canvas(image: &RgbaImage, new_width: u32, new_height: u32, fill: Rgba<u8>) -> RgbaImage {
+    let mut new_image = RgbaImage::from_pixel(new_width, new_height, fill);
+    
+    let common_width = u32::min(image.width(), new_width);
+    let common_height = u32::min(image.height(), new_height);
+    
+    for y in 0..common_height {
+        for x in 0..common_width {
+            new_image.put_pixel(x, y, *image.get_pixel(x, y));
+        }
+    }
+    
+    new_image
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
