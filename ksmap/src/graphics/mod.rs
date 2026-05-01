@@ -25,7 +25,7 @@ pub struct Graphics<'a> {
     object_defs: &'a ObjectDefs,
     cache: FxHashMap<(PathBuf, MagicColor), Option<ImageInfo>>,
     tilesets: FxHashMap<AssetId, Rc<RgbaImage>>,
-    gradients: FxHashMap<AssetId, Rc<RgbaImage>>,
+    gradients: FxHashMap<AssetId, Gradient>,
     objects: FxHashMap<ObjectId, Spritesheet>,
 }
 
@@ -41,16 +41,21 @@ pub struct Paths {
 
 struct ImageInfo {
     image: Rc<RgbaImage>,
-    has_alpha: bool,
+    has_alpha_channel: bool,
 }
 
 impl Clone for ImageInfo {
     fn clone(&self) -> Self {
         Self {
             image: Rc::clone(&self.image),
-            has_alpha: self.has_alpha,
+            has_alpha_channel: self.has_alpha_channel,
         }
     }
+}
+
+pub struct Gradient {
+    pub image: Rc<RgbaImage>,
+    pub has_transparency: bool,
 }
 
 impl Paths {
@@ -95,9 +100,8 @@ impl<'a> Graphics<'a> {
             .map(Rc::as_ref)
     }
 
-    pub fn gradient(&self, id: AssetId) -> Option<&RgbaImage> {
+    pub fn gradient(&self, id: AssetId) -> Option<&Gradient> {
         self.gradients.get(&id)
-            .map(Rc::as_ref)
     }
 
     pub fn object(&self, id: &ObjectId) -> Option<&Spritesheet> {
@@ -115,8 +119,8 @@ impl<'a> Graphics<'a> {
     
     pub fn load_gradients(&mut self, ids: &[AssetId]) -> Result<()> {
         for id in ids {
-            if let Some(image) = self.load_gradient(*id)? {
-                self.gradients.insert(*id, image);
+            if let Some(gradient) = self.load_gradient(*id)? {
+                self.gradients.insert(*id, gradient);
             }
         }
         Ok(())
@@ -176,7 +180,7 @@ impl<'a> Graphics<'a> {
         
         let info = ImageInfo {
             image: Rc::new(image),
-            has_alpha,
+            has_alpha_channel: has_alpha,
         };
         cached_image.insert(Some(info.clone()));
 
@@ -206,7 +210,7 @@ impl<'a> Graphics<'a> {
         // remaining pixels of those tiles (beyond the borders of the image) will become black. If the image has an
         // alpha channel, they will become transparent instead. Tiles that would lie wholly outside the borders of
         // the image will be completely transparent regardless of whether the image has an alpha channel.
-        if info.has_alpha {
+        if info.has_alpha_channel {
             return image;
         }
         
@@ -235,50 +239,39 @@ impl<'a> Graphics<'a> {
         }
     }
 
-    fn load_gradient(&mut self, id: AssetId) -> Result<Option<Rc<RgbaImage>>> {
+    fn load_gradient(&mut self, id: AssetId) -> Result<Option<Gradient>> {
         let suffix = format!("Gradient{id}.png");
         
         if let Some(info) = self.load_image(self.paths.level_gradients.join(&suffix), MagicColor::MAGENTA)? {
-            let image = self.preprocess_gradient(info);
-            return Ok(Some(image));
+            let gradient = self.preprocess_gradient(info);
+            return Ok(Some(gradient));
         }
         
         if let Some(info) = self.load_image(self.paths.data_gradients.join(&suffix), MagicColor::MAGENTA)? {
-            let image = self.preprocess_gradient(info);
-            return Ok(Some(image));
+            let gradient = self.preprocess_gradient(info);
+            return Ok(Some(gradient));
         }
         
         Ok(None)
     }
 
-    fn preprocess_gradient(&mut self, info: ImageInfo) -> Rc<RgbaImage> {
+    fn preprocess_gradient(&mut self, info: ImageInfo) -> Gradient {
         let mut image = info.image;
         
-        // If a gradient is transparent, it will be blended with the base layer, which is white.
-        // Oddly, the gradient is drawn twice, so the resulting pixels are less white and more similar to the source
-        // colors than they should be.
-        let has_transparent_pixel = image.pixels().any(|pixel| pixel.alpha() < 255);
-        if has_transparent_pixel {
-            let mut processed = RgbaImage::from_pixel(image.width(), image.height(), Rgba([255, 255, 255, 255]));
-            imageops::overlay(&mut processed, image.as_ref(), 0, 0);
-            imageops::overlay(&mut processed, image.as_ref(), 0, 0);
-            image = Rc::new(processed);
-        }
-        
         // If a gradient is less than 240 pixels tall, and the source image lacked an alpha channel, then the gradient
-        // is padded with black pixels. Otherwise, it's padded with transparent pixels, exposing the white base layer.
+        // is padded with black pixels. Otherwise, it's padded with transparent pixels
         if image.height() < 240 {
-            let processed =
-                if info.has_alpha { 
-                    resize_image_canvas(image.as_ref(), image.width(), 240, Rgba([255, 255, 255, 255]))
-                }
-                else {
-                    resize_image_canvas(image.as_ref(), image.width(), 240, Rgba([0, 0, 0, 255]))
-                };
+            let alpha = if info.has_alpha_channel { 0 } else { 255 };
+            let processed = resize_image_canvas(image.as_ref(), image.width(), 240, Rgba([0, 0, 0, alpha]));
             image = Rc::new(processed);
         }
         
-        image
+        let has_transparency = image.pixels().any(|pixel| pixel.alpha() < 255);
+        
+        Gradient {
+            image,
+            has_transparency,
+        }
     }
 
     fn load_stock_object(

@@ -8,7 +8,7 @@ use libks_ini::{Ini, VirtualSection};
 
 use crate::{
     definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransAlgorithm, Visibility},
-    graphics::{Graphics, spritesheet::Spritesheet},
+    graphics::{Gradient, Graphics, spritesheet::Spritesheet},
     id::{ObjectId, ObjectVariant},
     ini_util::{VirtualSectionExt, unpack_color},
     partition::{Bounds, Partition},
@@ -53,6 +53,7 @@ struct ScreenContext<'a> {
     image: RgbaImage,
     tileset_a: Option<&'a RgbaImage>,
     tileset_b: Option<&'a RgbaImage>,
+    gradient: Option<&'a Gradient>,
     gfx: &'a Graphics<'a>,
     defs: &'a ObjectDefs,
     ini_section: Option<VirtualSection<'a>>,
@@ -216,6 +217,7 @@ pub fn draw_screen(
         image: RgbaImage::from_pixel(600, 240, Rgba([255, 255, 255, 255])),
         tileset_a: gfx.tileset(screen.assets.tileset_a),
         tileset_b: gfx.tileset(screen.assets.tileset_b),
+        gradient: gfx.gradient(screen.assets.gradient),
         gfx,
         defs,
         ini_section,
@@ -223,25 +225,35 @@ pub fn draw_screen(
         opts,
     };
     
-    // Draw gradient
-    if let Some(gradient) = ctx.gfx.gradient(screen.assets.gradient) {
-        // The number of times the gradient repeats is rounded down. As a result, if 600 cannot be evenly divided by
-        // the gradient's width, it will not cover the entire background. If the gradient's width is more than 600,
-        // nothing will be drawn.
-        let reps = 600 / gradient.width();
-        for i in 0..reps {
-            let x = i * gradient.width();
-            imageops::overlay(&mut ctx.image, gradient, x as i64, 0);
+    // Believe it or not, KS renders the gradient and tiles twice in alternating fashion. This appears to be a bug in
+    // the MMF runtime when the display mode is set to Standard. Normally, it is unnoticeable because the gradient is
+    // opaque, so the first two layers are fully obscured. However, when the gradient has transparent pixels, it
+    // becomes significant.
+    let render_reps = match ctx.gradient {
+        Some(grad) if grad.has_transparency => 2,
+        _ => 1,
+    };
+    for _ in 0..render_reps {
+        // Draw gradient
+        if let Some(gradient) = ctx.gradient {
+            // The number of times the gradient repeats is rounded down. As a result, if 600 cannot be evenly divided by
+            // the gradient's width, it will not cover the entire background. If the gradient's width is more than 600,
+            // nothing will be drawn.
+            let gradient_reps = 600 / gradient.image.width();
+            for i in 0..gradient_reps {
+                let x = i * gradient.image.width();
+                imageops::overlay(&mut ctx.image, gradient.image.as_ref(), x as i64, 0);
+            }
         }
+        
+        // Draw tile layers
+        draw_tile_layer(&mut ctx, &screen.layers[0]);
+        draw_tile_layer(&mut ctx, &screen.layers[1]);
+        if !is_overlay {
+            draw_tile_layer(&mut ctx, &screen.layers[2]);
+        }
+        draw_tile_layer(&mut ctx, &screen.layers[3]);
     }
-    
-    // Draw tile layers
-    draw_tile_layer(&mut ctx, &screen.layers[0]);
-    draw_tile_layer(&mut ctx, &screen.layers[1]);
-    if !is_overlay {
-        draw_tile_layer(&mut ctx, &screen.layers[2]);
-    }
-    draw_tile_layer(&mut ctx, &screen.layers[3]);
 
     // Draw object layers
     ctx.layer = 4;
