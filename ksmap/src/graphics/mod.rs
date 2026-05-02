@@ -83,7 +83,7 @@ pub enum LoadImageError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum LoadImageWarning {
-    #[error("`{}` could not be decoded. Reason: {source}", path.to_string_lossy())]
+    #[error("`{}` could not be decoded and was ignored. Reason: {source}", path.to_string_lossy())]
     FailedToDecode {
         source: image::ImageError,
         path: PathBuf,
