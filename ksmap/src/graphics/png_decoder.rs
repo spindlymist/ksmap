@@ -46,12 +46,16 @@ impl<R: BufRead + Seek> PngDecoder<R> {
         decoder.set_ignore_trns_chunk(true);
         decoder.ignore_checksums(true);
 
+        let info = decoder.read_header_info().map_err(image_error_from_png)?;
+        limits.check_dimensions(info.width, info.height)?;
+        
+        if info.color_type == png::ColorType::Indexed && (info.bit_depth as u8) < 8 {
+            return Err(unsupported_color(ExtendedColorType::Unknown(info.bit_depth as u8)));
+        }
+        
         ////////////////////////////////////////////////////////////////////////////////
         // END CHANGES
         ////////////////////////////////////////////////////////////////////////////////
-
-        let info = decoder.read_header_info().map_err(image_error_from_png)?;
-        limits.check_dimensions(info.width, info.height)?;
 
         // By default the PNG decoder will scale 16 bpc to 8 bpc, so custom
         // transformations must be set. EXPAND preserves the default behavior

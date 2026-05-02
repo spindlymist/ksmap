@@ -10,7 +10,7 @@ use std::{
 };
 
 use anyhow::Result;
-use image::{DynamicImage, Pixel, Rgba, RgbaImage};
+use image::{DynamicImage, ExtendedColorType, ImageError, Pixel, Rgba, RgbaImage, error::UnsupportedErrorKind};
 use libks::map_bin::AssetId;
 use rustc_hash::FxHashMap;
 
@@ -84,9 +84,14 @@ pub enum LoadImageError {
 #[derive(thiserror::Error, Debug)]
 pub enum LoadImageWarning {
     #[error("Failed to decode the image `{}`. Reason: {source}", path.to_string_lossy())]
-    Image {
+    FailedToDecode {
         source: image::ImageError,
         path: PathBuf,
+    },
+    #[error("KS does not support indexed PNGs with bit depth {bit_depth}.")]
+    UnsupportedIndexedBitDepth {
+        path: PathBuf,
+        bit_depth: u8,
     },
 }
 
@@ -190,7 +195,7 @@ impl<'a> Graphics<'a> {
                     source: err,
                     path: path.clone(),
                 }),
-            },
+            }
         };
         let reader = BufReader::new(file);
         let image = match png_decoder::PngDecoder::new(reader)
@@ -198,12 +203,23 @@ impl<'a> Graphics<'a> {
         {
             Ok(val) => val,
             Err(err) => {
-                warnings.push(LoadImageWarning::Image {
-                    source: err,
-                    path: path.clone(),
-                });
+                if let ImageError::Unsupported(err_unsupported) = &err
+                    && let UnsupportedErrorKind::Color(color_type) = err_unsupported.kind()
+                    && let ExtendedColorType::Unknown(bit_depth) = color_type
+                {
+                    warnings.push(LoadImageWarning::UnsupportedIndexedBitDepth {
+                        path: path.clone(),
+                        bit_depth,
+                    });
+                }
+                else {
+                    warnings.push(LoadImageWarning::FailedToDecode {
+                        source: err,
+                        path: path.clone(),
+                    });
+                }
                 return Ok(None);
-            },
+            }
         };
 
         let has_alpha = image.has_alpha();
