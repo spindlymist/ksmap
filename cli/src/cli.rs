@@ -37,18 +37,18 @@ pub struct Cli {
     /// How to handle laser phases
     #[arg(long, default_value = "maximize")]
     pub lasers: LaserStrategy,
-    /// How to handle screen tints.
+    /// How to handle screen tints
     #[arg(long, default_value = "ignore")]
     pub tints: TintStrategyCli,
     /// The minimum alpha value (0-255) for objects that have random opacity.
-    /// Helps ensure objects such as ghosts are visible on the map.
+    /// Helps ensure objects such as ghosts are visible on the map
     #[arg(long, default_value = "12")]
     pub min_alpha: u8,
     /// How many copies of an object a screen must have to ignore the `--min-alpha` argument.
-    /// This allows for more natural variation when an object appears many times on one screen.
+    /// This allows for more natural variation when an object appears many times on one screen
     #[arg(long, default_value = "5")]
     pub min_alpha_threshold: u32,
-    /// How many game frames to simulate for objects that have random opacity (50 = 1 second).
+    /// How many game frames to simulate for objects that have random opacity (50 = 1 second)
     #[arg(long, default_value = "150")]
     pub alpha_sim_frames: u32,
     /// Don't use the multithreaded PNG encoder
@@ -108,10 +108,10 @@ pub struct GridArgs {
 
 #[derive(Clone, Copy, Default, clap::ValueEnum)]
 pub enum TintStrategyCli {
-    /// Ignore screen tints.
+    /// Ignore screen tints
     #[default]
     Ignore,
-    /// Apply tints to screens that explicitly have one.
+    /// Apply tints to screens that explicitly have one
     Explicit,
 }
 
@@ -129,7 +129,7 @@ pub enum LaserStrategy {
     /// Choose the phase (red/green) with the most lasers
     #[default]
     Maximize,
-    /// Choose a random phase
+    /// Choose a phase (red/green) randomly
     Randomize,
     /// Draw all lasers regardless of phase
     All,
