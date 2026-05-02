@@ -3,14 +3,14 @@ mod png_decoder;
 
 use std::{
     collections::hash_map::Entry,
-    fs::OpenOptions,
+    fs::File,
     io::{self, BufReader},
     path::{Path, PathBuf},
     rc::Rc,
 };
 
-use anyhow::{Context, Result};
-use image::{DynamicImage, Pixel, Rgba, RgbaImage, imageops};
+use anyhow::Result;
+use image::{DynamicImage, Pixel, Rgba, RgbaImage};
 use libks::map_bin::AssetId;
 use rustc_hash::FxHashMap;
 
@@ -72,6 +72,26 @@ impl Paths {
     }
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum LoadImageError {
+    #[error("An IO error occurred while reading `{}`: {source}", path.to_string_lossy())]
+    Io {
+        source: std::io::Error,
+        path: PathBuf,
+    },
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum LoadImageWarning {
+    #[error("Failed to decode the image `{}`. Reason: {source}", path.to_string_lossy())]
+    Image {
+        source: image::ImageError,
+        path: PathBuf,
+    },
+}
+
+type MaybeImageRc = Option<Rc<RgbaImage>>;
+
 impl<'a> Graphics<'a> {
     pub fn new(
         data_dir: impl AsRef<Path>,
@@ -108,31 +128,31 @@ impl<'a> Graphics<'a> {
         self.objects.get(&id)
     }
     
-    pub fn load_tilesets(&mut self, ids: &[AssetId]) -> Result<()> {
+    pub fn load_tilesets(&mut self, ids: &[AssetId], warnings: &mut Vec<LoadImageWarning>) -> Result<()> {
         for id in ids {
-            if let Some(image) = self.load_tileset(*id)? {
+            if let Some(image) = self.load_tileset(*id, warnings)? {
                 self.tilesets.insert(*id, image);
             }
         }
         Ok(())
     }
     
-    pub fn load_gradients(&mut self, ids: &[AssetId]) -> Result<()> {
+    pub fn load_gradients(&mut self, ids: &[AssetId], warnings: &mut Vec<LoadImageWarning>) -> Result<()> {
         for id in ids {
-            if let Some(gradient) = self.load_gradient(*id)? {
+            if let Some(gradient) = self.load_gradient(*id, warnings)? {
                 self.gradients.insert(*id, gradient);
             }
         }
         Ok(())
     }
     
-    pub fn load_objects(&mut self, ids: &[ObjectId]) -> Result<()> {
+    pub fn load_objects(&mut self, ids: &[ObjectId], warnings: &mut Vec<LoadImageWarning>) -> Result<()> {
         for id in ids {
             let Some(def) = self.object_defs.get(id) else { continue };
             let image = match &def.kind {
-                ObjectKind::Object => self.load_stock_object(id, def)?,
-                ObjectKind::CustomObject => self.load_custom_object(def)?,
-                ObjectKind::OverrideObject(_) => self.load_override_object(def)?,
+                ObjectKind::Object => self.load_stock_object(id, def, warnings)?,
+                ObjectKind::CustomObject => self.load_custom_object(def, warnings)?,
+                ObjectKind::OverrideObject(_) => self.load_override_object(def, warnings)?,
             };
             if let Some(image) = image {
                 let spritesheet = Spritesheet::new(image, &def.anim);
@@ -142,7 +162,12 @@ impl<'a> Graphics<'a> {
         Ok(())
     }
     
-    fn load_image(&mut self, path: PathBuf, magic_color: MagicColor) -> Result<Option<ImageInfo>> {
+    fn load_image(
+        &mut self,
+        path: PathBuf,
+        magic_color: MagicColor,
+        warnings: &mut Vec<LoadImageWarning>,
+    ) -> Result<Option<ImageInfo>, LoadImageError> {
         let cached_image = match self.cache.entry((path, magic_color)) {
             Entry::Occupied(entry) => {
                 return match entry.get() {
@@ -154,18 +179,32 @@ impl<'a> Graphics<'a> {
         };
         let (path, magic_color) = cached_image.key();
         
-        let file = match OpenOptions::new().read(true).open(path) {
+        let file = match File::open(path) {
             Ok(file) => file,
-            Err(err) if err.kind() == io::ErrorKind::NotFound => {
-                cached_image.insert(None);
+            Err(err) => match err.kind() {
+                io::ErrorKind::NotFound => {
+                    cached_image.insert(None);
+                    return Ok(None);
+                },
+                _ => return Err(LoadImageError::Io {
+                    source: err,
+                    path: path.clone(),
+                }),
+            },
+        };
+        let reader = BufReader::new(file);
+        let image = match png_decoder::PngDecoder::new(reader)
+            .and_then(DynamicImage::from_decoder)
+        {
+            Ok(val) => val,
+            Err(err) => {
+                warnings.push(LoadImageWarning::Image {
+                    source: err,
+                    path: path.clone(),
+                });
                 return Ok(None);
             },
-            Err(err) => Err(err)?,
         };
-        let decoder = png_decoder::PngDecoder::new(BufReader::new(file))
-            .with_context(|| format!("Error while decoding {path:?}"))?;
-        let image = DynamicImage::from_decoder(decoder)
-            .with_context(|| format!("Error while decoding {path:?}"))?;
 
         let has_alpha = image.has_alpha();
         let mut image = image.into_rgba8();
@@ -187,15 +226,21 @@ impl<'a> Graphics<'a> {
         Ok(Some(info))
     }
 
-    fn load_tileset(&mut self, id: AssetId) -> Result<Option<Rc<RgbaImage>>> {
+    fn load_tileset(
+        &mut self,
+        id: AssetId,
+        warnings: &mut Vec<LoadImageWarning>,
+    ) -> Result<MaybeImageRc, LoadImageError> {
         let suffix = format!("Tileset{id}.png");
         
-        if let Some(info) = self.load_image(self.paths.level_tilesets.join(&suffix), MagicColor::MAGENTA)? {
+        let level_path = self.paths.level_tilesets.join(&suffix);
+        if let Some(info) = self.load_image(level_path, MagicColor::MAGENTA, warnings)? {
             let image = self.preprocess_tileset(info);
             return Ok(Some(image));
         }
         
-        if let Some(info) = self.load_image(self.paths.data_tilesets.join(&suffix), MagicColor::MAGENTA)? {
+        let data_path = self.paths.data_tilesets.join(&suffix);
+        if let Some(info) = self.load_image(data_path, MagicColor::MAGENTA, warnings)? {
             let image = self.preprocess_tileset(info);
             return Ok(Some(image));
         }
@@ -239,17 +284,23 @@ impl<'a> Graphics<'a> {
         }
     }
 
-    fn load_gradient(&mut self, id: AssetId) -> Result<Option<Gradient>> {
+    fn load_gradient(
+        &mut self,
+        id: AssetId,
+        warnings: &mut Vec<LoadImageWarning>,
+    ) -> Result<Option<Gradient>, LoadImageError> {
         let suffix = format!("Gradient{id}.png");
         
-        if let Some(info) = self.load_image(self.paths.level_gradients.join(&suffix), MagicColor::MAGENTA)? {
-            let gradient = self.preprocess_gradient(info);
-            return Ok(Some(gradient));
+        let level_path = self.paths.level_gradients.join(&suffix);
+        if let Some(info) = self.load_image(level_path, MagicColor::MAGENTA, warnings)? {
+            let image = self.preprocess_gradient(info);
+            return Ok(Some(image));
         }
         
-        if let Some(info) = self.load_image(self.paths.data_gradients.join(&suffix), MagicColor::MAGENTA)? {
-            let gradient = self.preprocess_gradient(info);
-            return Ok(Some(gradient));
+        let data_path = self.paths.data_gradients.join(&suffix);
+        if let Some(info) = self.load_image(data_path, MagicColor::MAGENTA, warnings)? {
+            let image = self.preprocess_gradient(info);
+            return Ok(Some(image));
         }
         
         Ok(None)
@@ -278,9 +329,10 @@ impl<'a> Graphics<'a> {
         &mut self,
         id: &ObjectId,
         def: &ObjectDef,
-    ) -> Result<Option<Rc<RgbaImage>>> {
+        warnings: &mut Vec<LoadImageWarning>,
+    ) -> Result<MaybeImageRc, LoadImageError> {
         if def.base.is_overridden {
-            return self.load_custom_object(def);
+            return self.load_custom_object(def, warnings);
         }
         
         let ObjectId(tile, variant) = id;
@@ -292,18 +344,24 @@ impl<'a> Graphics<'a> {
             },
         };
         
-        if let Some(info) = self.load_image(self.paths.templates.join(suffix), MagicColor::FORCE_MAGENTA)? {
+        let templates_path = self.paths.templates.join(suffix);
+        if let Some(info) = self.load_image(templates_path, MagicColor::FORCE_MAGENTA, warnings)? {
             return Ok(Some(info.image));
         }
         
-        if let Some(info) = self.load_image(self.paths.editor_objects.join(suffix), MagicColor::FORCE_MAGENTA)? {
+        let data_path = self.paths.editor_objects.join(suffix);
+        if let Some(info) = self.load_image(data_path, MagicColor::FORCE_MAGENTA, warnings)? {
             return Ok(Some(info.image));
         }
         
         Ok(None)
     }
 
-    fn load_custom_object(&mut self, def: &ObjectDef) -> Result<Option<Rc<RgbaImage>>> {
+    fn load_custom_object(
+        &mut self,
+        def: &ObjectDef,
+        warnings: &mut Vec<LoadImageWarning>,
+    ) -> Result<MaybeImageRc, LoadImageError> {
         let Some(path) = def.path.as_ref() else { return Ok(None) };
         
         // PathBuf::join sees /xyz as an absolute path and replaces the base path
@@ -316,11 +374,15 @@ impl<'a> Graphics<'a> {
             None => return Ok(None),
         };
         
-        self.load_image(self.paths.custom_objects.join(path), MagicColor::BLACK)
+        self.load_image(self.paths.custom_objects.join(path), MagicColor::BLACK, warnings)
             .map(|maybe_info| maybe_info.map(|info| info.image))
     }
 
-    fn load_override_object(&mut self, def: &ObjectDef) -> Result<Option<Rc<RgbaImage>>> {
+    fn load_override_object(
+        &mut self,
+        def: &ObjectDef,
+        warnings: &mut Vec<LoadImageWarning>,
+    ) -> Result<MaybeImageRc, LoadImageError> {
         let image = match def.base.oco_support {
             OcoSupport::NoCustomGraphics => {
                 let ObjectKind::OverrideObject(original_tile) = def.kind else {
@@ -330,9 +392,9 @@ impl<'a> Graphics<'a> {
                 let Some(original_def) = self.object_defs.get(&original_id) else {
                     return Ok(None);
                 };
-                self.load_stock_object(&original_id, original_def)?
+                self.load_stock_object(&original_id, original_def, warnings)?
             }
-            _ => self.load_custom_object(def)?
+            _ => self.load_custom_object(def, warnings)?
         };
             
         if def.replace_colors.is_empty() {

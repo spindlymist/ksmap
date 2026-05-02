@@ -177,12 +177,16 @@ fn render_seeds(level_dir: &Path, seeds: &[MapSeed], output_dir: &Path, level_na
     );
     let assets_used = analysis::list_assets(&screens, &object_defs);
     
-    gfx.load_tilesets(&assets_used.tilesets)
-        .expect("IO error or corrupt image while loading tilesets");
-    gfx.load_gradients(&assets_used.gradients)
-        .expect("IO error or corrupt image while loading gradients");
-    gfx.load_objects(&assets_used.objects)
-        .expect("IO error or corrupt image while loading objects");
+    {
+        let mut warnings = Vec::new();
+        gfx.load_tilesets(&assets_used.tilesets, &mut warnings)
+            .expect("IO error while loading tilesets");
+        gfx.load_gradients(&assets_used.gradients, &mut warnings)
+            .expect("IO error while loading gradients");
+        gfx.load_objects(&assets_used.objects, &mut warnings)
+            .expect("IO error while loading objects");
+        assert!(warnings.is_empty());
+    }
     
     let screen_map = ScreenMap::new(screens);
     

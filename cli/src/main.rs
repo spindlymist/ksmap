@@ -80,12 +80,16 @@ fn main() -> Result<()> {
         &object_defs,
     );
     
+    let mut asset_warnings = Vec::new();
     time_it!("Loading assets", {
         let assets_used = analysis::list_assets(&screen_map, &object_defs);
-        gfx.load_tilesets(&assets_used.tilesets)?;
-        gfx.load_gradients(&assets_used.gradients)?;
-        gfx.load_objects(&assets_used.objects)?;
+        gfx.load_tilesets(&assets_used.tilesets, &mut asset_warnings)?;
+        gfx.load_gradients(&assets_used.gradients, &mut asset_warnings)?;
+        gfx.load_objects(&assets_used.objects, &mut asset_warnings)?;
     });
+    for warning in asset_warnings {
+        println!("    Warning: {warning}");
+    }
     
     let world_sync = time_it!("Synchronizing map", {
         let sync_options = SyncOptions {
