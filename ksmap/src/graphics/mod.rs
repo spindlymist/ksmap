@@ -83,12 +83,12 @@ pub enum LoadImageError {
 
 #[derive(thiserror::Error, Debug)]
 pub enum LoadImageWarning {
-    #[error("Failed to decode the image `{}`. Reason: {source}", path.to_string_lossy())]
+    #[error("`{}` could not be decoded. Reason: {source}", path.to_string_lossy())]
     FailedToDecode {
         source: image::ImageError,
         path: PathBuf,
     },
-    #[error("KS does not support indexed PNGs with bit depth {bit_depth}.")]
+    #[error("`{}` was ignored. Reason: KS does not support indexed PNGs with bit depth {bit_depth}.", path.to_string_lossy())]
     UnsupportedIndexedBitDepth {
         path: PathBuf,
         bit_depth: u8,
