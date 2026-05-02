@@ -21,6 +21,10 @@ use crate::timing::Timespan;
 
 fn main() -> Result<()> {
     let mut total_time = Timespan::begin();
+    
+    if let Some(exe_dir) = std::env::current_exe()?.parent() {
+        std::env::set_current_dir(exe_dir)?;
+    }
     let cli = Cli::parse();
 
     let seed = match cli.seed.map(MapSeed::try_from) {
