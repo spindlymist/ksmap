@@ -1,7 +1,3 @@
-Options
-- Exaggerated decorations
-- Show hidden (mole, spiky ghost block)
-
 Other
 - Falling stuff (8-16)
 - White explosion (8-17)
