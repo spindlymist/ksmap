@@ -59,10 +59,10 @@ pub struct Cli {
     #[arg(long = "data", help_heading = "Paths")]
     pub data_dir: Option<PathBuf>,
     /// Path to the directory containing object templates
-    #[arg(long = "templates", default_value = "Mapper Templates", help_heading = "Paths")]
+    #[arg(long = "templates", default_value = "ksmap_data/templates", help_heading = "Paths")]
     pub templates_dir: PathBuf,
     /// Path to the file containing object definitions
-    #[arg(long = "definitions", default_value = "mapper_objects.toml", help_heading = "Paths")]
+    #[arg(long = "definitions", default_value = "ksmap_data/object_definitions.toml", help_heading = "Paths")]
     pub object_definitions: PathBuf,
     /// The file or directory (if there are multiple partitions) to output to.
     /// If unspecified, it will be `Level Author - Level Name`

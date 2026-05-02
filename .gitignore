@@ -1,6 +1,6 @@
 /target
 /.vscode
-/Mapper Templates
+/ksmap_data/templates
 /output
 /Knytt Stories/*
 !/Knytt Stories/Worlds

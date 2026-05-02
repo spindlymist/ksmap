@@ -12,7 +12,7 @@ pub static WORLDS_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 
 pub static TEMPLATES_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
     PathBuf::from(env!("CARGO_WORKSPACE_DIR"))
-        .join("Mapper Templates")
+        .join("ksmap_data/templates")
 });
 
 pub static SEEDS_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
@@ -22,7 +22,7 @@ pub static SEEDS_DIR: LazyLock<PathBuf> = LazyLock::new(|| {
 
 pub static DEFINITIONS_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
     PathBuf::from(env!("CARGO_WORKSPACE_DIR"))
-        .join("mapper_objects.toml")
+        .join("ksmap_data/object_definitions.toml")
 });
 
 pub static SEED_INDEX_PATH: LazyLock<PathBuf> = LazyLock::new(|| {
