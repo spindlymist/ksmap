@@ -24,6 +24,7 @@ ksmap --help
 ## Limitations
 
 - KS+ compatibility is prioritized. Most vanilla levels should render correctly, but there may be inaccuracies in niche cases because KS+ features are always on.
+- Other mods, such as KS Extended Version, are not supported.
 - Anything that relies on collision is unsupported, such as the glitch effect when spiked flyers move through walls or the golden particles emitted by GCs.
 - Screen tints are ignored by default. You can enable tints for screens that have one set explicitly with `--tints explicit`. Many levels rely on implicit tints carried over from other screens. This is very challenging to handle programatically because it requires modeling how the player moves through the level. In some cases, there may even be multiple possible tints for a given screen depending on the path taken to get there.
 - Attachments are not supported.
