@@ -131,8 +131,9 @@ fn main() -> Result<()> {
     };
     
     let output_dir = cli.output_dir.unwrap_or_else(|| {
-        let author = ini.get_in("World", "Author").unwrap_or("Author");
-        let name = ini.get_in("World", "Name").unwrap_or("Title");
+        let world_section = ini.section("World");
+        let author = world_section.as_ref().and_then(|s| s.get("Author")).unwrap_or("Author");
+        let name = world_section.as_ref().and_then(|s| s.get("Name")).unwrap_or("Title");
         format!("{author} - {name}")
             .replace(['<', '>', ':', '"', '/', '\\', '|', '?', '*'], "_")
             .into()

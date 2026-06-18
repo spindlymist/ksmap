@@ -4,13 +4,13 @@ use anyhow::{anyhow, Result};
 use image::{GenericImage, ImageEncoder, Rgba, RgbaImage, codecs::png::PngEncoder, imageops};
 use rand::prelude::*;
 use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
-use libks_ini::{Ini, VirtualSection};
+use libks_ini::edit::{Ini, LogicalSection};
 
 use crate::{
     definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransAlgorithm, Visibility},
     graphics::{Gradient, Graphics, spritesheet::Spritesheet},
     id::{ObjectId, ObjectVariant},
-    ini_util::{VirtualSectionExt, unpack_color},
+    ini_util::{LogicalSectionExt, unpack_color},
     partition::{Bounds, Partition},
     screen_map::ScreenMap,
     seed::{MapSeed, RngStep},
@@ -56,7 +56,7 @@ struct ScreenContext<'a> {
     gradient: Option<&'a Gradient>,
     gfx: &'a Graphics<'a>,
     defs: &'a ObjectDefs,
-    ini_section: Option<VirtualSection<'a>>,
+    ini_section: Option<LogicalSection<'a>>,
     sync: ScreenSync,
     opts: DrawOptions,
 }

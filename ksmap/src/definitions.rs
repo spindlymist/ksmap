@@ -2,14 +2,14 @@ use std::{fmt::Write, fs, ops::{Deref, DerefMut}, path::Path};
 
 use anyhow::Result;
 use libks::map_bin::Tile;
-use libks_ini::{Ini, VirtualSection};
+use libks_ini::edit::{Ini, LogicalSection};
 use rustc_hash::FxHashMap;
 use serde::Deserialize;
 
 use crate::{
     drawing::BlendMode,
     id::{ObjectId, ObjectVariant},
-    ini_util::{unpack_color, VirtualSectionExt},
+    ini_util::{unpack_color, LogicalSectionExt},
 };
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -600,7 +600,7 @@ struct CustomObjectProps {
     pub color: i32,
 }
 
-fn parse_co_props(section: VirtualSection<'_>) -> CustomObjectProps {
+fn parse_co_props(section: LogicalSection<'_>) -> CustomObjectProps {
     let image         = section.get_owned_or_default("image");
     let bank          = section.get_i32_or("bank", 0);
     let object        = section.get_i32_or("object", 0);

@@ -1,4 +1,4 @@
-use libks_ini::VirtualSection;
+use libks_ini::edit::LogicalSection;
 
 pub fn unpack_color(color: i32) -> [u8; 3] {
     let r = color & 0x000000FF;
@@ -8,12 +8,12 @@ pub fn unpack_color(color: i32) -> [u8; 3] {
     [r as u8, g as u8, b as u8]
 }
 
-pub trait VirtualSectionExt {
+pub trait LogicalSectionExt {
     fn get_i32_or(&self, key: &str, default: i32) -> i32;
     fn get_owned_or_default(&self, key: &str) -> String;
 }
 
-impl<'a> VirtualSectionExt for VirtualSection<'a> {
+impl<'a> LogicalSectionExt for LogicalSection<'a> {
     /// Attempts to mimic how MMF parses and converts values from World.ini
     /// It's not perfectly accurate, but it's close.
     fn get_i32_or(&self, key: &str, default_val: i32) -> i32 {
