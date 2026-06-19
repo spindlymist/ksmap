@@ -223,6 +223,7 @@ pub struct AnimRange {
     pub to: u32,
 }
 
+#[derive(Clone)]
 pub struct ObjectDefs {
     pub defs: FxHashMap<ObjectId, ObjectDef>,
     pub variants: FxHashMap<Tile, Vec<ObjectVariant>>,

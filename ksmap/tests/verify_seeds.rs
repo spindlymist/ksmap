@@ -1,6 +1,6 @@
 mod paths;
 
-use std::{collections::HashMap, sync::LazyLock};
+use std::{collections::HashMap, rc::Rc, sync::LazyLock};
 
 use image::ImageReader;
 use ksmap::{
@@ -38,15 +38,18 @@ fn verify_seeds(level_name: &str, seeds: &[MapSeed]) {
     let screens = map_bin::parse_map_file(level_dir.join("Map.bin"))
         .expect("Map.bin should be valid");
     
-    let mut object_defs = definitions::load_object_defs(DEFINITIONS_PATH.as_path())
-        .expect("Object definitions should be valid");
-    definitions::insert_custom_obj_defs(&mut object_defs, &ini);
+    let object_defs = {
+        let mut defs = definitions::load_object_defs(DEFINITIONS_PATH.as_path())
+            .expect("Object definitions should be valid");
+        definitions::insert_custom_obj_defs(&mut defs, &ini);
+        Rc::new(defs)
+    };
     
     let mut gfx = Graphics::new(
         DATA_DIR.as_path(),
         &level_dir,
         TEMPLATES_DIR.as_path(),
-        &object_defs,
+        Rc::clone(&object_defs),
     );
     let assets_used = analysis::list_assets(&screens, &object_defs);
     

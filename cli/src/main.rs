@@ -3,6 +3,7 @@ mod timing;
 
 use std::fs;
 use std::path::Path;
+use std::rc::Rc;
 
 use anyhow::Result;
 use clap::Parser;
@@ -73,7 +74,7 @@ fn main() -> Result<()> {
     let object_defs = time_it!("Loading definitions", {
         let mut defs = definitions::load_object_defs(cli.object_definitions)?;
         definitions::insert_custom_obj_defs(&mut defs, &ini);
-        defs
+        Rc::new(defs)
     });
     
     let data_dir = cli.data_dir.unwrap_or_else(|| level_dir.join("../../Data"));
@@ -81,7 +82,7 @@ fn main() -> Result<()> {
         data_dir,
         &level_dir,
         &cli.templates_dir,
-        &object_defs,
+        Rc::clone(&object_defs),
     );
     
     let mut asset_warnings = Vec::new();

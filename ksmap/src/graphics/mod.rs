@@ -20,16 +20,20 @@ use crate::{
 };
 use spritesheet::Spritesheet;
 
-pub struct Graphics<'a> {
+pub struct Graphics {
+    object_defs: Rc<ObjectDefs>,
+    inner: GraphicsInner,
+}
+
+struct GraphicsInner {
     paths: Paths,
-    object_defs: &'a ObjectDefs,
     cache: FxHashMap<(PathBuf, MagicColor), Option<ImageInfo>>,
     tilesets: FxHashMap<AssetId, Rc<RgbaImage>>,
     gradients: FxHashMap<AssetId, Gradient>,
     objects: FxHashMap<ObjectId, Spritesheet>,
 }
 
-pub struct Paths {
+struct Paths {
     data_tilesets: PathBuf,
     data_gradients: PathBuf,
     editor_objects: PathBuf,
@@ -97,46 +101,49 @@ pub enum LoadImageWarning {
 
 type MaybeImageRc = Option<Rc<RgbaImage>>;
 
-impl<'a> Graphics<'a> {
+impl Graphics {
     pub fn new(
         data_dir: impl AsRef<Path>,
         level_dir: impl AsRef<Path>,
-        templates_dir: impl AsRef<Path>,
-        object_defs: &'a ObjectDefs,
+        templates_dir: impl Into<PathBuf>,
+        object_defs: Rc<ObjectDefs>,
     ) -> Self {
         let paths = Paths::new(
-            data_dir.as_ref().to_owned(),
-            level_dir.as_ref().to_owned(),
-            templates_dir.as_ref().to_owned(),
+            data_dir,
+            level_dir,
+            templates_dir.into(),
         );
-
-        Self {
+        let inner = GraphicsInner {
             paths,
-            object_defs,
             cache: FxHashMap::default(),
             tilesets: FxHashMap::default(),
             gradients: FxHashMap::default(),
             objects: FxHashMap::default(),
+        };
+
+        Self {
+            object_defs,
+            inner,
         }
     }
     
     pub fn tileset(&self, id: AssetId) -> Option<&RgbaImage> {
-        self.tilesets.get(&id)
+        self.inner.tilesets.get(&id)
             .map(Rc::as_ref)
     }
 
     pub fn gradient(&self, id: AssetId) -> Option<&Gradient> {
-        self.gradients.get(&id)
+        self.inner.gradients.get(&id)
     }
 
     pub fn object(&self, id: &ObjectId) -> Option<&Spritesheet> {
-        self.objects.get(&id)
+        self.inner.objects.get(&id)
     }
     
     pub fn load_tilesets(&mut self, ids: &[AssetId], warnings: &mut Vec<LoadImageWarning>) -> Result<()> {
         for id in ids {
-            if let Some(image) = self.load_tileset(*id, warnings)? {
-                self.tilesets.insert(*id, image);
+            if let Some(image) = self.inner.load_tileset(*id, warnings)? {
+                self.inner.tilesets.insert(*id, image);
             }
         }
         Ok(())
@@ -144,29 +151,32 @@ impl<'a> Graphics<'a> {
     
     pub fn load_gradients(&mut self, ids: &[AssetId], warnings: &mut Vec<LoadImageWarning>) -> Result<()> {
         for id in ids {
-            if let Some(gradient) = self.load_gradient(*id, warnings)? {
-                self.gradients.insert(*id, gradient);
+            if let Some(gradient) = self.inner.load_gradient(*id, warnings)? {
+                self.inner.gradients.insert(*id, gradient);
             }
         }
         Ok(())
     }
     
     pub fn load_objects(&mut self, ids: &[ObjectId], warnings: &mut Vec<LoadImageWarning>) -> Result<()> {
+        let object_defs = self.object_defs.as_ref();
         for id in ids {
-            let Some(def) = self.object_defs.get(id) else { continue };
+            let Some(def) = object_defs.get(id) else { continue };
             let image = match &def.kind {
-                ObjectKind::Object => self.load_stock_object(id, def, warnings)?,
-                ObjectKind::CustomObject => self.load_custom_object(def, warnings)?,
-                ObjectKind::OverrideObject(_) => self.load_override_object(def, warnings)?,
+                ObjectKind::Object => self.inner.load_stock_object(id, def, warnings)?,
+                ObjectKind::CustomObject => self.inner.load_custom_object(def, warnings)?,
+                ObjectKind::OverrideObject(_) => self.inner.load_override_object(def, object_defs, warnings)?,
             };
             if let Some(image) = image {
                 let spritesheet = Spritesheet::new(image, &def.anim);
-                self.objects.insert(id.clone(), spritesheet);
+                self.inner.objects.insert(id.clone(), spritesheet);
             }
         }
         Ok(())
     }
-    
+}
+
+impl GraphicsInner {
     fn load_image(
         &mut self,
         path: PathBuf,
@@ -397,6 +407,7 @@ impl<'a> Graphics<'a> {
     fn load_override_object(
         &mut self,
         def: &ObjectDef,
+        object_defs: &ObjectDefs,
         warnings: &mut Vec<LoadImageWarning>,
     ) -> Result<MaybeImageRc, LoadImageError> {
         let image = match def.base.oco_support {
@@ -405,14 +416,14 @@ impl<'a> Graphics<'a> {
                     return Ok(None);
                 };
                 let original_id = ObjectId::from(original_tile);
-                let Some(original_def) = self.object_defs.get(&original_id) else {
+                let Some(original_def) = object_defs.get(&original_id) else {
                     return Ok(None);
                 };
                 self.load_stock_object(&original_id, original_def, warnings)?
             }
             _ => self.load_custom_object(def, warnings)?
         };
-            
+        
         if def.replace_colors.is_empty() {
             return Ok(image);
         }

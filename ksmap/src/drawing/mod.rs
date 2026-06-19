@@ -39,7 +39,7 @@ pub fn screen_index_to_pixels(i: u8) -> (u32, u32) {
 pub struct DrawContext<'a> {
     pub seed: MapSeed,
     pub screens: &'a ScreenMap,
-    pub gfx: &'a Graphics<'a>,
+    pub gfx: &'a Graphics,
     pub defs: &'a ObjectDefs,
     pub ini: &'a Ini,
     pub world_sync: &'a WorldSync,
@@ -54,7 +54,7 @@ struct ScreenContext<'a> {
     tileset_a: Option<&'a RgbaImage>,
     tileset_b: Option<&'a RgbaImage>,
     gradient: Option<&'a Gradient>,
-    gfx: &'a Graphics<'a>,
+    gfx: &'a Graphics,
     defs: &'a ObjectDefs,
     ini_section: Option<LogicalSection<'a>>,
     sync: ScreenSync,
