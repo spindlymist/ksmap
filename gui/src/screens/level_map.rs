@@ -2,11 +2,11 @@ use std::{path::PathBuf, rc::Rc};
 
 use image::RgbaImage;
 use imgui_app::{Extras, Fonts, ImguiExt};
-use imgui_app::dear_imgui_rs::{DockBuilder, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
+use imgui_app::dear_imgui_rs::{DockBuilder, MouseButton, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
 use ksmap::{
     analysis::list_assets,
     definitions::ObjectDefs,
-    drawing::{DrawContext, DrawOptions, draw_partition},
+    drawing::DrawOptions,
     graphics::Graphics,
     partition::Partition,
     seed::MapSeed,
@@ -20,6 +20,7 @@ use rustc_hash::FxHashMap;
 use crate::ui_extensions::UiExt;
 
 pub struct State {
+    #[allow(dead_code)]
     level_dir: PathBuf,
     ini: Ini,
     object_defs: Rc<ObjectDefs>,
@@ -34,6 +35,7 @@ pub struct State {
     selected: usize,
     setup_windows: bool,
     preview: Option<(ScreenCoord, u64)>,
+    map_state: MapState,
 }
 
 pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
@@ -65,7 +67,13 @@ pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
         ui.window("Map")
             .flags(WindowFlags::NO_MOVE)
             .build(|| {
-                build_window_map(ui, &state.screen_map, state.partitions.get(state.selected), &state.partition_members)
+                build_window_map(
+                    ui,
+                    &mut state.map_state,
+                    &state.screen_map,
+                    state.partitions.get(state.selected),
+                    &state.partition_members
+                )
             })
             .unwrap_or(None)
     };
@@ -165,8 +173,14 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
     });
 }
 
+struct MapState {
+    center: ScreenCoord,
+    drag_origin: Option<ScreenCoord>,
+}
+
 fn build_window_map(
     ui: &Ui,
+    map_state: &mut MapState,
     screens: &ScreenMap,
     selected_partition: Option<&Partition>,
     partition_members: &FxHashMap<ScreenCoord, usize>
@@ -187,8 +201,23 @@ fn build_window_map(
     let cols = (width_avail / (cell_width + 1.0)).ceil() as i32;
     let rows = (height_avail / (cell_height + 1.0)).ceil() as i32;
     
-    let x_center: i32 = 1000;
-    let y_center: i32 = 1000;
+    // Pan
+    if ui.is_mouse_released(MouseButton::Right) {
+        map_state.drag_origin = None;
+    }
+    else if ui.is_mouse_clicked(MouseButton::Right)
+        && ui.is_window_hovered() 
+    {
+        map_state.drag_origin = Some(map_state.center);
+    }
+    if let Some((origin_x, origin_y)) = &map_state.drag_origin {
+        let [dx, dy] = ui.mouse_drag_delta(MouseButton::Right);
+        let new_x = origin_x - (dx / (cell_width + 1.0)) as i32;
+        let new_y = origin_y - (dy / (cell_height + 1.0)) as i32;
+        map_state.center = (new_x, new_y);
+    }
+    
+    let (x_center, y_center) = map_state.center;
     let x_min = x_center - cols / 2;
     let y_min = y_center - rows / 2;
     let x_max = x_min + cols;
@@ -335,7 +364,7 @@ fn draw_single_screen(state: &mut State, screen_pos: ScreenCoord) -> Option<Rgba
     ).ok()
 }
 
-fn build_window_drawing(ui: &Ui, ex: &mut Extras, state: &mut State) {
+fn build_window_drawing(ui: &Ui, _ex: &mut Extras, _state: &mut State) {
     ui.text("Drawing");
 }
 
@@ -382,6 +411,11 @@ impl State {
             }
         }
         
+        let map_state = MapState {
+            center: (1000, 1000),
+            drag_origin: None,
+        };
+        
         State {
             level_dir,
             ini,
@@ -397,6 +431,7 @@ impl State {
             selected: 0,
             setup_windows: true,
             preview: None,
+            map_state,
         }
     }
 }
