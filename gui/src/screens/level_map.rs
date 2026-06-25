@@ -1,9 +1,8 @@
 use std::{path::PathBuf, rc::Rc};
 
 use image::RgbaImage;
-use imgui_app::{Extras, Fonts, ImguiExt};
-use imgui_app::dear_imgui_rs::{DockBuilder, MouseButton, SelectableFlags, SplitDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
-use ksmap::partition;
+use imgui_app::{Extras, Fonts, ImguiCursorExt, ImguiExt};
+use imgui_app::dear_imgui_rs::{DockBuilder, MouseButton, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
 use ksmap::{
     analysis::list_assets,
     definitions::ObjectDefs,
@@ -131,7 +130,6 @@ enum PartitionAlgorithm {
 }
 
 fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
-    const GB: f32 = 1073741824.0;
     let partition_state = &mut state.partition_state;
     
     {
@@ -144,32 +142,28 @@ fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
         };
     }
     
+    let max_width_px = partition_state.max_width * 600;
     ui.drag_int_config("Max width")
         .range(1, i32::MAX)
         .speed(0.1)
+        .display_format(format!("%d screens / {max_width_px} px"))
         .build(ui, &mut partition_state.max_width);
-    let max_width_px = partition_state.max_width * 600;
-    {
-        let _color = ui.push_style_color(StyleColor::Text, ui.style_color(StyleColor::TextDisabled));
-        ui.same_line();
-        ui.text(format!("{max_width_px}px"));
-    }
     
+    let max_height_px = partition_state.max_height * 240;
     ui.drag_int_config("Max height")
         .range(1, i32::MAX)
         .speed(0.1)
+        .display_format(format!("%d screens / {max_height_px} px"))
         .build(ui, &mut partition_state.max_height);
-    let max_height_px = partition_state.max_height * 240;
-    {
-        let _color = ui.push_style_color(StyleColor::Text, ui.style_color(StyleColor::TextDisabled));
-        ui.same_line();
-        ui.text(format!("{max_height_px}px"));
-    }
     
-    let mut max_memory_gb = max_width_px as f32 * max_height_px as f32 * 4.0 / GB;
     {
+        let max_bytes = max_width_px as usize * max_height_px as usize * 4;
+        let unit = best_unit_for_bytes(max_bytes);
+        let mut max_size = convert_bytes_to_unit(max_bytes, unit);
         let _disabled = ui.begin_disabled();
-        ui.drag_float("Max memory (GB)", &mut max_memory_gb);
+        ui.drag_float_config("Max memory")
+            .display_format(format!("%.1f{unit}"))
+            .build(ui, &mut max_size);
     }
     
     match partition_state.algorithm {
@@ -177,7 +171,9 @@ fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
         PartitionAlgorithm::Grid => build_partition_options_grid(ui, partition_state),
     };
     
-    if ui.button("Rebuild partitions") {
+    let button_width = ui.window_size()[0] * 0.65;
+    let button_height = ui.text_line_height() * 2.0;
+    if ui.button_with_size("Rebuild partitions", [button_width, button_height]) {
         let max_size = (partition_state.max_width as u64, partition_state.max_height as u64);
         state.partitions = match partition_state.algorithm {
             PartitionAlgorithm::Islands => {
@@ -207,6 +203,7 @@ fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
             }
         }
     }
+    ui.new_line();
     
     build_partition_table(ui, ex.fonts, &state.partitions, &mut state.selected);
 }
@@ -233,7 +230,8 @@ fn build_partition_options_grid(ui: &Ui, state: &mut PartitionState) {
             .build(ui, &mut state.rows);
     }
     ui.same_line();
-    ui.checkbox("Auto##Auto rows", &mut state.auto_rows);
+    ui.move_cursor_right(ui.calc_text_width("Columns") - ui.calc_text_width("Rows"));
+    ui.checkbox_small("Auto##Auto rows", &mut state.auto_rows);
     
     {
         let _disabled = ui.begin_disabled_with_cond(state.auto_cols);
@@ -243,7 +241,7 @@ fn build_partition_options_grid(ui: &Ui, state: &mut PartitionState) {
             .build(ui, &mut state.cols);
     }
     ui.same_line();
-    ui.checkbox("Auto##Auto cols", &mut state.auto_cols);
+    ui.checkbox_small("Auto##Auto cols", &mut state.auto_cols);
     
     ui.checkbox("Enforce rows and columns", &mut state.force);
 }
@@ -258,7 +256,7 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
         "Height",
         "Width (px)",
         "Height (px)",
-        "Memory (MB)",
+        "Memory",
     ];
     let mut table_builder = ui.table("##RageTable")
         .flags(TableFlags::BORDERS | TableFlags::NO_HOST_EXTEND_X);
@@ -288,8 +286,8 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
             let height = y_max - y_min + 1;
             let width_px = width * 600;
             let height_px = height * 240;
-            let memory_bytes = width_px * height_px * 4;
-            let memory_mb = memory_bytes as f64 / (2.0f64).powi(20);
+            let memory_bytes = (width_px * height_px * 4) as usize;
+            // let memory_mb = memory_bytes as f64 / (2.0f64).powi(20);
             
             ui.table_next_row();
             ui.table_next_column();
@@ -320,7 +318,7 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
             ui.table_next_column();
             ui.text_aligned_right(height_px.to_string());
             ui.table_next_column();
-            ui.text_aligned_right(format!("{memory_mb:.1}"));
+            ui.text_aligned_right(&bytes_to_string(memory_bytes, 1));
         }
     });
 }
@@ -527,6 +525,69 @@ fn draw_single_screen(state: &mut State, screen_pos: ScreenCoord) -> Option<Rgba
 
 fn build_window_drawing(ui: &Ui, _ex: &mut Extras, _state: &mut State) {
     ui.text("Drawing");
+}
+
+#[derive(Clone, Copy)]
+enum BytesUnit {
+    B,
+    KB,
+    MB,
+    GB,
+    TB,
+}
+
+const KB_SIZE: usize = 1024;
+const MB_SIZE: usize = KB_SIZE * 1024;
+const GB_SIZE: usize = MB_SIZE * 1024;
+const TB_SIZE: usize = GB_SIZE * 1024;
+
+impl BytesUnit {
+    fn to_bytes(&self) -> usize {
+        match self {
+            Self::B => 1,
+            Self::KB => KB_SIZE,
+            Self::MB => MB_SIZE,
+            Self::GB => GB_SIZE,
+            Self::TB => TB_SIZE,
+        }
+    }
+}
+
+impl std::fmt::Display for BytesUnit {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::B => f.write_str("B"),
+            Self::KB => f.write_str("KB"),
+            Self::MB => f.write_str("MB"),
+            Self::GB => f.write_str("GB"),
+            Self::TB => f.write_str("TB"),
+        }
+    }
+}
+
+fn best_unit_for_bytes(bytes: usize) -> BytesUnit {
+    match bytes {
+        0..KB_SIZE => BytesUnit::B,
+        KB_SIZE..MB_SIZE =>BytesUnit::KB,
+        MB_SIZE..GB_SIZE => BytesUnit::MB,
+        GB_SIZE..TB_SIZE => BytesUnit::GB,
+        _ => BytesUnit::TB,
+    }
+}
+
+fn convert_bytes_to_unit(bytes: usize, unit: BytesUnit) -> f32 {
+    bytes as f32/ unit.to_bytes() as f32
+}
+
+fn bytes_to_string(bytes: usize, precision: usize) -> String {
+    let unit = best_unit_for_bytes(bytes);
+    match unit {
+        BytesUnit::B => format!("{bytes}{unit}"),
+        _ => {
+            let value = convert_bytes_to_unit(bytes, unit);
+            format!("{value:.prec$}{unit}", prec = precision)
+        }
+    }
 }
 
 impl State {

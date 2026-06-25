@@ -38,6 +38,7 @@ fn main() -> Result<()> {
         let style = imgui.imgui.style_mut();
         style.set_window_padding([8.0, 8.0]);
         style.set_window_border_size(0.0);
+        style.set_frame_rounding(2.0);
     }
     
     let mut app = init_app();
@@ -55,6 +56,8 @@ fn main() -> Result<()> {
 fn init_app() -> App {
     let level_dir = "D:/Dropbox/Nifflas/Knytt Stories/Worlds/Nifflas - A Strange Dream";
     // let level_dir = "D:/Dropbox/Nifflas/Knytt Stories/Worlds/Robin O'Connell - Alexandra's Birthday";
+    // let level_dir = "D:/Dropbox/Nifflas/Knytt Stories/Worlds/Shreeps - Azure Serenity Tranquil Dreams";
+    // let level_dir = "D:/Dropbox/Nifflas/Knytt Stories/Worlds/Talps - Dragon Myth";
     App {
         screen: Screen::LevelMap(level_map::State::new(level_dir.into()))
     }
