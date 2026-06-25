@@ -2,13 +2,14 @@ use std::{path::PathBuf, rc::Rc};
 
 use image::RgbaImage;
 use imgui_app::{Extras, Fonts, ImguiExt};
-use imgui_app::dear_imgui_rs::{DockBuilder, MouseButton, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
+use imgui_app::dear_imgui_rs::{DockBuilder, MouseButton, SelectableFlags, SplitDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
+use ksmap::partition;
 use ksmap::{
     analysis::list_assets,
     definitions::ObjectDefs,
     drawing::DrawOptions,
     graphics::Graphics,
-    partition::Partition,
+    partition::{Partition, Partitioner},
     seed::MapSeed,
     synchronization::{SyncOptions, WorldSync},
 };
@@ -36,6 +37,7 @@ pub struct State {
     setup_windows: bool,
     preview: Option<(ScreenCoord, u64)>,
     map_state: MapState,
+    partition_state: PartitionState,
 }
 
 pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
@@ -91,9 +93,159 @@ pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
     });
 }
 
+struct PartitionState {
+    algorithm: PartitionAlgorithm,
+    max_width: i32,
+    max_height: i32,
+    min_gap: i32,
+    max_gap: i32,
+    auto_rows: bool,
+    auto_cols: bool,
+    rows: i32,
+    cols: i32,
+    force: bool,
+}
+
+impl Default for PartitionState {
+    fn default() -> Self {
+        Self {
+            algorithm: PartitionAlgorithm::default(),
+            max_width: 120,
+            max_height: 300,
+            min_gap: 1,
+            max_gap: 10,
+            auto_rows: true,
+            auto_cols: true,
+            rows: 10,
+            cols: 10,
+            force: false,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Default)]
+enum PartitionAlgorithm {
+    #[default]
+    Islands,
+    Grid,
+}
+
 fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
-    ui.combo_simple_string("Algorithm", &mut 0, &["Islands", "Grid"]);
+    const GB: f32 = 1073741824.0;
+    let partition_state = &mut state.partition_state;
+    
+    {
+        let mut index = partition_state.algorithm as usize;
+        ui.combo_simple_string("Algorithm", &mut index, &["Islands", "Grid"]);
+        partition_state.algorithm = match index {
+            0 => PartitionAlgorithm::Islands,
+            1 => PartitionAlgorithm::Grid,
+            _ => PartitionAlgorithm::Islands
+        };
+    }
+    
+    ui.drag_int_config("Max width")
+        .range(1, i32::MAX)
+        .speed(0.1)
+        .build(ui, &mut partition_state.max_width);
+    let max_width_px = partition_state.max_width * 600;
+    {
+        let _color = ui.push_style_color(StyleColor::Text, ui.style_color(StyleColor::TextDisabled));
+        ui.same_line();
+        ui.text(format!("{max_width_px}px"));
+    }
+    
+    ui.drag_int_config("Max height")
+        .range(1, i32::MAX)
+        .speed(0.1)
+        .build(ui, &mut partition_state.max_height);
+    let max_height_px = partition_state.max_height * 240;
+    {
+        let _color = ui.push_style_color(StyleColor::Text, ui.style_color(StyleColor::TextDisabled));
+        ui.same_line();
+        ui.text(format!("{max_height_px}px"));
+    }
+    
+    let mut max_memory_gb = max_width_px as f32 * max_height_px as f32 * 4.0 / GB;
+    {
+        let _disabled = ui.begin_disabled();
+        ui.drag_float("Max memory (GB)", &mut max_memory_gb);
+    }
+    
+    match partition_state.algorithm {
+        PartitionAlgorithm::Islands => build_partition_options_islands(ui, partition_state),
+        PartitionAlgorithm::Grid => build_partition_options_grid(ui, partition_state),
+    };
+    
+    if ui.button("Rebuild partitions") {
+        let max_size = (partition_state.max_width as u64, partition_state.max_height as u64);
+        state.partitions = match partition_state.algorithm {
+            PartitionAlgorithm::Islands => {
+                let gap = partition_state.min_gap as u64 ..= partition_state.max_gap as u64;
+                let partitioner = ksmap::partition::IslandsPartitioner {
+                    max_size,
+                    gap,
+                    force: partition_state.force,
+                };
+                partitioner.partitions(&state.screen_map)
+            }
+            PartitionAlgorithm::Grid => {
+                let partitioner = ksmap::partition::GridPartitioner {
+                    max_size,
+                    rows: if partition_state.auto_rows { None } else { Some(partition_state.rows as u64) },
+                    cols: if partition_state.auto_cols { None } else { Some(partition_state.cols as u64) },
+                    force: partition_state.force,
+                };
+                partitioner.partitions(&state.screen_map)
+            }
+        };
+        
+        state.partition_members.clear();
+        for (i, positions) in state.partitions.iter().enumerate() {
+            for pos in positions {
+                state.partition_members.insert(*pos, i);
+            }
+        }
+    }
+    
     build_partition_table(ui, ex.fonts, &state.partitions, &mut state.selected);
+}
+
+fn build_partition_options_islands(ui: &Ui, state: &mut PartitionState) {
+    ui.drag_int_config("Min gap")
+        .range(1, i32::MAX)
+        .speed(0.05)
+        .build(ui, &mut state.min_gap);
+    state.max_gap = state.max_gap.max(state.min_gap);
+    ui.drag_int_config("Max gap")
+        .range(state.min_gap, i32::MAX)
+        .speed(0.05)
+        .build(ui, &mut state.max_gap);
+    ui.checkbox("Enforce gap size", &mut state.force);
+}
+
+fn build_partition_options_grid(ui: &Ui, state: &mut PartitionState) {
+    {
+        let _disabled = ui.begin_disabled_with_cond(state.auto_rows);
+        ui.drag_int_config("Rows")
+            .range(1, i32::MAX)
+            .speed(0.05)
+            .build(ui, &mut state.rows);
+    }
+    ui.same_line();
+    ui.checkbox("Auto##Auto rows", &mut state.auto_rows);
+    
+    {
+        let _disabled = ui.begin_disabled_with_cond(state.auto_cols);
+        ui.drag_int_config("Columns")
+            .range(state.min_gap, i32::MAX)
+            .speed(0.05)
+            .build(ui, &mut state.cols);
+    }
+    ui.same_line();
+    ui.checkbox("Auto##Auto cols", &mut state.auto_cols);
+    
+    ui.checkbox("Enforce rows and columns", &mut state.force);
 }
 
 fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selected: &mut usize) {
@@ -129,11 +281,11 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
         for (i, partition) in partitions.iter().enumerate() {
             let bounds = partition.bounds();
             let x_min = bounds.x.start;
-            let x_max = bounds.x.end;
+            let x_max = bounds.x.end - 1;
             let y_min = bounds.y.start;
-            let y_max = bounds.y.end;
-            let width = x_max - x_min;
-            let height = y_max - y_min;
+            let y_max = bounds.y.end - 1;
+            let width = x_max - x_min + 1;
+            let height = y_max - y_min + 1;
             let width_px = width * 600;
             let height_px = height * 240;
             let memory_bytes = width_px * height_px * 4;
@@ -176,6 +328,15 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
 struct MapState {
     center: ScreenCoord,
     drag_origin: Option<ScreenCoord>,
+}
+
+impl Default for MapState {
+    fn default() -> Self {
+        Self {
+            center: (1000, 1000),
+            drag_origin: None,
+        }
+    }
 }
 
 fn build_window_map(
@@ -411,11 +572,6 @@ impl State {
             }
         }
         
-        let map_state = MapState {
-            center: (1000, 1000),
-            drag_origin: None,
-        };
-        
         State {
             level_dir,
             ini,
@@ -431,7 +587,8 @@ impl State {
             selected: 0,
             setup_windows: true,
             preview: None,
-            map_state,
+            map_state: MapState::default(),
+            partition_state: PartitionState::default(),
         }
     }
 }
