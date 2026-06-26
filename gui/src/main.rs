@@ -5,11 +5,12 @@ mod screens {
     pub mod level_list;
     pub mod level_map;
 }
+mod map_widget;
 use screens::*;
 
 use anyhow::Result;
 use imgui_app::{imgui_init, platform_init, renderer_init, run};
-use imgui_app::dear_imgui_rs::{Condition, ConfigFlags, WindowFlags};
+use imgui_app::dear_imgui_rs::ConfigFlags;
 
 struct App {
     screen: Screen,
