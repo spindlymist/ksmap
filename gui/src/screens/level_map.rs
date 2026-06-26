@@ -2,7 +2,8 @@ use std::{path::PathBuf, rc::Rc};
 
 use image::RgbaImage;
 use imgui_app::{Extras, Fonts, ImguiCursorExt, ImguiExt};
-use imgui_app::dear_imgui_rs::{DockBuilder, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
+use imgui_app::dear_imgui_rs::{DockBuilder, InputText, InputTextCallbackHandler, InputTextFlags, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
+use ksmap::drawing::{TintStrategy, alpha_to_trans};
 use ksmap::{
     analysis::list_assets,
     definitions::ObjectDefs,
@@ -37,6 +38,7 @@ pub struct State {
     preview: Option<(ScreenCoord, u64)>,
     map_state: MapState,
     partition_state: PartitionState,
+    drawing_state: DrawingState,
 }
 
 pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
@@ -84,7 +86,11 @@ pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
     });
     
     ui.window("Drawing").build(|| {
-        build_window_drawing(ui, &mut ex, state);
+        build_window_drawing(ui, &mut ex,
+            &mut state.drawing_state,
+            &mut state.draw_options,
+            &mut state.sync_options,
+            &mut state.seed);
     });
     
     ui.window("Preview").build(|| {
@@ -375,8 +381,123 @@ fn draw_single_screen(state: &mut State, screen_pos: ScreenCoord) -> Option<Rgba
     ).ok()
 }
 
-fn build_window_drawing(ui: &Ui, _ex: &mut Extras, _state: &mut State) {
-    ui.text("Drawing");
+struct DrawingState {
+    min_alpha: i32,
+    min_alpha_threshold: i32,
+    alpha_sim_frames: i32,
+    use_multithreaded_encoder: bool,
+}
+
+impl Default for DrawingState {
+    fn default() -> Self {
+        Self {
+            min_alpha: 12,
+            min_alpha_threshold: 5,
+            alpha_sim_frames: 150,
+            use_multithreaded_encoder: true,
+        }
+    }
+}
+
+fn build_window_drawing(
+    ui: &Ui,
+    _ex: &mut Extras,
+    state: &mut DrawingState,
+    draw_options: &mut DrawOptions,
+    sync_options: &mut SyncOptions,
+    seed: &mut MapSeed
+) {
+    let mut seed_buffer = seed.to_string();
+    if InputText::new(ui, "Seed", &mut seed_buffer)
+        .flags(InputTextFlags::CHARS_HEXADECIMAL | InputTextFlags::CALLBACK_EDIT)
+        .callback(MapSeedEditCallback(16))
+        .build()
+    {
+        if let Ok(new_seed) = MapSeed::try_from(seed_buffer) {
+            *seed = new_seed;
+        }
+    }
+    
+    let mut lasers_index = match (draw_options.ignore_laser_phase, sync_options.maximize_visible_lasers) {
+        (false, true) => 0,
+        (false, false) => 1,
+        (true, _) => 2
+    };
+    if ui.combo_simple_string("Lasers", &mut lasers_index, &[
+        "Maximize",
+        "Randomize",
+        "All"
+    ]) {
+        match lasers_index {
+            0 => {
+                draw_options.ignore_laser_phase = false;
+                sync_options.maximize_visible_lasers = true;
+            }
+            1 => {
+                draw_options.ignore_laser_phase = false;
+                sync_options.maximize_visible_lasers = false;
+            }
+            2 => {
+                draw_options.ignore_laser_phase = true;
+            }
+            _ => {}
+        }
+    }
+    
+    let mut tint_index = match draw_options.tint_strategy {
+        TintStrategy::Ignore => 0,
+        TintStrategy::Explicit => 1
+    };
+    if ui.combo_simple_string("Tints", &mut tint_index, &[
+        "Ignore",
+        "Explicit"
+    ]) {
+        match tint_index {
+            0 => draw_options.tint_strategy = TintStrategy::Ignore,
+            1 => draw_options.tint_strategy = TintStrategy::Explicit,
+            _ => {}
+        }
+    }
+    
+    if ui.drag_int_config("Min alpha")
+        .range(0, 255)
+        .speed(0.1)
+        .build(ui, &mut state.min_alpha)
+    {
+        draw_options.trans_max_override = alpha_to_trans(state.min_alpha as u8);
+    }
+    
+    if ui.drag_int_config("Min alpha threshold")
+        .range(0, i32::MAX)
+        .speed(0.1)
+        .build(ui, &mut state.min_alpha_threshold)
+    {
+        draw_options.trans_max_threshold = state.min_alpha_threshold as u32;
+    }
+    
+    let alpha_sim_secs = state.alpha_sim_frames as f32 / 50.0;
+    if ui.drag_int_config("Alpha sim frames")
+        .range(0, i32::MAX)
+        .display_format(format!("%d / {alpha_sim_secs:.1}s"))
+        .build(ui, &mut state.alpha_sim_frames)
+    {
+        draw_options.trans_frames = state.alpha_sim_frames as u32;
+    }
+    
+    ui.checkbox("Show invisible objects", &mut draw_options.show_invisible);
+    ui.checkbox("Show proximity-sensitive objects", &mut draw_options.show_proximity);
+    ui.checkbox("Multithreaded encoding", &mut state.use_multithreaded_encoder);
+}
+
+struct MapSeedEditCallback(usize);
+
+impl InputTextCallbackHandler for MapSeedEditCallback {
+    fn on_edit(&mut self, mut data: imgui_app::dear_imgui_rs::TextCallbackData<'_>) {
+        let excess = data.str().len().saturating_sub(self.0);
+        if excess > 0 {
+            data.remove_chars(self.0, excess);
+        }
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -485,13 +606,15 @@ impl State {
             }
         }
         
+        let seed = MapSeed::random();
+        
         State {
             level_dir,
             ini,
             object_defs,
             gfx,
             screen_map,
-            seed: MapSeed::random(),
+            seed,
             partitions,
             partition_members,
             world_sync: None,
@@ -502,6 +625,7 @@ impl State {
             preview: None,
             map_state: MapState::default(),
             partition_state: PartitionState::default(),
+            drawing_state: DrawingState::default(),
         }
     }
 }
