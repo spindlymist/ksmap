@@ -79,33 +79,46 @@ pub fn build_map(
         }
     }
     
-    for y in y_min..y_max {
-        for x in x_min..x_max {
-            if screens.index_of(&(x, y)).is_none() {
-                continue;
+    let draw_screen_rect = |(x, y)| {
+        let dx = x - x_min;
+        let dy = y - y_min;
+        
+        let top_left = [
+            origin_x + (dx as f32) * (cell_width_outer),
+            origin_y + (dy as f32) * (cell_height_outer),
+        ];
+        let bottom_right = [
+            top_left[0] + cell_width,
+            top_left[1] + cell_height
+        ];
+        
+        let partition_index = partition_members.get(&(x, y)).unwrap();
+        let color = COLORS[*partition_index % COLORS.len()];
+        
+        draw_list.add_rect(top_left, bottom_right, color)
+            .filled(true)
+            .build();
+        draw_list.add_rect(top_left, bottom_right, [1.0, 1.0, 1.0, 0.1])
+            .filled(false)
+            .build();
+    };
+    
+    let n_grid_cells = (rows * cols) as usize;
+    if screens.len() <= n_grid_cells {
+        for screen in screens.iter() {
+            let (x, y) = screen.position;
+            if x >= x_min && x <= x_max && y >= y_min && y <= y_max {
+                draw_screen_rect((x, y));
             }
-            
-            let dx = x - x_min;
-            let dy = y - y_min;
-            
-            let top_left = [
-                origin_x + (dx as f32) * (cell_width_outer),
-                origin_y + (dy as f32) * (cell_height_outer),
-            ];
-            let bottom_right = [
-                top_left[0] + cell_width,
-                top_left[1] + cell_height
-            ];
-            
-            let partition_index = partition_members.get(&(x, y)).unwrap();
-            let color = COLORS[*partition_index % COLORS.len()];
-            
-            draw_list.add_rect(top_left, bottom_right, color)
-                .filled(true)
-                .build();
-            draw_list.add_rect(top_left, bottom_right, [1.0, 1.0, 1.0, 0.1])
-                .filled(false)
-                .build();
+        }
+    }
+    else {
+        for y in y_min..y_max {
+            for x in x_min..x_max {
+                if screens.index_of(&(x, y)).is_some() {
+                    draw_screen_rect((x, y));
+                }
+            }
         }
     }
     
