@@ -569,7 +569,12 @@ impl State {
         let screen_map = ScreenMap::new(screens);
         let ini = world_ini::load_ini_from_dir(&level_dir).unwrap();
         
-        let object_defs_path = "ksmap_data/object_definitions.toml";
+        let object_defs_path = {
+            let mut current_dir = std::env::current_exe()
+                .unwrap_or_else(|_| PathBuf::new());
+            current_dir.set_file_name("ksmap_data/object_definitions.toml");
+            current_dir
+        };
         let object_defs = {
             let mut defs = definitions::load_object_defs(object_defs_path).unwrap();
             definitions::insert_custom_obj_defs(&mut defs, &ini);
@@ -577,7 +582,12 @@ impl State {
         };
         
         let data_dir = level_dir.join("../../Data");
-        let templates_dir = "ksmap_data/templates";
+        let templates_dir = {
+            let mut current_dir = std::env::current_exe()
+                .unwrap_or_else(|_| PathBuf::new());
+            current_dir.set_file_name("ksmap_data/templates");
+            current_dir
+        };
         let mut gfx = Graphics::new(data_dir, level_dir.clone(), templates_dir, Rc::clone(&object_defs));
         
         let assets = list_assets(screen_map.as_slice(), &object_defs);
