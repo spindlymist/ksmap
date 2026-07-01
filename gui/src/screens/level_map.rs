@@ -3,13 +3,13 @@ use std::{path::PathBuf, rc::Rc};
 use image::RgbaImage;
 use imgui_app::{Extras, Fonts, ImguiCursorExt, ImguiExt};
 use imgui_app::dear_imgui_rs::{DockBuilder, InputText, InputTextCallbackHandler, InputTextFlags, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
-use ksmap::drawing::{TintStrategy, alpha_to_trans};
+use ksmap::drawing::DrawContext;
 use ksmap::{
     analysis::list_assets,
     definitions::ObjectDefs,
-    drawing::DrawOptions,
+    drawing::{self, alpha_to_trans, DrawOptions, TintStrategy},
     graphics::Graphics,
-    partition::{Partition, Partitioner},
+    partition::{GridPartitioner, IslandsPartitioner, Partition, Partitioner},
     seed::MapSeed,
     synchronization::{SyncOptions, WorldSync},
 };
@@ -36,12 +36,17 @@ pub struct State {
     selected: usize,
     setup_windows: bool,
     preview: Option<(ScreenCoord, u64)>,
+    use_multithreaded_encoder: bool,
     map_state: MapState,
     partition_state: PartitionState,
     drawing_state: DrawingState,
 }
 
-pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
+pub enum Task {
+    ShowLevelList,
+}
+
+pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) -> Option<Task> {
     let dockspace_id = ui.dockspace_over_main_viewport();
     
     if state.setup_windows {
@@ -72,6 +77,7 @@ pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
         };
         
         let (dock_top_left, dock_bottom_left) = DockBuilder::split_node(dock_left, SplitDirection::Up, proportion_top);
+        DockBuilder::dock_window("Export", dock_top_left);
         DockBuilder::dock_window("Partitions", dock_top_left);
         DockBuilder::dock_window("Drawing", dock_top_left);
         DockBuilder::dock_window("Preview", dock_bottom_left);
@@ -96,6 +102,10 @@ pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
             .unwrap_or(None)
     };
     
+    let should_go_to_level_list = ui.window("Export").build(|| {
+        build_window_export(ui, &mut ex, state)
+    }).unwrap_or_default();
+    
     ui.window("Partitions").build(|| {
         build_window_partitions(ui, &mut ex, state);
     });
@@ -111,6 +121,13 @@ pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
     ui.window("Preview").build(|| {
         build_window_preview(ui, &mut ex, state, hover_pos);
     });
+    
+    if should_go_to_level_list {
+        Some(Task::ShowLevelList)
+    }
+    else {
+        None
+    }
 }
 
 struct PartitionState {
@@ -153,6 +170,39 @@ enum PartitionAlgorithm {
 fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
     let partition_state = &mut state.partition_state;
     
+    let button_width = ui.window_width() * 0.65;
+    let button_height = ui.text_line_height() * 2.0;
+    if ui.button_with_size("Rebuild partitions", [button_width, button_height]) {
+        let max_size = (partition_state.max_width as u64, partition_state.max_height as u64);
+        state.partitions = match partition_state.algorithm {
+            PartitionAlgorithm::Islands => {
+                let gap = partition_state.min_gap as u64 ..= partition_state.max_gap as u64;
+                let partitioner = IslandsPartitioner {
+                    max_size,
+                    gap,
+                    force: partition_state.force,
+                };
+                partitioner.partitions(&state.screen_map)
+            }
+            PartitionAlgorithm::Grid => {
+                let partitioner = GridPartitioner {
+                    max_size,
+                    rows: if partition_state.auto_rows { None } else { Some(partition_state.rows as u64) },
+                    cols: if partition_state.auto_cols { None } else { Some(partition_state.cols as u64) },
+                    force: partition_state.force,
+                };
+                partitioner.partitions(&state.screen_map)
+            }
+        };
+        
+        state.partition_members.clear();
+        for (i, positions) in state.partitions.iter().enumerate() {
+            for pos in positions {
+                state.partition_members.insert(*pos, i);
+            }
+        }
+    }
+    
     {
         let mut index = partition_state.algorithm as usize;
         ui.combo_simple_string("Algorithm", &mut index, &["Islands", "Grid"]);
@@ -192,40 +242,7 @@ fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
         PartitionAlgorithm::Grid => build_partition_options_grid(ui, partition_state),
     };
     
-    let button_width = ui.window_size()[0] * 0.65;
-    let button_height = ui.text_line_height() * 2.0;
-    if ui.button_with_size("Rebuild partitions", [button_width, button_height]) {
-        let max_size = (partition_state.max_width as u64, partition_state.max_height as u64);
-        state.partitions = match partition_state.algorithm {
-            PartitionAlgorithm::Islands => {
-                let gap = partition_state.min_gap as u64 ..= partition_state.max_gap as u64;
-                let partitioner = ksmap::partition::IslandsPartitioner {
-                    max_size,
-                    gap,
-                    force: partition_state.force,
-                };
-                partitioner.partitions(&state.screen_map)
-            }
-            PartitionAlgorithm::Grid => {
-                let partitioner = ksmap::partition::GridPartitioner {
-                    max_size,
-                    rows: if partition_state.auto_rows { None } else { Some(partition_state.rows as u64) },
-                    cols: if partition_state.auto_cols { None } else { Some(partition_state.cols as u64) },
-                    force: partition_state.force,
-                };
-                partitioner.partitions(&state.screen_map)
-            }
-        };
-        
-        state.partition_members.clear();
-        for (i, positions) in state.partitions.iter().enumerate() {
-            for pos in positions {
-                state.partition_members.insert(*pos, i);
-            }
-        }
-    }
     ui.new_line();
-    
     build_partition_table(ui, ex.fonts, &state.partitions, &mut state.selected);
 }
 
@@ -403,7 +420,6 @@ struct DrawingState {
     min_alpha: i32,
     min_alpha_threshold: i32,
     alpha_sim_frames: i32,
-    use_multithreaded_encoder: bool,
 }
 
 impl Default for DrawingState {
@@ -412,7 +428,6 @@ impl Default for DrawingState {
             min_alpha: 12,
             min_alpha_threshold: 5,
             alpha_sim_frames: 150,
-            use_multithreaded_encoder: true,
         }
     }
 }
@@ -504,7 +519,6 @@ fn build_window_drawing(
     
     ui.checkbox("Show invisible objects", &mut draw_options.show_invisible);
     ui.checkbox("Show proximity-sensitive objects", &mut draw_options.show_proximity);
-    ui.checkbox("Multithreaded encoding", &mut state.use_multithreaded_encoder);
 }
 
 struct MapSeedEditCallback(usize);
@@ -515,6 +529,65 @@ impl InputTextCallbackHandler for MapSeedEditCallback {
         if excess > 0 {
             data.remove_chars(self.0, excess);
         }
+    }
+}
+
+fn build_window_export(ui: &Ui, _ex: &mut Extras, state: &mut State) -> bool {
+    let button_width = ui.window_width() * 0.65;
+    let button_height = ui.text_line_height() * 2.0;
+    if ui.button_with_size("Export", [button_width, button_height]) {
+        let world_sync = state.world_sync.get_or_insert_with(|| {
+            WorldSync::new(
+                state.seed,
+                &state.screen_map,
+                &state.object_defs,
+                &state.sync_options
+            )
+        });
+        let draw_context = DrawContext {
+            seed: state.seed,
+            screens: &state.screen_map,
+            gfx: &state.gfx,
+            defs: &state.object_defs,
+            ini: &state.ini,
+            world_sync: &world_sync,
+            options: state.draw_options.clone(),
+        };
+        
+        let output_dir =
+            if state.partitions.len() > 1 {
+                let dir = PathBuf::from(state.level_dir.file_name().unwrap());
+                std::fs::create_dir_all(&dir).unwrap();
+                dir
+            }
+            else {
+                PathBuf::from(".")
+            };
+        
+        for partition in &state.partitions {
+            let bounds = partition.bounds();
+            let canvas = drawing::draw_partition(draw_context, partition).unwrap();
+            
+            let file_name = format!("{bounds}.png");
+            let path = output_dir.join(file_name);
+            
+            if state.use_multithreaded_encoder {
+                drawing::export_canvas_multithreaded(canvas, path.as_ref()).unwrap();
+            }
+            else {
+                drawing::export_canvas(canvas, path.as_ref()).unwrap();
+            }
+        }
+    }
+    
+    ui.checkbox("Multithreaded encoding", &mut state.use_multithreaded_encoder);
+    
+    ui.new_line();
+    if ui.small_button("Open another level") {
+        true
+    }
+    else {
+        false
     }
 }
 
@@ -614,18 +687,11 @@ impl State {
         gfx.load_gradients(&assets.gradients, &mut warnings).unwrap();
         gfx.load_objects(&assets.objects, &mut warnings).unwrap();
         
-        use ksmap::partition::Partitioner;
-        let partitioner = ksmap::partition::IslandsPartitioner {
-            max_size: (40, 25),
-            gap: 1..=1,
-            force: true,
+        let partitioner = IslandsPartitioner {
+            max_size: (120, 300),
+            gap: 1..=10,
+            force: false,
         };
-        // let partitioner = ksmap::partition::GridPartitioner {
-        //     max_size: (8, 8),
-        //     rows: None,
-        //     cols: None,
-        //     force: false,
-        // };
         let partitions = partitioner.partitions(&screen_map);
         let mut partition_members = FxHashMap::default();
         for (i, positions) in partitions.iter().enumerate() {
@@ -651,6 +717,7 @@ impl State {
             selected: 0,
             setup_windows: true,
             preview: None,
+            use_multithreaded_encoder: true,
             map_state: MapState::default(),
             partition_state: PartitionState::default(),
             drawing_state: DrawingState::default(),

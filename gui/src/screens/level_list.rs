@@ -17,8 +17,8 @@ struct LevelListItem {
 }
 
 impl State {
-    pub fn new(ks_dir: PathBuf) -> Self {
-        let worlds_dir = ks_dir.join("Worlds");
+    pub fn new(ks_dir: impl AsRef<Path>) -> Self {
+        let worlds_dir = ks_dir.as_ref().join("Worlds");
         let levels = list_levels(worlds_dir).unwrap();
         Self {
             levels,

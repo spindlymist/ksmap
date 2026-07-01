@@ -18,6 +18,7 @@ use libks::editions::is_ks_dir;
 use screens::*;
 
 struct App {
+    ks_dir: PathBuf,
     screen: Screen,
 }
 
@@ -60,7 +61,13 @@ fn main() -> Result<()> {
                 }
                 None => {}
             }
-            Screen::LevelMap(state) => level_map::build_ui(ui, ex, state),
+            Screen::LevelMap(state) => match level_map::build_ui(ui, ex, state) {
+                Some(level_map::Task::ShowLevelList) => {
+                    let state = level_list::State::new(&app.ks_dir);
+                    app.screen = Screen::LevelList(state);
+                }
+                None => {}
+            }
         }
     });
 
@@ -69,13 +76,16 @@ fn main() -> Result<()> {
 
 fn init_app() -> App {
     let arg = std::env::args().nth(1).map(interpret_path_arg);
+    let mut ks_dir = PathBuf::from(".");
+    
     let screen = match arg {
         Some(Ok(PathArg::WorldPath(world_dir))) => {
             let state = level_map::State::new(world_dir);
             Screen::LevelMap(state)
         }
-        Some(Ok(PathArg::KsPath(ks_path))) => {
-            let state = level_list::State::new(ks_path);
+        Some(Ok(PathArg::KsPath(path))) => {
+            let state = level_list::State::new(&path);
+            ks_dir = path;
             Screen::LevelList(state)
         }
         Some(Ok(PathArg::Unrecognized)) => {
@@ -89,8 +99,9 @@ fn init_app() -> App {
             Screen::StartupError(state)
         }
         None => match find_ks() {
-            Ok(Some(ks_path)) => {
-                let state = level_list::State::new(ks_path);
+            Ok(Some(path)) => {
+                let state = level_list::State::new(&path);
+                ks_dir = path;
                 Screen::LevelList(state)
             }
             Ok(None) => {
@@ -108,6 +119,7 @@ fn init_app() -> App {
     };
     
     App {
+        ks_dir,
         screen
     }
 }
