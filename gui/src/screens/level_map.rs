@@ -451,6 +451,11 @@ fn build_window_drawing(
         }
     }
     
+    ui.same_line();
+    if ui.small_button("Random") {
+        *seed = MapSeed::random();
+    }
+    
     let mut lasers_index = match (draw_options.ignore_laser_phase, sync_options.maximize_visible_lasers) {
         (false, true) => 0,
         (false, false) => 1,
