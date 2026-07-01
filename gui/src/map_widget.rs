@@ -6,6 +6,8 @@ use rustc_hash::FxHashMap;
 pub struct MapState {
     pub center: ScreenCoord,
     pub drag_origin: Option<ScreenCoord>,
+    pub cell_size: f32,
+    pub line_thickness: f32,
 }
 
 impl Default for MapState {
@@ -13,6 +15,8 @@ impl Default for MapState {
         Self {
             center: (1000, 1000),
             drag_origin: None,
+            cell_size: 10.0,
+            line_thickness: 1.0,
         }
     }
 }
@@ -59,9 +63,15 @@ pub fn build_map(
         [1.000, 0.616, 0.506, 1.0],
     ];
     
-    let cell_width = 10.0f32;
-    let cell_height = 10.0f32;
-    let line_thickness = 1.0f32;
+    let wheel_delta = ui.get_mouse_wheel();
+    if ui.is_window_hovered() && wheel_delta != 0.0 {
+        map_state.cell_size = f32::max(1.0, map_state.cell_size + wheel_delta);
+        map_state.line_thickness = if map_state.cell_size == 1.0 { 0.0 } else { 1.0 };
+    }
+    
+    let cell_width = map_state.cell_size;
+    let cell_height = map_state.cell_size;
+    let line_thickness = map_state.line_thickness;
     let cell_width_outer = cell_width + line_thickness;
     let cell_height_outer = cell_height + line_thickness;
 
