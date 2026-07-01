@@ -80,6 +80,7 @@ fn init_app() -> App {
     
     let screen = match arg {
         Some(Ok(PathArg::WorldPath(world_dir))) => {
+            ks_dir = world_dir.join("../..");
             let state = level_map::State::new(world_dir);
             Screen::LevelMap(state)
         }
