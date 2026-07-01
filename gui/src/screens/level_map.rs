@@ -45,18 +45,33 @@ pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) {
     let dockspace_id = ui.dockspace_over_main_viewport();
     
     if state.setup_windows {
-        let width_left = unsafe {
-            600.0
-            + 2.0 * ui.style().window_padding()[0]
-            + 0.5 * ui.style().docking_separator_size()
+        let proportion_left = {
+            let width_left = unsafe {
+                600.0
+                + 2.0 * ui.style().window_padding()[0]
+                + 0.5 * ui.style().docking_separator_size()
+            };
+            let width_avail = ui.main_viewport().size()[0];
+            (width_left / width_avail).min(0.5)
         };
-        let width_avail = ui.main_viewport().size()[0];
-        let proportion_left = (width_left / width_avail).min(0.5);
         
         let (dock_left, dock_main) = DockBuilder::split_node(dockspace_id, SplitDirection::Left, proportion_left);
         DockBuilder::dock_window("Map", dock_main);
         
-        let (dock_top_left, dock_bottom_left) = DockBuilder::split_node(dock_left, SplitDirection::Up, 0.5);
+        let proportion_top = {
+            let height_bottom = unsafe {
+                240.0
+                + 2.0 * ui.style().window_padding()[1]
+                + 0.5 * ui.style().docking_separator_size()
+                + 2.0 * ui.style().frame_padding()[1]
+                + ui.style().window_border_size()
+                + ui.text_line_height()
+            };
+            let height_avail = ui.main_viewport().size()[1];
+            1.0 - f32::min(0.5, height_bottom / height_avail)
+        };
+        
+        let (dock_top_left, dock_bottom_left) = DockBuilder::split_node(dock_left, SplitDirection::Up, proportion_top);
         DockBuilder::dock_window("Partitions", dock_top_left);
         DockBuilder::dock_window("Drawing", dock_top_left);
         DockBuilder::dock_window("Preview", dock_bottom_left);
@@ -152,14 +167,14 @@ fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
     ui.drag_int_config("Max width")
         .range(1, i32::MAX)
         .speed(0.1)
-        .display_format(format!("%d screens / {max_width_px} px"))
+        .display_format(format!("%d screens / {max_width_px}px"))
         .build(ui, &mut partition_state.max_width);
     
     let max_height_px = partition_state.max_height * 240;
     ui.drag_int_config("Max height")
         .range(1, i32::MAX)
         .speed(0.1)
-        .display_format(format!("%d screens / {max_height_px} px"))
+        .display_format(format!("%d screens / {max_height_px}px"))
         .build(ui, &mut partition_state.max_height);
     
     {
@@ -224,7 +239,7 @@ fn build_partition_options_islands(ui: &Ui, state: &mut PartitionState) {
         .range(state.min_gap, i32::MAX)
         .speed(0.05)
         .build(ui, &mut state.max_gap);
-    ui.checkbox("Enforce gap size", &mut state.force);
+    ui.checkbox("Force gap size", &mut state.force);
 }
 
 fn build_partition_options_grid(ui: &Ui, state: &mut PartitionState) {
@@ -249,7 +264,7 @@ fn build_partition_options_grid(ui: &Ui, state: &mut PartitionState) {
     ui.same_line();
     ui.checkbox_small("Auto##Auto cols", &mut state.auto_cols);
     
-    ui.checkbox("Enforce rows and columns", &mut state.force);
+    ui.checkbox("Force rows and columns", &mut state.force);
 }
 
 fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selected: &mut usize) {
@@ -330,7 +345,10 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
 }
 
 fn build_window_preview(ui: &Ui, ex: &mut Extras, state: &mut State, hover_pos: Option<ScreenCoord>) { 
-    let Some(pos) = hover_pos else { return };
+    let Some(pos) = hover_pos else {
+        ui.text("Mouse over the map to preview a screen");
+        return;
+    };
     
     let pos_changed = state.preview.as_ref().is_none_or(|preview| {
         preview.0 != pos
