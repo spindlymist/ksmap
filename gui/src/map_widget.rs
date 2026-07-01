@@ -10,6 +10,15 @@ pub struct MapState {
     pub line_thickness: f32,
 }
 
+impl MapState {
+    pub fn new(center: ScreenCoord) -> Self {
+        Self {
+            center,
+            ..Default::default()
+        }
+    }
+}
+
 impl Default for MapState {
     fn default() -> Self {
         Self {

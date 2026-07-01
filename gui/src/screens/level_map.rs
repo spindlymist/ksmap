@@ -2,7 +2,7 @@ use std::{path::PathBuf, rc::Rc};
 
 use image::RgbaImage;
 use imgui_app::{Extras, Fonts, ImguiCursorExt, ImguiExt};
-use imgui_app::dear_imgui_rs::{DockBuilder, InputText, InputTextCallbackHandler, InputTextFlags, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
+use imgui_app::dear_imgui_rs::{DockBuilder, InputText, InputTextCallbackHandler, InputTextFlags, MouseButton, SelectableFlags, SplitDirection, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnWidth, TableFlags, Ui, WindowFlags};
 use ksmap::drawing::DrawContext;
 use ksmap::{
     analysis::list_assets,
@@ -106,9 +106,15 @@ pub fn build_ui(ui: &Ui, mut ex: Extras, state: &mut State) -> Option<Task> {
         build_window_export(ui, &mut ex, state)
     }).unwrap_or_default();
     
-    ui.window("Partitions").build(|| {
-        build_window_partitions(ui, &mut ex, state);
-    });
+    let go_to_partition_index = ui.window("Partitions").build(|| {
+        build_window_partitions(ui, &mut ex, state)
+    }).unwrap_or_default();
+    if let Some(i) = go_to_partition_index
+        && let Some(partition) = state.partitions.get(i)
+        && let Some(first_screen_pos) = partition.positions().first()
+    {
+        state.map_state.center = *first_screen_pos;
+    }
     
     ui.window("Drawing").build(|| {
         build_window_drawing(ui, &mut ex,
@@ -167,7 +173,7 @@ enum PartitionAlgorithm {
     Grid,
 }
 
-fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
+fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<usize> {
     let partition_state = &mut state.partition_state;
     
     let button_width = ui.window_width() * 0.65;
@@ -243,7 +249,7 @@ fn build_window_partitions(ui: &Ui, ex: &mut Extras, state: &mut State) {
     };
     
     ui.new_line();
-    build_partition_table(ui, ex.fonts, &state.partitions, &mut state.selected);
+    build_partition_table(ui, ex.fonts, &state.partitions, &mut state.selected)
 }
 
 fn build_partition_options_islands(ui: &Ui, state: &mut PartitionState) {
@@ -284,7 +290,9 @@ fn build_partition_options_grid(ui: &Ui, state: &mut PartitionState) {
     ui.checkbox("Force rows and columns", &mut state.force);
 }
 
-fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selected: &mut usize) {
+fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selected: &mut usize) -> Option<usize> {
+    let mut go_to_partition_index: Option<usize> = None;
+    
     let columns = [
         "Xmin",
         "Ymin",
@@ -325,7 +333,6 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
             let width_px = width * 600;
             let height_px = height * 240;
             let memory_bytes = (width_px * height_px * 4) as usize;
-            // let memory_mb = memory_bytes as f64 / (2.0f64).powi(20);
             
             ui.table_next_row();
             ui.table_next_column();
@@ -338,6 +345,9 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
                 .build()
             {
                 *selected = i;
+            }
+            if ui.is_item_clicked() && ui.is_mouse_double_clicked(MouseButton::Left) {
+                go_to_partition_index = Some(i);
             }
             drop(id);
             
@@ -359,6 +369,8 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partitions: &[Partition], selec
             ui.text_aligned_right(&bytes_to_string(memory_bytes, 1));
         }
     });
+    
+    go_to_partition_index
 }
 
 fn build_window_preview(ui: &Ui, ex: &mut Extras, state: &mut State, hover_pos: Option<ScreenCoord>) { 
@@ -706,6 +718,9 @@ impl State {
         }
         
         let seed = MapSeed::random();
+        let first_screen_pos = screen_map.first()
+            .map(|screen| screen.position)
+            .unwrap_or((1000, 1000));
         
         State {
             level_dir,
@@ -723,7 +738,7 @@ impl State {
             setup_windows: true,
             preview: None,
             use_multithreaded_encoder: true,
-            map_state: MapState::default(),
+            map_state: MapState::new(first_screen_pos),
             partition_state: PartitionState::default(),
             drawing_state: DrawingState::default(),
         }
