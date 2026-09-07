@@ -97,6 +97,7 @@ fn main() -> Result<()> {
             Screen::LevelMap(state) => match level_map::build_ui(ui, &mut ex, state) {
                 Some(level_map::Task::ShowLevelList) => {
                     if let Some(ks_dir) = &app.ks_dir {
+                        level_map::on_close_screen(ui, &mut ex, state);
                         app.new_title = Some(APP_NAME.to_string());
                         let state = level_list::State::new(ks_dir);
                         app.screen = Screen::LevelList(state);

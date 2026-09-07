@@ -2,7 +2,7 @@ use std::cmp;
 use std::thread::JoinHandle;
 use std::{path::{Path, PathBuf}, sync::{Arc, atomic::{self, AtomicBool}, mpsc::{self, TryRecvError}, RwLock}};
 use image::RgbaImage;
-use imgui_app::{Extras, Fonts, ImguiExt};
+use imgui_app::{Extras, Fonts, ImguiExt, Textures};
 use imgui_app::dear_imgui_rs::{Condition, DockLayout, DockLayoutApply, DockSplit, InputText, InputTextCallbackHandler, InputTextFlags, Key, MouseButton, SelectableFlags, SortDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnUserData, TableColumnWidth, TableFlags, TableSortSpecs, TextureId, Ui, WindowFlags, WindowKey};
 use ksmap::drawing::DrawContext;
 use ksmap::{
@@ -131,6 +131,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
     let mut show_level_list = false;
     let mut copy_screen_pos = false;
     let mut open_popup_controls = false;
+    let mut open_popup_map_textures = false;
+    let mut enable_map_textures = false;
     
     // Main menu
     if let Some(_menu_bar) = ui.begin_main_menu_bar() {
@@ -155,18 +157,37 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             }
         });
         ui.menu("View", || {
-            let mut true_aspect_ratio = map_state.aspect_ratio == 2.5;
-            ui.menu_item_toggle("Use true aspect ratio for map", None::<&str>, &mut true_aspect_ratio, true);
+            ui.menu_item_toggle("Draw gridlines", None::<&str>, &mut map_state.opts.draw_gridlines, true);
+            
+            let mut true_aspect_ratio = map_state.opts.aspect_ratio == 2.5;
+            ui.menu_item_toggle("Use true aspect ratio for map", None::<&str>, &mut true_aspect_ratio, !map_state.opts.use_textures);
             if ui.is_item_edited() {
-                map_state.aspect_ratio = if true_aspect_ratio { 2.5 } else { 1.0 };
+                map_state.opts.aspect_ratio = if true_aspect_ratio { 2.5 } else { 1.0 };
                 if let Some(geom) = &map_state.prev_geom {
                     requested_center = Some(map_get_center_screen(geom));
                 }
             }
+            
+            let mut use_textures = map_state.opts.use_textures;
+            ui.menu_item_toggle("Draw screens on map (experimental)", None::<&str>, &mut use_textures, true);
+            if ui.is_item_edited()
+            {
+                if !use_textures {
+                    map_state.opts.use_textures = false;
+                }
+                else if map_state.screen_textures.is_empty() {
+                    open_popup_map_textures = true;
+                }
+                else {
+                    enable_map_textures = true;
+                }
+            }
+            
             ui.separator();
             if ui.menu_item("Recenter preview") {
                 preview_state.center = [0.5, 0.5];
             }
+            
             ui.menu("Preview scale", || {
                 if ui.menu_item_toggle("1x", None::<&str>, &mut (preview_state.scale == 1.0), true) {
                     preview_state.scale = 1.0;
@@ -239,6 +260,53 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             || ui.is_key_pressed(Key::Escape)
         {
             ui.close_current_popup();
+        }
+    }
+    
+    // Textures popup
+    if open_popup_map_textures {
+        ui.open_popup("Warning##MapTextures");
+    }
+    {
+        let [viewport_width, viewport_height] = ui.main_viewport().size();
+        ui.set_next_window_pos([viewport_width * 0.5, viewport_height * 0.5], Condition::Always, [0.5, 0.5]);
+    }
+    if let Some(_token) = ui.begin_modal_popup_config("Warning##MapTextures")
+        .flags(WindowFlags::ALWAYS_AUTO_RESIZE | WindowFlags::NO_MOVE | WindowFlags::NO_RESIZE)
+        .begin()
+    {
+        ui.text("This feature is experimental. The application may crash if you don't have enough memory available.");
+        ui.text("After clicking OK, the application may become unresponsive while the screens are rendered. :)");
+        ui.new_line();
+        
+        let memory_needed = render_state.screen_map.len() * 600 * 240 * 4;
+        ui.text(format!("Estimated VRAM required: {}", bytes_to_string(memory_needed, 1)));
+        ui.new_line();
+        
+        let button_width = ui.calc_text_width("OK") * 4.0;
+        if ui.button_with_size("OK", [button_width, 0.0]) {
+            enable_map_textures = true;
+            ui.close_current_popup();
+        }
+        ui.same_line();
+        if ui.button_with_size("Cancel", [button_width, 0.0])
+            || ui.is_key_pressed(Key::Escape)
+        {
+            ui.close_current_popup();
+        }
+    }
+    
+    if enable_map_textures {
+        map_state.opts.use_textures = true;
+        // Force true aspect ratio on
+        if map_state.opts.aspect_ratio == 1.0 {
+            map_state.opts.aspect_ratio = 2.5;
+            if let Some(geom) = &map_state.prev_geom {
+                requested_center = Some(map_get_center_screen(geom));
+            }
+        }
+        if map_state.screen_textures.is_empty() {
+            draw_all_screens_and_create_textures(&mut render_state, &mut ex.textures, &mut map_state.screen_textures);
         }
     }
     
@@ -396,6 +464,15 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
     }
     else {
         None
+    }
+}
+
+pub fn on_close_screen(_ui: &Ui, ex: &mut Extras, state: &mut State) {
+    if let Some((_, texture_id)) = state.preview_state.preview.take() {
+        ex.textures.destroy_texture(texture_id);
+    }
+    for (_, texture_id) in state.map_state.screen_textures.drain() {
+        ex.textures.destroy_texture(texture_id);
     }
 }
 
@@ -975,6 +1052,27 @@ fn draw_single_screen(render_state: &mut RenderState, screen_pos: ScreenCoord) -
         render_state.draw_options,
         &render_state.world_sync
     ).ok()
+}
+
+fn draw_all_screens_and_create_textures(
+    render_state: &mut RenderState,
+    textures: &mut Textures,
+    lookup: &mut FxHashMap<ScreenCoord, TextureId>
+) {
+    for (i, screen) in render_state.screen_map.iter().enumerate() {
+        let Ok(image) = ksmap::drawing::draw_screen(
+            render_state.seed,
+            screen,
+            i,
+            &render_state.gfx,
+            &render_state.object_defs,
+            &render_state.ini,
+            render_state.draw_options,
+            &render_state.world_sync
+        ) else { continue };
+        let texture_id = textures.create_texture(image.width(), image.height(), &image.into_vec());
+        lookup.insert(screen.position, texture_id);
+    }
 }
 
 struct DrawingState {

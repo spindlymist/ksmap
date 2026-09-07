@@ -1,28 +1,47 @@
-use imgui_app::dear_imgui_rs::{MouseButton, Ui};
+use imgui_app::dear_imgui_rs::{MouseButton, TextureId, Ui};
 use ksmap::{screen_map::ScreenMap, partition::Partition};
 use libks::ScreenCoord;
 use rustc_hash::FxHashMap;
 
 pub struct MapState {
+    pub opts: MapOptions,
     pub top_left: (i64, i64),
     pub is_dragging: bool,
-    pub zoom_level: i32,
     pub bias: (f32, f32),
-    pub aspect_ratio: f32,
     pub prev_geom: Option<MapGeometry>,
     pub selected_screen: Option<ScreenCoord>,
+    pub screen_textures: FxHashMap<ScreenCoord, TextureId>,
 }
 
 impl Default for MapState {
     fn default() -> Self {
         Self {
+            opts: MapOptions::default(),
             top_left: (1000, 1000),
             is_dragging: false,
-            zoom_level: 6,
             bias: (0.0, 0.0),
-            aspect_ratio: 1.0,
             prev_geom: None,
             selected_screen: None,
+            screen_textures: FxHashMap::default(),
+        }
+    }
+}
+
+#[derive(Clone)]
+pub struct MapOptions {
+    pub zoom_level: i32,
+    pub aspect_ratio: f32,
+    pub draw_gridlines: bool,
+    pub use_textures: bool,
+}
+
+impl Default for MapOptions {
+    fn default() -> Self {
+        Self {
+            zoom_level: -10,
+            aspect_ratio: 1.0,
+            draw_gridlines: true,
+            use_textures: false,
         }
     }
 }
@@ -39,11 +58,21 @@ pub fn build_map(
     let map_size = ui.content_region_avail();
     let [map_x_screen, map_y_screen] = ui.get_cursor_screen_pos();
     
-    let (cell_width, cell_height) = get_cell_size_for_zoom_level(map_state.zoom_level, map_state.aspect_ratio);
-    let line_thickness = get_line_thickness_for_zoom_level(map_state.zoom_level, (cell_width, cell_height));
+    let (cell_width, cell_height) = get_cell_size(&map_state.opts);
+    let highlight_thickness = get_line_thickness(&map_state.opts, true);
     // Coordinates need to be adjusted so the lines aren't centered on the given position
     // This will need to be updated for ImGui 1.93
-    let line_correction = line_thickness / 2.0 - 0.5;
+    let highlight_correction = highlight_thickness / 2.0 - 0.5;
+    
+    // Highlights are normally the same thickness as gridlines, but we have to separate them
+    // so highlights are still drawn when gridlines are disabled
+    let (line_thickness, line_correction) =
+        if map_state.opts.draw_gridlines {
+            (highlight_thickness, highlight_correction)
+        }
+        else {
+            (0.0, 0.0)
+        };
     
     // Recenter if map was resized
     if requested_center.is_none()
@@ -119,7 +148,7 @@ pub fn build_map(
             .filled(filled)
             .build();
     };
-    let draw_screen_rect = |(x, y)| {
+    let draw_screen = |(x, y)| {
         let cell_pos = calc_cell_pos((x as i64, y as i64), &geom);
         let top_left = [
             cell_pos[0] + line_thickness,
@@ -130,24 +159,38 @@ pub fn build_map(
             top_left[1] + cell_height
         ];
         
-        let partition_index = partition_members.get(&(x, y)).unwrap();
-        let color_index = *partition_index % MAP_COLORS.len();
-        let color = MAP_COLORS[color_index];
-        
-        draw_rect_relative(top_left, bottom_right, color, true);
-        
-        if cell_height >= 5.0 {
-            let highlight_color = HIGHLIGHT_COLORS[color_index];
-            let mut top_left_screen = relative_to_screen_coords(top_left);
-            top_left_screen[0] += line_correction;
-            top_left_screen[1] += line_correction;
-            let mut bottom_right_screen = relative_to_screen_coords(bottom_right);
-            bottom_right_screen[0] -= line_correction;
-            bottom_right_screen[1] -= line_correction;
-            draw_list.add_rect(top_left_screen, bottom_right_screen, highlight_color)
-                .filled(false)
-                .thickness(line_thickness)
-                .build();
+        if map_state.opts.use_textures {
+            match map_state.screen_textures.get(&(x, y)) {
+                Some(texture) => {
+                    let top_left_abs = relative_to_screen_coords(top_left);
+                    let bottom_right_abs = relative_to_screen_coords(bottom_right);
+                    draw_list.add_image(*texture, top_left_abs, bottom_right_abs, [0.0, 0.0], [1.0, 1.0], [1.0, 1.0, 1.0]);
+                }
+                None => {
+                    draw_rect_relative(top_left, bottom_right, MAP_COLORS[0], true);
+                }
+            }
+        }
+        else {
+            let partition_index = partition_members.get(&(x, y)).unwrap();
+            let color_index = *partition_index % MAP_COLORS.len();
+            let color = MAP_COLORS[color_index];
+            
+            draw_rect_relative(top_left, bottom_right, color, true);
+            
+            if highlight_thickness > 0.0 {
+                let highlight_color = HIGHLIGHT_COLORS[color_index];
+                let mut top_left_screen = relative_to_screen_coords(top_left);
+                top_left_screen[0] += highlight_correction;
+                top_left_screen[1] += highlight_correction;
+                let mut bottom_right_screen = relative_to_screen_coords(bottom_right);
+                bottom_right_screen[0] -= highlight_correction;
+                bottom_right_screen[1] -= highlight_correction;
+                draw_list.add_rect(top_left_screen, bottom_right_screen, highlight_color)
+                    .filled(false)
+                    .thickness(highlight_thickness)
+                    .build();
+            }
         }
     };
     let draw_indicator = |(x, y), color| {
@@ -170,6 +213,13 @@ pub fn build_map(
         ui.text(text);
     };
     
+    let set_sampler =
+        map_state.opts.use_textures
+        && map_state.opts.zoom_level >= 0;
+    if set_sampler {
+        draw_list.set_sampler_nearest();
+    }
+    
     // Now, we either iterate over screens (and check if they're on the map), or iterate over map cells
     // (and check if they contain a screen), whichever takes fewer iterations.
     if screens.len() <= n_grid_cells {
@@ -180,7 +230,7 @@ pub fn build_map(
                 && y as i64 >= geom.y_min
                 && y as i64 <= geom.y_max
             {
-                draw_screen_rect((x, y));
+                draw_screen((x, y));
             }
         }
     }
@@ -192,10 +242,14 @@ pub fn build_map(
         for y in y_min..=y_max {
             for x in x_min..=x_max {
                 if screens.index_of(&(x, y)).is_some() {
-                    draw_screen_rect((x, y));
+                    draw_screen((x, y));
                 }
             }
         }
+    }
+    
+    if set_sampler {
+        draw_list.set_sampler_linear();
     }
     
     // Draw partition outline
@@ -247,13 +301,14 @@ pub fn build_map(
         // Zoom
         let wheel_delta = ui.get_mouse_wheel();
         if wheel_delta != 0.0 && !map_state.is_dragging {
-            let new_zoom_level = (map_state.zoom_level + wheel_delta as i32).clamp(0, 12);
-            if new_zoom_level == map_state.zoom_level {
+            let new_zoom_level = (map_state.opts.zoom_level + wheel_delta as i32).clamp(ZOOM_MIN, ZOOM_MAX);
+            if new_zoom_level == map_state.opts.zoom_level {
                 return hovered_screen_pos;
             }
             
-            let (new_cell_width, new_cell_height) = get_cell_size_for_zoom_level(new_zoom_level, map_state.aspect_ratio);
-            let new_line_thickness = get_line_thickness_for_zoom_level(new_zoom_level, (new_cell_width, new_cell_height));
+            map_state.opts.zoom_level = new_zoom_level;
+            let (new_cell_width, new_cell_height) = get_cell_size(&map_state.opts);
+            let new_line_thickness = get_line_thickness(&map_state.opts, false);
             
             // The general idea here is to keep the point the mouse is hovering over in the same position as we zoom
             // We start by converting the pixel position to a proportion that is agnostic to the zoom level
@@ -295,7 +350,6 @@ pub fn build_map(
                 new_hovered_cell_top_left[1] - blah_y as f32 * new_cell_outer_height,
             );
             
-            map_state.zoom_level = new_zoom_level;
             map_state.top_left = new_top_left_screen;
             map_state.bias = new_bias;
         }
@@ -328,8 +382,8 @@ pub struct MapGeometry {
 fn calc_map_geometry(map_state: &MapState, pan: (f32, f32), map_size: (f32, f32)) -> MapGeometry {
     let total_bias = (map_state.bias.0 + pan.0, map_state.bias.1 + pan.1);
     
-    let (cell_width, cell_height) = get_cell_size_for_zoom_level(map_state.zoom_level, map_state.aspect_ratio);
-    let line_thickness = get_line_thickness_for_zoom_level(map_state.zoom_level, (cell_width, cell_height));
+    let (cell_width, cell_height) = get_cell_size(&map_state.opts);
+    let line_thickness = get_line_thickness(&map_state.opts, false);
     let cell_outer_width = cell_width + line_thickness;
     let cell_outer_height = cell_height + line_thickness;
     
@@ -377,18 +431,37 @@ fn get_hovered_screen_pos(hover_pos: [f32; 2], geom: &MapGeometry) -> (i64, i64)
     (screen_x, screen_y)
 }
 
-fn get_cell_size_for_zoom_level(zoom: i32, aspect_ratio: f32) -> (f32, f32) {
-    let height = 1.6f32.powi(zoom).round();
-    let width = (height * aspect_ratio).round().max(1.0);
+const ZOOM_MIN: i32 = -16;
+const ZOOM_MAX: i32 = 5;
+const MAG_LEVELS: [f32; 1 + ZOOM_MAX as usize] = [1.0, 2.0, 3.0, 4.0, 6.0, 8.0];
+
+fn get_cell_size(opts: &MapOptions) -> (f32, f32) {
+    let scale =
+        if opts.zoom_level < 0 {
+            2.0f32.powf(0.5 * opts.zoom_level as f32)
+        }
+        else {
+            MAG_LEVELS[opts.zoom_level as usize]
+        };
+    let height = (240.0 * scale).round().max(1.0);
+    let width = (height * opts.aspect_ratio).round().max(1.0);
     (width, height)
 }
 
-fn get_line_thickness_for_zoom_level(zoom: i32, cell_size: (f32, f32)) -> f32 {
-    if zoom < 4 {
+fn get_line_thickness(opts: &MapOptions, ignore_gridline_option: bool) -> f32 {
+    if !opts.draw_gridlines && !ignore_gridline_option {
+        return 0.0;
+    }
+    
+    let (cell_width, cell_height) = get_cell_size(opts);
+    if cell_height < 5.0 {
         0.0
     }
+    else if opts.use_textures {
+        1.0
+    }
     else {
-        (f32::min(cell_size.0, cell_size.1) * 0.04).round().max(1.0)
+        (f32::min(cell_width, cell_height) * 0.04).round().max(1.0)
     }
 }
 
