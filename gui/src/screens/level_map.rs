@@ -24,6 +24,7 @@ use crate::{map_widget::{build_map, MapState, map_get_center_screen}, ui_extensi
 use crate::format_bytes::*;
 
 pub struct State {
+    can_return_to_level_list: bool,
     layout: Option<DockLayout>,
     reset_layout: bool,
     render_thread: Option<JoinHandle<()>>,
@@ -40,8 +41,14 @@ pub struct State {
 }
 
 impl State {
-    pub fn new(level_dir: PathBuf, render_state: RenderState, partition_state: PartitionState) -> Self {    
+    pub fn new(
+        level_dir: PathBuf,
+        render_state: RenderState,
+        partition_state: PartitionState,
+        can_return_to_level_list: bool
+    ) -> Self {
         State {
+            can_return_to_level_list,
             layout: None,
             reset_layout: false,
             render_state_lock: Arc::new(RwLock::new(render_state)),
@@ -79,6 +86,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
     }
     
     let State {
+        can_return_to_level_list,
         layout,
         reset_layout,
         render_thread,
@@ -143,8 +151,11 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             if ui.menu_item_with_shortcut("Show level directory", "Ctrl+F") {
                 show_level_directory = true;
             }
-            if ui.menu_item_with_shortcut("Return to level list", "F2") {
-                show_level_list = true;
+            {
+                let _token = ui.begin_disabled_with_cond(!*can_return_to_level_list);
+                if ui.menu_item_with_shortcut("Return to level list", "F2") {
+                    show_level_list = true;
+                }
             }
             ui.separator();
             if ui.menu_item("Exit") {

@@ -82,7 +82,7 @@ fn main() -> Result<()> {
                     partition_state,
                 }) => {
                     app.new_title = Some(get_window_title_for_level(&level_dir, &render_state.ini));
-                    let state = level_map::State::new(level_dir, render_state, partition_state);
+                    let state = level_map::State::new(level_dir, render_state, partition_state, app.ks_dir.is_some());
                     app.screen = Screen::LevelMap(state);
                 }
                 Some(loading::Task::ShowLevelList) => {

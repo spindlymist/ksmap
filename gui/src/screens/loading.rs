@@ -18,6 +18,7 @@ use anyhow::anyhow;
 use crate::screens::level_map::{PartitionState, RenderState};
 
 pub struct State {
+    can_return_to_level_list: bool,
     level_dir: PathBuf,
     status: &'static str,
     thread: Option<JoinHandle<anyhow::Result<(RenderState, PartitionState)>>>,
@@ -47,6 +48,7 @@ enum LoadMessage {
 
 impl State {
     pub fn new(ks_dir: Option<PathBuf>, level_dir: PathBuf) -> Self {
+        let can_return_to_level_list = ks_dir.is_some();
         let (tx, rx) = mpsc::channel();
         let thread = {
             let ks_dir = ks_dir.unwrap_or_else(|| level_dir.join("../.."));
@@ -55,6 +57,7 @@ impl State {
         };
         
         Self {
+            can_return_to_level_list,
             level_dir,
             thread: Some(thread),
             rx,
@@ -110,7 +113,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         if let Some(err) = &state.error {
             ui.text(format!("Failed to load the level. Reason:"));
             error_display(ui, err);
-            if ui.button("Return to level list") {
+            if state.can_return_to_level_list && ui.button("Return to level list") {
                 task = Some(Task::ShowLevelList);
             }
         }
