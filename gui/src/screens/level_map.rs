@@ -168,10 +168,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             }
         });
         ui.menu("View", || {
-            ui.menu_item_toggle("Draw gridlines", None::<&str>, &mut map_state.opts.draw_gridlines, true);
-            
             let mut true_aspect_ratio = map_state.opts.aspect_ratio == 2.5;
-            ui.menu_item_toggle("Use true aspect ratio for map", None::<&str>, &mut true_aspect_ratio, !map_state.opts.use_textures);
+            ui.menu_item_toggle("Use true aspect ratio", None::<&str>, &mut true_aspect_ratio, !map_state.opts.use_textures);
             if ui.is_item_edited() {
                 map_state.opts.aspect_ratio = if true_aspect_ratio { 2.5 } else { 1.0 };
                 if let Some(geom) = &map_state.prev_geom {
@@ -179,8 +177,10 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                 }
             }
             
+            ui.menu_item_toggle("Draw gridlines", None::<&str>, &mut map_state.opts.draw_gridlines, true);
+            
             let mut use_textures = map_state.opts.use_textures;
-            ui.menu_item_toggle("Draw screens on map (experimental)", None::<&str>, &mut use_textures, true);
+            ui.menu_item_toggle("Draw screens on map", None::<&str>, &mut use_textures, true);
             if ui.is_item_edited()
             {
                 if !use_textures {
@@ -198,21 +198,6 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             if ui.menu_item("Recenter preview") {
                 preview_state.center = [0.5, 0.5];
             }
-            
-            ui.menu("Preview scale", || {
-                if ui.menu_item_toggle("1x", None::<&str>, &mut (preview_state.scale == 1.0), true) {
-                    preview_state.scale = 1.0;
-                }
-                if ui.menu_item_toggle("2x", None::<&str>, &mut (preview_state.scale == 2.0), true) {
-                    preview_state.scale = 2.0;
-                }
-                if ui.menu_item_toggle("3x", None::<&str>, &mut (preview_state.scale == 3.0), true) {
-                    preview_state.scale = 3.0;
-                }
-                if ui.menu_item_toggle("4x", None::<&str>, &mut (preview_state.scale == 4.0), true) {
-                    preview_state.scale = 4.0;
-                }
-            });
         });
         ui.menu("Window", || {
             if ui.menu_item("Reset layout") {
@@ -966,7 +951,7 @@ fn sort_partitions(partitions: &mut [Partition], specs: &TableSortSpecs) {
 struct PreviewState {
     preview: Option<(ScreenCoord, TextureId)>,
     center: [f32; 2],
-    scale: f32,
+    zoom_level: i32,
 }
 
 impl Default for PreviewState {
@@ -974,7 +959,7 @@ impl Default for PreviewState {
         Self {
             preview: None,
             center: [0.5, 0.5],
-            scale: 1.0,
+            zoom_level: 0,
         }
     }
 }
@@ -1009,22 +994,24 @@ fn build_window_preview(ui: &Ui, ex: &mut Extras, preview_state: &mut PreviewSta
         preview_state.center = [0.5, 0.5];
     }
     
+    const MIN_ZOOM: i32 = 0;
+    const MAX_ZOOM: i32 = 5;
+    const MAG_LEVELS: [f32; 1 + MAX_ZOOM as usize] = [1.0, 2.0, 3.0, 4.0, 6.0, 8.0];
     if is_window_hovered {
-        let mouse_wheel = ui.get_mouse_wheel();
-        if mouse_wheel != 0.0 {
-            preview_state.scale = f32::clamp(preview_state.scale + mouse_wheel, 1.0, 4.0);
-        }
+        let mouse_wheel = ui.get_mouse_wheel() as i32;
+        preview_state.zoom_level = (preview_state.zoom_level + mouse_wheel).clamp(MIN_ZOOM, MAX_ZOOM);
     }
     
     if let Some(preview) = &preview_state.preview
         && let Some(texture) = ex.textures.get_texture_info(preview.1)
     {
-        let width = texture.width() * preview_state.scale;
-        let height = texture.height() * preview_state.scale;
+        let scale = MAG_LEVELS[preview_state.zoom_level as usize];
+        let width = texture.width() * scale;
+        let height = texture.height() * scale;
         
         if is_window_hovered {
-            let border_x = f32::round(0.10 * width_avail);
-            let border_y = f32::round(0.10 * height_avail);
+            let border_x = (width_avail * 0.1).round().min(10.0);
+            let border_y = (height_avail * 0.1).round().min(10.0);
             let [mouse_x_screen, mouse_y_screen] = ui.mouse_pos();
             let mouse_x_window = mouse_x_screen - (origin_x_screen + border_x);
             let mouse_y_window = mouse_y_screen - (origin_y_screen + border_y);
@@ -1039,14 +1026,19 @@ fn build_window_preview(ui: &Ui, ex: &mut Extras, preview_state: &mut PreviewSta
             preview_state.center[1] = 0.5;
         }
         
-        let x = f32::round((width_avail - width) * preview_state.center[0]);
-        let y = f32::round((height_avail - height) * preview_state.center[1]);
+        let x = f32::round((width_avail - width) * smoothstep(preview_state.center[0]));
+        let y = f32::round((height_avail - height) * smoothstep(preview_state.center[1]));
         ui.set_cursor_pos([origin_x + x, origin_y + y]);
         
-        ui.get_window_draw_list().set_sampler_nearest();
+        let draw_list = ui.get_window_draw_list();
+        draw_list.set_sampler_nearest();
         ui.image(texture, [width, height]);
-        ui.get_window_draw_list().set_sampler_linear();
+        draw_list.set_sampler_linear();
     }
+}
+
+fn smoothstep(x: f32) -> f32 {
+    x * x * (3.0 - 2.0 * x)
 }
 
 fn draw_single_screen(render_state: &mut RenderState, screen_pos: ScreenCoord) -> Option<RgbaImage> {
