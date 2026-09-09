@@ -59,6 +59,13 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<PathBuf> 
                 .build()
             {
                 filter_levels(&mut state.levels, &state.filter);
+                if state.levels.get(state.selected_index)
+                    .is_some_and(|level| !level.is_visible)
+                {
+                    state.selected_index = state.levels.iter()
+                        .position(|level| level.is_visible)
+                        .unwrap_or(0);
+                }
             }
 
             ui.same_line_with_spacing(0.0, inner_spacing_x);
@@ -74,17 +81,19 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<PathBuf> 
         else if ui.is_key_pressed(Key::DownArrow) {
             nudge_selection = 1;
         }
-        else if ui.is_key_pressed(Key::Home) {
-            nudge_selection = isize::MIN;
-        }
-        else if ui.is_key_pressed(Key::End) {
-            nudge_selection = isize::MAX;
-        }
         else if ui.is_key_pressed(Key::PageUp) {
             nudge_selection = -calc_rows_per_page(ui);
         }
         else if ui.is_key_pressed(Key::PageDown) {
             nudge_selection = calc_rows_per_page(ui);
+        }
+        if !ui.is_any_item_focused() && !ui.is_any_item_active() {
+            if ui.is_key_pressed(Key::Home) {
+                nudge_selection = isize::MIN;
+            }
+            else if ui.is_key_pressed(Key::End) {
+                nudge_selection = isize::MAX;
+            }
         }
         
         if nudge_selection != 0 {
@@ -103,8 +112,10 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<PathBuf> 
             let n_filtered_levels = filtered_level_indices.len() as isize;
             let new_selected_index = selected_index_after_filter
                 .saturating_add(nudge_selection)
-                .clamp(0, n_filtered_levels - 1);
-            state.selected_index = filtered_level_indices[new_selected_index as usize];
+                .clamp(0, (n_filtered_levels - 1).max(0));
+            state.selected_index = filtered_level_indices.get(new_selected_index as usize)
+                .cloned()
+                .unwrap_or(0);
         }
         
         ui.table("##LevelsTable")
