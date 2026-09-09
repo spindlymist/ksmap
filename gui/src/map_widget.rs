@@ -476,7 +476,7 @@ const GRID_LINE_COLOR: Color = [0.1, 0.1, 0.1, 1.0];
 const HOVER_INDICATOR_COLOR: Color = [1.0, 1.0, 1.0, 1.0];
 const PARTITION_OUTLINE_COLOR: Color = [1.0, 1.0, 1.0, 1.0];
 const SELECTION_INDICATOR_COLOR: Color = [0.98, 0.85, 0.21, 1.0];
-const MAP_COLORS: [Color; 64] = [
+pub const MAP_COLORS: [Color; 64] = [
     [0.000, 0.404, 0.529, 1.000],
     [0.761, 0.627, 0.180, 1.000],
     [0.263, 0.490, 0.192, 1.000],

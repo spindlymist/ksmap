@@ -2,7 +2,7 @@ use std::cmp;
 use std::thread::JoinHandle;
 use std::{path::{Path, PathBuf}, sync::{Arc, atomic::{self, AtomicBool}, mpsc::{self, TryRecvError}, RwLock}};
 use image::RgbaImage;
-use imgui_app::{Extras, Fonts, ImguiExt, Textures};
+use imgui_app::{Extras, Fonts, Textures};
 use imgui_app::dear_imgui_rs::{Condition, DockLayout, DockLayoutApply, DockSplit, InputText, InputTextCallbackHandler, InputTextFlags, Key, MouseButton, SelectableFlags, SortDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnUserData, TableColumnWidth, TableFlags, TableSortSpecs, TextureId, Ui, WindowFlags, WindowKey};
 use ksmap::drawing::DrawContext;
 use ksmap::{
@@ -18,6 +18,7 @@ use libks_ini::edit::Ini;
 use ksmap::screen_map::ScreenMap;
 use rustc_hash::FxHashMap;
 
+use crate::map_widget::MAP_COLORS;
 use crate::name_pattern::{self, NamePattern};
 use crate::tooltips::{set_tooltips_enabled, toggle_tooltips, tooltip, tooltips_are_enabled};
 use crate::{map_widget::{build_map, MapState, map_get_center_screen}, ui_extensions::UiExt};
@@ -812,9 +813,9 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partition_state: &mut Partition
         .outer_size([-1.0, table_height])
         .flags(TableFlags::BORDERS | TableFlags::SCROLL_Y | TableFlags::SORTABLE);
 
-    for column in PARTITION_TABLE_COL_LABELS {
+    for label in PARTITION_TABLE_COL_LABELS {
         table_builder = table_builder.add_column(TableColumnSetup {
-            name: column,
+            name: label,
             flags: TableColumnFlags::NONE,
             width: Some(TableColumnWidth::Fixed(0.0)),
             indent: None,
@@ -864,21 +865,35 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partition_state: &mut Partition
             
             ui.table_next_row();
             ui.table_next_column();
-            let id = ui.push_id(i);
-            let x_min_str = x_min.to_string();
-            ui.align_next_item_right(ui.calc_text_size(&x_min_str)[0]);
-            if ui.selectable_config(x_min_str)
-                .selected(partition_state.selected == i)
-                .flags(SelectableFlags::SPAN_ALL_COLUMNS)
-                .build()
-            {
-                partition_state.selected = i;
-            }
-            if ui.is_item_clicked() && ui.is_mouse_double_clicked(MouseButton::Left) {
-                go_to_partition_index = Some(i);
-            }
-            drop(id);
             
+            // Selection
+            {
+                let _id = ui.push_id(i);
+                if ui.selectable_config("##RowSelect")
+                    .selected(partition_state.selected == i)
+                    .flags(SelectableFlags::SPAN_ALL_COLUMNS)
+                    .build()
+                {
+                    partition_state.selected = i;
+                }
+                if ui.is_item_clicked() && ui.is_mouse_double_clicked(MouseButton::Left) {
+                    go_to_partition_index = Some(i);
+                }
+            }
+            
+            // Color indicator
+            ui.same_line_with_spacing(0.0, 0.0);
+            {
+                let color_index = partition.positions()
+                    .first()
+                    .and_then(|pos| partition_state.partition_members.get(pos).cloned())
+                    .unwrap_or(0);
+                let color = MAP_COLORS[color_index % MAP_COLORS.len()];
+                just_a_square(ui, color, true, true);
+            }
+            ui.same_line();
+            
+            ui.text_aligned_right(x_min.to_string());
             ui.table_next_column();
             ui.text_aligned_right(y_min.to_string());
             ui.table_next_column();
@@ -1622,4 +1637,36 @@ fn show_dir_in_file_explorer<P: AsRef<Path>>(path: P) {
         .arg("/root,")
         .arg(abs_path)
         .output();
+}
+
+fn just_a_square(ui: &Ui, color: [f32; 4], filled: bool, rounded: bool) {
+    let [cursor_x, cursor_y] = ui.cursor_screen_pos();
+    let line_height = ui.text_line_height();
+    let size = (line_height * 2.0 / 3.0).round();
+    ui.dummy([size, line_height]);
+    
+    if ui.is_item_visible() {
+        let offset_y = ((line_height - size) / 2.0).round();
+        let top_left = [
+            cursor_x,
+            cursor_y + offset_y
+        ];
+        let bottom_right = [
+            top_left[0] + size,
+            top_left[1] + size
+        ];
+        let rounding =
+            if rounded {
+                unsafe { ui.style().frame_rounding() }
+            }
+            else {
+                0.0
+            };
+        
+        ui.get_window_draw_list()
+            .add_rect(top_left, bottom_right, color)
+            .filled(filled)
+            .rounding(rounding)
+            .build();
+    }
 }
