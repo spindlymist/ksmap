@@ -1058,7 +1058,7 @@ checksum = "e7c5cedc30da3a610cac6b4ba17597bdf7152cf974e8aab3afb3d54455e371c8"
 [[package]]
 name = "imgui_app"
 version = "0.1.0"
-source = "git+https://github.com/spindlymist/imgui_app#c3b3cc8401c28ba7f8f264cf4444864aa90e8d40"
+source = "git+https://github.com/spindlymist/imgui_app#5a64c5b8227afa247fc5bf1f2e84aae5a6a49b6d"
 dependencies = [
  "byteorder-lite",
  "dear-imgui-rs",

@@ -39,6 +39,7 @@ pub struct State {
     partition_state: PartitionState,
     drawing_state: DrawingState,
     preview_state: PreviewState,
+    generate_mipmaps: bool,
 }
 
 impl State {
@@ -63,6 +64,7 @@ impl State {
             preview_state: PreviewState::default(),
             export_state: ExportState::new(level_dir),
             render_thread: None,
+            generate_mipmaps: false,
         }
     }
 }
@@ -101,6 +103,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         partition_state,
         drawing_state,
         preview_state,
+        generate_mipmaps,
     } = state;
     
     // Initialize dockspace
@@ -201,7 +204,12 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                     for (_, texture_id) in map_state.screen_textures.drain() {
                         ex.textures.destroy_texture(texture_id);
                     }
-                    draw_all_screens_and_create_textures(&mut render_state, &mut ex.textures, &mut map_state.screen_textures);
+                    draw_all_screens_and_create_textures(
+                        &mut render_state,
+                        &mut ex.textures,
+                        &mut map_state.screen_textures,
+                        *generate_mipmaps
+                    );
                 }
             }
             
@@ -283,15 +291,19 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         .begin()
     {
         ui.text("This feature is experimental. The application may crash if you don't have enough memory available.");
-        
         ui.new_line();
+        
         ui.bullet_text("After clicking OK, the application may become unresponsive while the screens are rendered. :)");
         ui.bullet_text("The map will not update automatically as you change options.");
         ui.bullet_text("To update the map, select View -> Refresh screen cache from the menu.");
         ui.bullet_text("That menu item may also cause the app to become unresponsive or crash.");
         ui.new_line();
         
-        let memory_needed = render_state.screen_map.len() * 600 * 240 * 4;
+        ui.checkbox("Generate mipmaps (looks better when zoomed out, but takes more time and memory)", generate_mipmaps);
+        ui.new_line();
+        
+        let bytes_per_screen = if *generate_mipmaps { 767848 } else { 576000 };
+        let memory_needed = render_state.screen_map.len() * bytes_per_screen;
         ui.text(format!("Estimated VRAM required: {}", bytes_to_string(memory_needed, 1)));
         ui.new_line();
         
@@ -318,7 +330,12 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             }
         }
         if map_state.screen_textures.is_empty() {
-            draw_all_screens_and_create_textures(&mut render_state, &mut ex.textures, &mut map_state.screen_textures);
+            draw_all_screens_and_create_textures(
+                &mut render_state,
+                &mut ex.textures,
+                &mut map_state.screen_textures,
+                *generate_mipmaps
+            );
         }
     }
     
@@ -1025,7 +1042,7 @@ fn build_window_preview(ui: &Ui, ex: &mut Extras, preview_state: &mut PreviewSta
         
         preview_state.preview = match draw_single_screen(render_state, pos) {
             Some(image) => {
-                let id = ex.textures.create_texture(image.width(), image.height(), &image);
+                let id = ex.textures.create_texture(image.width(), image.height(), &image, false);
                 Some((pos, id))
             }
             None => None
@@ -1099,7 +1116,8 @@ fn draw_single_screen(render_state: &mut RenderState, screen_pos: ScreenCoord) -
 fn draw_all_screens_and_create_textures(
     render_state: &mut RenderState,
     textures: &mut Textures,
-    lookup: &mut FxHashMap<ScreenCoord, TextureId>
+    lookup: &mut FxHashMap<ScreenCoord, TextureId>,
+    generate_mipmaps: bool,
 ) {
     for (i, screen) in render_state.screen_map.iter().enumerate() {
         let Ok(image) = ksmap::drawing::draw_screen(
@@ -1112,7 +1130,7 @@ fn draw_all_screens_and_create_textures(
             render_state.draw_options,
             &render_state.world_sync
         ) else { continue };
-        let texture_id = textures.create_texture(image.width(), image.height(), &image.into_vec());
+        let texture_id = textures.create_texture(image.width(), image.height(), &image.into_vec(), generate_mipmaps);
         lookup.insert(screen.position, texture_id);
     }
 }
