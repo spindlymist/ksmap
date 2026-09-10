@@ -3,7 +3,7 @@ use std::thread::JoinHandle;
 use std::{path::{Path, PathBuf}, sync::{Arc, atomic::{self, AtomicBool}, mpsc::{self, TryRecvError}, RwLock}};
 use image::RgbaImage;
 use imgui_app::{Extras, Fonts, Textures};
-use imgui_app::dear_imgui_rs::{Condition, DockLayout, DockLayoutApply, DockSplit, InputText, InputTextCallbackHandler, InputTextFlags, Key, MouseButton, SelectableFlags, SortDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnUserData, TableColumnWidth, TableFlags, TableSortSpecs, TextureId, Ui, WindowFlags, WindowKey};
+use imgui_app::dear_imgui_rs::{Condition, DockLayout, DockLayoutApply, DockSplit, InputText, InputTextCallbackHandler, InputTextFlags, Key, MouseButton, SelectableFlags, SortDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnUserData, TableColumnWidth, TableFlags, TextureId, Ui, WindowFlags, WindowKey};
 use ksmap::drawing::DrawContext;
 use ksmap::{
     definitions::ObjectDefs,
@@ -543,14 +543,14 @@ pub struct PartitionState {
     grid_fallback: bool,
     /// Set up the default sort column on the first frame
     set_sort_column: bool,
+    sort_descending: bool,
+    sort_column_index: usize,
 }
 
 impl PartitionState {
-    pub fn from_islands(partitioner: IslandsPartitioner, partitions: &[Partition]) -> Self {
-        let mut partition_members = FxHashMap::default();
-        update_partition_members(&mut partition_members, partitions);
-        Self {
-            partition_members,
+    /// `partitions` will be sorted. This is kind of weird and can probably be improved later.
+    pub fn from_islands(partitioner: IslandsPartitioner, partitions: &mut [Partition]) -> Self {
+        let mut state = Self {
             selected: 0,
             algorithm: PartitionAlgorithm::Islands,
             max_width: partitioner.max_size.0 as i32,
@@ -560,14 +560,16 @@ impl PartitionState {
             force: partitioner.force,
             grid_fallback: partitioner.fallback_to_grid,
             ..Default::default()
-        }
+        };
+        sort_partitions(partitions, state.sort_column_index, state.sort_descending);
+        update_partition_members(&mut state.partition_members, partitions);
+        
+        state
     }
     
-    pub fn from_grid(partitioner: GridPartitioner, partitions: &[Partition]) -> Self {
-        let mut partition_members = FxHashMap::default();
-        update_partition_members(&mut partition_members, partitions);
-        Self {
-            partition_members,
+    /// `partitions` will be sorted. This is kind of weird and can probably be improved later.
+    pub fn from_grid(partitioner: GridPartitioner, partitions: &mut [Partition]) -> Self {
+        let mut state = Self {
             selected: 0,
             algorithm: PartitionAlgorithm::Grid,
             max_width: partitioner.max_size.0 as i32,
@@ -578,7 +580,11 @@ impl PartitionState {
             cols: partitioner.cols.unwrap_or(10) as i32,
             force: partitioner.force,
             ..Default::default()
-        }
+        };
+        sort_partitions(partitions, state.sort_column_index, state.sort_descending);
+        update_partition_members(&mut state.partition_members, partitions);
+        
+        state
     }
 }
 
@@ -599,6 +605,8 @@ impl Default for PartitionState {
             force: false,
             grid_fallback: true,
             set_sort_column: true,
+            sort_descending: true,
+            sort_column_index: PARTITION_TABLE_COL_MEMORY,
         }
     }
 }
@@ -645,7 +653,8 @@ fn build_window_partitions(ui: &Ui, _ex: &mut Extras, partition_state: &mut Part
                 };
                 partitioner.partitions(&render_state.screen_map)
             }
-        };        
+        };
+        sort_partitions(&mut render_state.partitions, partition_state.sort_column_index, partition_state.sort_descending);
         update_partition_members(&mut partition_state.partition_members, &render_state.partitions);
     }
     
@@ -830,19 +839,23 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partition_state: &mut Partition
         // Sorting
         if partition_state.set_sort_column {
             ui.table_set_column_sort_direction(8, SortDirection::Descending, false);
+            partition_state.selected = 0;
+            partition_state.set_sort_column = false;
         }
         if let Some(mut specs) = ui.table_get_sort_specs()
             && specs.is_dirty()
         {
+            specs.clear_dirty(ui);
             let selection_bounds = partitions.get(partition_state.selected)
                 .map(|p| p.bounds());
-            sort_partitions(partitions, &specs);
-            specs.clear_dirty(ui);
-            if partition_state.set_sort_column {
-                partition_state.selected = 0;
-                partition_state.set_sort_column = false;
+
+            if let Some(spec) = specs.iter().next() {
+                partition_state.sort_column_index = spec.column_index.get();
+                partition_state.sort_descending = spec.sort_direction == SortDirection::Descending;
+                sort_partitions(partitions, partition_state.sort_column_index, partition_state.sort_descending);
             }
-            else if let Some(bounds) = selection_bounds
+            
+            if let Some(bounds) = selection_bounds
                 && let Some(index) = partitions.iter().position(|p| p.bounds() == bounds)
             {
                 partition_state.selected = index;
@@ -916,7 +929,7 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partition_state: &mut Partition
     go_to_partition_index
 }
 
-fn sort_partitions(partitions: &mut [Partition], specs: &TableSortSpecs) {
+fn sort_partitions(partitions: &mut [Partition], column_index: usize, descending: bool) {
     macro_rules! do_sort {
         ($partitions:ident, $is_descending:expr, $p:ident, $get_key:block) => {
             if $is_descending {
@@ -927,36 +940,32 @@ fn sort_partitions(partitions: &mut [Partition], specs: &TableSortSpecs) {
             }
         };
     }
-    
-    let Some(spec) = specs.iter().next() else { return };
-    let column_index = spec.column_index.get();
-    let is_descending = spec.sort_direction == SortDirection::Descending;
     match column_index {
-        PARTITION_TABLE_COL_X_MIN => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_X_MIN => do_sort!(partitions, descending, p, {
             (p.bounds().x_min(), p.bounds().y_min())
         }),
-        PARTITION_TABLE_COL_Y_MIN => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_Y_MIN => do_sort!(partitions, descending, p, {
             (p.bounds().y_min(), p.bounds().x_min())
         }),
-        PARTITION_TABLE_COL_X_MAX => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_X_MAX => do_sort!(partitions, descending, p, {
             (p.bounds().x_max(), p.bounds().y_max())
         }),
-        PARTITION_TABLE_COL_Y_MAX => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_Y_MAX => do_sort!(partitions, descending, p, {
             (p.bounds().y_max(), p.bounds().x_max())
         }),
-        PARTITION_TABLE_COL_WIDTH => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_WIDTH => do_sort!(partitions, descending, p, {
             (p.bounds().width(), p.bounds().height())
         }),
-        PARTITION_TABLE_COL_HEIGHT => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_HEIGHT => do_sort!(partitions, descending, p, {
             (p.bounds().height(), p.bounds().width())
         }),
-        PARTITION_TABLE_COL_WIDTH_PX => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_WIDTH_PX => do_sort!(partitions, descending, p, {
             (p.bounds().width_px(), p.bounds().height_px())
         }),
-        PARTITION_TABLE_COL_HEIGHT_PX => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_HEIGHT_PX => do_sort!(partitions, descending, p, {
             (p.bounds().height_px(), p.bounds().width_px())
         }),
-        PARTITION_TABLE_COL_MEMORY => do_sort!(partitions, is_descending, p, {
+        PARTITION_TABLE_COL_MEMORY => do_sort!(partitions, descending, p, {
             p.bounds().size_bytes_rgba()
         }),
         _ => {}
