@@ -515,7 +515,7 @@ fn create_dockspace_layout(ui: &Ui) -> DockLayout {
     let menu_bar_height = ui.text_line_height() + 2.0 * frame_padding_y;
     let tab_bar_height = ui.text_line_height() + 2.0 * frame_padding_y + style.window_border_size();
     let half_separator = 0.5 * style.docking_separator_size();
-    let sidebar_width = 700.0 + half_separator;
+    let sidebar_width = 720.0 + half_separator;
     let preview_inner_height = 240.0 + 2.0 * window_padding_y;
     let preview_total_height = preview_inner_height + tab_bar_height + half_separator;
     let export_inner_height =
