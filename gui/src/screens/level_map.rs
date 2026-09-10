@@ -195,6 +195,16 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                 }
             }
             
+            {
+                let _token = ui.begin_disabled_with_cond(!map_state.opts.use_textures);
+                if ui.menu_item("Refresh screen cache") {
+                    for (_, texture_id) in map_state.screen_textures.drain() {
+                        ex.textures.destroy_texture(texture_id);
+                    }
+                    draw_all_screens_and_create_textures(&mut render_state, &mut ex.textures, &mut map_state.screen_textures);
+                }
+            }
+            
             ui.separator();
             if ui.menu_item("Recenter preview") {
                 preview_state.center = [0.5, 0.5];
@@ -273,7 +283,12 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         .begin()
     {
         ui.text("This feature is experimental. The application may crash if you don't have enough memory available.");
-        ui.text("After clicking OK, the application may become unresponsive while the screens are rendered. :)");
+        
+        ui.new_line();
+        ui.bullet_text("After clicking OK, the application may become unresponsive while the screens are rendered. :)");
+        ui.bullet_text("The map will not update automatically as you change options.");
+        ui.bullet_text("To update the map, select View -> Refresh screen cache from the menu.");
+        ui.bullet_text("That menu item may also cause the app to become unresponsive or crash.");
         ui.new_line();
         
         let memory_needed = render_state.screen_map.len() * 600 * 240 * 4;
