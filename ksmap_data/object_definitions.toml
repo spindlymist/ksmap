@@ -2055,6 +2055,7 @@ anim_speed = 180
 sync_to = "Screen"
 anim_to = 7
 anim_speed = 250
+flip_ocos = true
 
 [18-4]
 sync_to = "Screen"
@@ -2123,6 +2124,7 @@ anim_speed = 500
 [19-8]
 sync_to = "Screen"
 limit = { pick = "First", n = 1 }
+offset = [2, 0]
 
 [19-9]
 limit = { pick = "First", n = 1 }
