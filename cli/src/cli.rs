@@ -51,6 +51,12 @@ pub struct Cli {
     /// How many game frames to simulate for objects that have random opacity (50 = 1 second)
     #[arg(long, default_value = "150")]
     pub alpha_sim_frames: u32,
+    /// Output RGB instead of RGBA. Try this if you're running out of memory
+    #[arg(long)]
+    pub rgb: bool,
+    /// Background color if outputting RGB (hex code such as #0088ff). Defaults to black
+    #[arg(long = "bg")]
+    pub background_color: Option<String>,
     /// Don't use the multithreaded PNG encoder
     #[arg(long)]
     pub single_threaded_encoder: bool,

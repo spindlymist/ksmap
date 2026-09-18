@@ -1,7 +1,7 @@
 use std::{fs, ops::RangeInclusive, path::Path};
 
 use anyhow::{anyhow, Result};
-use image::{GenericImage, ImageEncoder, Rgba, RgbaImage, codecs::png::PngEncoder, imageops};
+use image::{GenericImage, ImageEncoder, Rgb, RgbImage, RgbaImage, codecs::png::PngEncoder, imageops};
 use rand::prelude::*;
 use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::edit::{Ini, LogicalSection};
@@ -22,6 +22,9 @@ pub use transparency::{trans_to_alpha, alpha_to_trans};
 
 mod blend_modes;
 pub use blend_modes::BlendMode;
+
+mod pixel;
+use pixel::{OutputImage, KsmapImage, KsmapPixel};
 
 pub fn tileset_index_to_pixels(i: u8) -> (u32, u32) {
     let x = (i % 16) as u32 * 24;
@@ -46,11 +49,11 @@ pub struct DrawContext<'a> {
     pub options: DrawOptions,
 }
 
-struct ScreenContext<'a> {
+struct ScreenContext<'a, P: KsmapPixel> {
     seed: MapSeed,
     screen_pos: ScreenCoord,
     layer: u8,
-    image: RgbaImage,
+    image: OutputImage<P>,
     tileset_a: Option<&'a RgbaImage>,
     tileset_b: Option<&'a RgbaImage>,
     gradient: Option<&'a Gradient>,
@@ -103,13 +106,28 @@ struct Cursor {
     proxy_id: ObjectId,
 }
 
-pub fn draw_partition(ctx: DrawContext, partition: &Partition) -> Result<RgbaImage> {        
+pub fn draw_partition(ctx: DrawContext, partition: &Partition) -> Result<RgbaImage> {
+    draw_partition_generic(ctx, partition, None)
+}
+
+pub fn draw_partition_rgb<C>(ctx: DrawContext, partition: &Partition, background: Option<C>) -> Result<RgbImage>
+where
+    C: Into<Rgb<u8>>
+{
+    draw_partition_generic(ctx, partition, background.map(|c| c.into()))
+}
+
+fn draw_partition_generic<P: KsmapPixel>(
+    ctx: DrawContext,
+    partition: &Partition,
+    background: Option<P>
+) -> Result<OutputImage<P>> {
     let bounds = partition.bounds();
-    let mut canvas = make_canvas(&bounds)?;
+    let mut canvas: OutputImage<P> = make_canvas(&bounds, background)?;
     for pos in partition {
         let Some(index_screen) = ctx.screens.index_of(pos) else { continue };
         let screen = &ctx.screens[index_screen];
-        match draw_screen(ctx.seed, screen, index_screen, ctx.gfx, ctx.defs, ctx.ini, ctx.options, ctx.world_sync) {
+        match draw_screen_generic(ctx.seed, screen, index_screen, ctx.gfx, ctx.defs, ctx.ini, ctx.options, ctx.world_sync) {
             Ok(screen_image) => {
                 let canvas_x: u32 = ((screen.position.0 as i64 - bounds.x.start) * 600).try_into().unwrap();
                 let canvas_y: u32 = ((screen.position.1 as i64 - bounds.y.start) * 240).try_into().unwrap();
@@ -121,7 +139,7 @@ pub fn draw_partition(ctx: DrawContext, partition: &Partition) -> Result<RgbaIma
     Ok(canvas)
 }
 
-fn make_canvas(bounds: &Bounds) -> Result<RgbaImage> {
+fn make_canvas<P: KsmapPixel>(bounds: &Bounds, background: Option<P>) -> Result<OutputImage<P>> {
     let (width, height) = bounds.size();
 
     let Ok(Some(width)) = u32::try_from(width)
@@ -135,27 +153,43 @@ fn make_canvas(bounds: &Bounds) -> Result<RgbaImage> {
         else {
             return Err(anyhow!("Partition is too large: {bounds}"));
         };
-    
+
     let Some(n_bytes) = (width as usize).checked_mul(height as usize)
-        .and_then(|pixels| pixels.checked_mul(4))
+        .and_then(|pixels| pixels.checked_mul(P::bytes_per_pixel() as usize))
         else {
             return Err(anyhow!("Partition is too large: {bounds}"));
         };
     
-    let mut buffer = Vec::<u8>::new();
+    let mut buffer = Vec::<P::Subpixel>::new();
     match buffer.try_reserve_exact(n_bytes) {
         Ok(_) => {
             unsafe { buffer.set_len(n_bytes); }
-            buffer.fill(0);
-            let image = RgbaImage::from_vec(width, height, buffer)
-                .expect("Buffer should be the correct size.");
+            let image = match background {
+                Some(background) => {
+                    let mut image = OutputImage::<P>::from_vec(width, height, buffer)
+                        .expect("Buffer should be the correct size.");
+                    for pixel in image.pixels_mut() {
+                        *pixel = background;
+                    }
+                    image
+                }
+                None => {
+                    buffer.fill(P::zero());
+                    OutputImage::<P>::from_vec(width, height, buffer)
+                        .expect("Buffer should be the correct size.")
+                }
+            };
             Ok(image)
         }
         Err(_) => Err(anyhow!("Not enough memory available for partition: {bounds}"))
     }
 }
 
-pub fn export_canvas(canvas: RgbaImage, path: &Path, compression_level: u8) -> Result<()> {
+pub fn export_canvas<P>(canvas: OutputImage<P>, path: &Path, compression_level: u8) -> Result<()>
+where
+    P: KsmapPixel,
+    OutputImage<P>: KsmapImage
+{
     let file = fs::OpenOptions::new()
         .create(true)
         .write(true)
@@ -170,14 +204,18 @@ pub fn export_canvas(canvas: RgbaImage, path: &Path, compression_level: u8) -> R
 
     let width = canvas.width();
     let height = canvas.height();
-    let buf = canvas.into_vec();
+    let buf = canvas.into_bytes();
 
-    encoder.write_image(&buf, width, height, image::ExtendedColorType::Rgba8)?;
+    encoder.write_image(&buf, width, height, P::image_color_type())?;
 
     Ok(())
 }
 
-pub fn export_canvas_multithreaded(canvas: RgbaImage, path: &Path, compression_level: u8) -> Result<()> {
+pub fn export_canvas_multithreaded<P>(canvas: OutputImage<P>, path: &Path, compression_level: u8) -> Result<()>
+where
+    P: KsmapPixel,
+    OutputImage<P>: KsmapImage
+{
     let file = fs::OpenOptions::new()
         .create(true)
         .write(true)
@@ -187,11 +225,11 @@ pub fn export_canvas_multithreaded(canvas: RgbaImage, path: &Path, compression_l
     
     let width = canvas.width();
     let height = canvas.height();
-    let data = canvas.into_raw();
+    let data = canvas.into_bytes();
     
     let mut header = mtpng::Header::new();
     header.set_size(width, height)?;
-    header.set_color(mtpng::ColorType::TruecolorAlpha, 8)?;
+    header.set_color(P::mtpng_color_type(), P::bit_depth())?;
     
     let mut options = mtpng::encoder::Options::new();
     options.set_compression_level(compression_level.try_into().unwrap_or_default())?;
@@ -214,6 +252,32 @@ pub fn draw_screen(
     opts: DrawOptions,
     world_sync: &WorldSync,
 ) -> Result<RgbaImage> {
+    draw_screen_generic(seed, screen, index_screen, gfx, defs, ini, opts, world_sync)
+}
+
+pub fn draw_screen_rgb(
+    seed: MapSeed,
+    screen: &ScreenData,
+    index_screen: usize,
+    gfx: &Graphics,
+    defs: &ObjectDefs,
+    ini: &Ini,
+    opts: DrawOptions,
+    world_sync: &WorldSync,
+) -> Result<RgbImage> {
+    draw_screen_generic(seed, screen, index_screen, gfx, defs, ini, opts, world_sync)
+}
+
+fn draw_screen_generic<P: KsmapPixel>(
+    seed: MapSeed,
+    screen: &ScreenData,
+    index_screen: usize,
+    gfx: &Graphics,
+    defs: &ObjectDefs,
+    ini: &Ini,
+    opts: DrawOptions,
+    world_sync: &WorldSync,
+) -> Result<OutputImage<P>> {
     let ini_section = ini.section(&format!("x{}y{}", screen.position.0, screen.position.1));
     let is_overlay = ini_section
         .as_ref()
@@ -230,7 +294,7 @@ pub fn draw_screen(
         seed,
         screen_pos: screen.position,
         layer: 0,
-        image: RgbaImage::from_pixel(600, 240, Rgba([255, 255, 255, 255])),
+        image: OutputImage::<P>::from_pixel(600, 240, P::white()),
         tileset_a: gfx.tileset(screen.assets.tileset_a),
         tileset_b: gfx.tileset(screen.assets.tileset_b),
         gradient: gfx.gradient(screen.assets.gradient),
@@ -258,7 +322,7 @@ pub fn draw_screen(
             let gradient_reps = 600 / gradient.image.width();
             for i in 0..gradient_reps {
                 let x = i * gradient.image.width();
-                imageops::overlay(&mut ctx.image, gradient.image.as_ref(), x as i64, 0);
+                blend_modes::overlay(&mut ctx.image, gradient.image.as_ref(), x as i64, 0);
             }
         }
         
@@ -289,7 +353,7 @@ pub fn draw_screen(
     Ok(ctx.image)
 }
 
-fn draw_tile_layer(ctx: &mut ScreenContext, layer: &LayerData) {
+fn draw_tile_layer<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, layer: &LayerData) {
     for (i, tile) in layer.0.iter().enumerate() {
         if tile.1 == 0 {
             continue;
@@ -307,11 +371,11 @@ fn draw_tile_layer(ctx: &mut ScreenContext, layer: &LayerData) {
         let (screen_x, screen_y) = screen_index_to_pixels(i as u8);
         
         let tile_img = imageops::crop_imm(tileset, tile_x, tile_y, 24, 24);
-        imageops::overlay(&mut ctx.image, &*tile_img, screen_x as i64, screen_y as i64);
+        blend_modes::overlay(&mut ctx.image, &*tile_img, screen_x as i64, screen_y as i64);
     }
 }
 
-fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
+fn draw_object_layer<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, layer: &LayerData) {
     for (i, tile) in layer.0.iter().enumerate() {
         if tile.1 == 0 { continue }
 
@@ -382,16 +446,16 @@ fn draw_object_layer(ctx: &mut ScreenContext, layer: &LayerData) {
     }
 }
 
-fn draw_object(
-    ctx: &mut ScreenContext,
+fn draw_object<P: KsmapPixel>(
+    ctx: &mut ScreenContext<'_, P>,
     at_index: usize,
     object: ObjectId,
 ) {
     draw_object_with_offset(ctx, at_index, object, (0, 0));
 }
 
-fn draw_object_with_offset(
-    ctx: &mut ScreenContext,
+fn draw_object_with_offset<P: KsmapPixel>(
+    ctx: &mut ScreenContext<'_, P>,
     at_index: usize,
     mut id: ObjectId,
     offset: (i32, i32),
@@ -428,8 +492,8 @@ fn draw_object_with_offset(
     draw_spritesheet(ctx, at_index as u8, id, &def, anim_t, obj_image, offset, flip);
 }
 
-fn draw_spritesheet(
-    ctx: &mut ScreenContext,
+fn draw_spritesheet<P: KsmapPixel>(
+    ctx: &mut ScreenContext<'_, P>,
     at_index: u8,
     id: ObjectId,
     def: &ObjectDef,
@@ -490,10 +554,10 @@ fn draw_spritesheet(
             transparency::simulate(def.draw.trans_algo, &mut rng_alpha, params, ctx.opts.trans_frames)
         };
     
-    blend_modes::overlay(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
+    blend_modes::overlay_ex(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
 }
 
-fn draw_shift(ctx: &mut ScreenContext, curs: Cursor, vis_prop: &str, type_prop: &str) {
+fn draw_shift<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor, vis_prop: &str, type_prop: &str) {
     let is_invisible = ctx.ini_section
         .as_ref()
         .and_then(|section| section.get(vis_prop))
@@ -523,12 +587,12 @@ fn draw_shift(ctx: &mut ScreenContext, curs: Cursor, vis_prop: &str, type_prop: 
     draw_object(ctx, curs.i, curs.proxy_id.into_variant(shift_type));
 }
 
-fn draw_with_glow(ctx: &mut ScreenContext, curs: Cursor) {
+fn draw_with_glow<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor) {
     draw_object(ctx, curs.i, curs.proxy_id.to_variant(ObjectVariant::Glow));
     draw_object(ctx, curs.i, curs.actual_id);
 }
 
-fn draw_elemental(ctx: &mut ScreenContext, curs: Cursor) {
+fn draw_elemental<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor) {
     let mut rng = ctx.seed.hasher(RngStep::ElementalVariant)
         .write(ctx.screen_pos)
         .write(ctx.layer)
@@ -541,7 +605,7 @@ fn draw_elemental(ctx: &mut ScreenContext, curs: Cursor) {
     draw_object(ctx, curs.i, curs.proxy_id.into_variant(*variant));
 }
 
-fn draw_with_random_offset(ctx: &mut ScreenContext, curs: Cursor, range: RangeInclusive<i32>) {
+fn draw_with_random_offset<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor, range: RangeInclusive<i32>) {
     let mut rng = ctx.seed.hasher(RngStep::Offset)
         .write(ctx.screen_pos)
         .write(ctx.layer)
@@ -552,7 +616,7 @@ fn draw_with_random_offset(ctx: &mut ScreenContext, curs: Cursor, range: RangeIn
     draw_object_with_offset(ctx, curs.i, curs.actual_id, (offset_x, offset_y));
 }
 
-fn apply_tint(ctx: &mut ScreenContext) {
+fn apply_tint<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>) {
     if ctx.opts.tint_strategy == TintStrategy::Ignore {
         return;
     }
