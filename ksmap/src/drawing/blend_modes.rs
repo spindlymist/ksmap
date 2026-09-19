@@ -1,7 +1,5 @@
-use image::{GenericImage, GenericImageView, Pixel, Rgb, Rgba};
+use image::{GenericImage, GenericImageView, Rgb, Rgba};
 use serde::Deserialize;
-
-use crate::drawing::pixel::KsmapPixel;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
 pub enum BlendMode {
@@ -14,271 +12,114 @@ pub enum BlendMode {
     Xor,
 }
 
-pub trait BlendWithRgba8: Pixel<Subpixel = u8> {
-    fn blend_over(&mut self, fg: Rgba<u8>);
-    fn blend_add(&mut self, fg: Rgba<u8>);
-    fn blend_sub(&mut self, fg: Rgba<u8>);
-    fn blend_and(&mut self, fg: Rgba<u8>);
-    fn blend_or(&mut self, fg: Rgba<u8>);
-    fn blend_xor(&mut self, fg: Rgba<u8>);
-}
-
 #[inline]
-pub fn blend_pixels<P: KsmapPixel>(bg: &mut P, fg: Rgba<u8>, blend_mode: BlendMode) {
+pub fn blend_pixels(bg: &mut Rgb<u8>, fg: Rgba<u8>, blend_mode: BlendMode) {
     match blend_mode {
-        BlendMode::Over => bg.blend_over(fg),
-        BlendMode::Add => bg.blend_add(fg),
-        BlendMode::Sub => bg.blend_sub(fg),
-        BlendMode::And => bg.blend_and(fg),
-        BlendMode::Or => bg.blend_or(fg),
-        BlendMode::Xor => bg.blend_xor(fg),
+        BlendMode::Over => blend_over(bg, fg),
+        BlendMode::Add => blend_add(bg, fg),
+        BlendMode::Sub => blend_sub(bg, fg),
+        BlendMode::And => blend_and(bg, fg),
+        BlendMode::Or => blend_or(bg, fg),
+        BlendMode::Xor => blend_xor(bg, fg),
     }
 }
 
-impl BlendWithRgba8 for Rgb<u8> {
-    /// Adapted from image crate
-    /// Source: https://github.com/image-rs/image/blob/ee6ecbf897ce0ad733849a0535f55d6fa6eb237c/src/color.rs
-    #[inline]
-    fn blend_over(&mut self, fg: Rgba<u8>) {
-        // http://stackoverflow.com/questions/7438263/alpha-compositing-algorithm-blend-modes#answer-11163848
-
-        if fg.0[3] == 0 {
-            return;
-        }
-        if fg.0[3] == 255 {
-            self.0[0] = fg.0[0];
-            self.0[1] = fg.0[1];
-            self.0[2] = fg.0[2];
-            return;
-        }
-
-        // First, as we don't know what type our pixel is, we have to convert to floats between 0.0 and 1.0
-        const MAX_T: f32 = 255.0;
-        let (bg_r, bg_g, bg_b, bg_a) = (self.0[0], self.0[1], self.0[2], 255);
-        let (fg_r, fg_g, fg_b, fg_a) = (fg.0[0], fg.0[1], fg.0[2], fg.0[3]);
-        let (bg_r, bg_g, bg_b, bg_a) = (
-            bg_r as f32 / MAX_T,
-            bg_g as f32 / MAX_T,
-            bg_b as f32 / MAX_T,
-            bg_a as f32 / MAX_T,
-        );
-        let (fg_r, fg_g, fg_b, fg_a) = (
-            fg_r as f32 / MAX_T,
-            fg_g as f32 / MAX_T,
-            fg_b as f32 / MAX_T,
-            fg_a as f32 / MAX_T,
-        );
-
-        // Work out what the final alpha level will be
-        let alpha_final = bg_a + fg_a - bg_a * fg_a;
-        if alpha_final == 0.0 {
-            return;
-        }
-
-        // We premultiply our channels by their alpha, as this makes it easier to calculate
-        let (bg_r_a, bg_g_a, bg_b_a) = (bg_r * bg_a, bg_g * bg_a, bg_b * bg_a);
-        let (fg_r_a, fg_g_a, fg_b_a) = (fg_r * fg_a, fg_g * fg_a, fg_b * fg_a);
-
-        // Standard formula for src-over alpha compositing
-        let (out_r_a, out_g_a, out_b_a) = (
-            fg_r_a + bg_r_a * (1.0 - fg_a),
-            fg_g_a + bg_g_a * (1.0 - fg_a),
-            fg_b_a + bg_b_a * (1.0 - fg_a),
-        );
-
-        // Unmultiply the channels by our resultant alpha channel
-        let (out_r, out_g, out_b) = (
-            out_r_a / alpha_final,
-            out_g_a / alpha_final,
-            out_b_a / alpha_final,
-        );
-
-        // Cast back to our initial type on return
-        self.0[0] = (MAX_T * out_r) as u8;
-        self.0[1] = (MAX_T * out_g) as u8;
-        self.0[2] = (MAX_T * out_b) as u8;
+/// Adapted from image crate
+/// Source: https://github.com/image-rs/image/blob/ee6ecbf897ce0ad733849a0535f55d6fa6eb237c/src/color.rs
+#[inline]
+fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+    if fg[3] == 0 {
+        return;
     }
-    
-    #[inline]
-    fn blend_add(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgb([bg_r, bg_g, bg_b]) = self;
-        *bg_r = bg_r.saturating_add(fg_r);
-        *bg_g = bg_g.saturating_add(fg_g);
-        *bg_b = bg_b.saturating_add(fg_b);
+    if fg[3] == 255 {
+        bg[0] = fg[0];
+        bg[1] = fg[1];
+        bg[2] = fg[2];
+        return;
     }
 
-    #[inline]
-    fn blend_sub(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgb([bg_r, bg_g, bg_b]) = self;
-        *bg_r = bg_r.saturating_sub(fg_r);
-        *bg_g = bg_g.saturating_sub(fg_g);
-        *bg_b = bg_b.saturating_sub(fg_b);
-    }
+    // Convert to 0.0..=1.0
+    let (bg_r, bg_g, bg_b) = (
+        bg[0] as f32 / 255.0,
+        bg[1] as f32 / 255.0,
+        bg[2] as f32 / 255.0,
+    );
+    let (fg_r, fg_g, fg_b, fg_a) = (
+        fg[0] as f32 / 255.0,
+        fg[1] as f32 / 255.0,
+        fg[2] as f32 / 255.0,
+        fg[3] as f32 / 255.0,
+    );
 
-    #[inline]
-    fn blend_and(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgb([bg_r, bg_g, bg_b]) = self;
-        *bg_r &= fg_r;
-        *bg_g &= fg_g;
-        *bg_b &= fg_b;
-    }
+    // Premultiply channels by their alpha to simplify calculations
+    let (fg_r_a, fg_g_a, fg_b_a) = (fg_r * fg_a, fg_g * fg_a, fg_b * fg_a);
 
-    #[inline]
-    fn blend_or(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgb([bg_r, bg_g, bg_b]) = self;
-        *bg_r |= fg_r;
-        *bg_g |= fg_g;
-        *bg_b |= fg_b;
-    }
+    // Standard formula for src-over alpha compositing
+    let (out_r, out_g, out_b) = (
+        fg_r_a + bg_r * (1.0 - fg_a),
+        fg_g_a + bg_g * (1.0 - fg_a),
+        fg_b_a + bg_b * (1.0 - fg_a),
+    );
 
-    #[inline]
-    fn blend_xor(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgb([bg_r, bg_g, bg_b]) = self;
-        *bg_r ^= fg_r;
-        *bg_g ^= fg_g;
-        *bg_b ^= fg_b;
-    }
-}
-
-impl BlendWithRgba8 for Rgba<u8> {
-    /// Adapted from image crate
-    /// Source: https://github.com/image-rs/image/blob/ee6ecbf897ce0ad733849a0535f55d6fa6eb237c/src/color.rs
-    #[inline]
-    fn blend_over(&mut self, fg: Rgba<u8>) {
-        // http://stackoverflow.com/questions/7438263/alpha-compositing-algorithm-blend-modes#answer-11163848
-
-        if fg.0[3] == 0 {
-            return;
-        }
-        if fg.0[3] == 255 {
-            *self = fg;
-            return;
-        }
-
-        // First, as we don't know what type our pixel is, we have to convert to floats between 0.0 and 1.0
-        const MAX_T: f32 = 255.0;
-        let (bg_r, bg_g, bg_b, bg_a) = (self.0[0], self.0[1], self.0[2], self.0[3]);
-        let (fg_r, fg_g, fg_b, fg_a) = (fg.0[0], fg.0[1], fg.0[2], fg.0[3]);
-        let (bg_r, bg_g, bg_b, bg_a) = (
-            bg_r as f32 / MAX_T,
-            bg_g as f32 / MAX_T,
-            bg_b as f32 / MAX_T,
-            bg_a as f32 / MAX_T,
-        );
-        let (fg_r, fg_g, fg_b, fg_a) = (
-            fg_r as f32 / MAX_T,
-            fg_g as f32 / MAX_T,
-            fg_b as f32 / MAX_T,
-            fg_a as f32 / MAX_T,
-        );
-
-        // Work out what the final alpha level will be
-        let alpha_final = bg_a + fg_a - bg_a * fg_a;
-        if alpha_final == 0.0 {
-            return;
-        }
-
-        // We premultiply our channels by their alpha, as this makes it easier to calculate
-        let (bg_r_a, bg_g_a, bg_b_a) = (bg_r * bg_a, bg_g * bg_a, bg_b * bg_a);
-        let (fg_r_a, fg_g_a, fg_b_a) = (fg_r * fg_a, fg_g * fg_a, fg_b * fg_a);
-
-        // Standard formula for src-over alpha compositing
-        let (out_r_a, out_g_a, out_b_a) = (
-            fg_r_a + bg_r_a * (1.0 - fg_a),
-            fg_g_a + bg_g_a * (1.0 - fg_a),
-            fg_b_a + bg_b_a * (1.0 - fg_a),
-        );
-
-        // Unmultiply the channels by our resultant alpha channel
-        let (out_r, out_g, out_b) = (
-            out_r_a / alpha_final,
-            out_g_a / alpha_final,
-            out_b_a / alpha_final,
-        );
-
-        // Cast back to our initial type on return
-        self.0[0] = (MAX_T * out_r) as u8;
-        self.0[1] = (MAX_T * out_g) as u8;
-        self.0[2] = (MAX_T * out_b) as u8;
-        self.0[3] = (MAX_T * alpha_final + 0.5) as u8;
-    }
-    
-    #[inline]
-    fn blend_add(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgba([bg_r, bg_g, bg_b, _]) = self;
-        *bg_r = bg_r.saturating_add(fg_r);
-        *bg_g = bg_g.saturating_add(fg_g);
-        *bg_b = bg_b.saturating_add(fg_b);
-    }
-
-    #[inline]
-    fn blend_sub(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgba([bg_r, bg_g, bg_b, _]) = self;
-        *bg_r = bg_r.saturating_sub(fg_r);
-        *bg_g = bg_g.saturating_sub(fg_g);
-        *bg_b = bg_b.saturating_sub(fg_b);
-    }
-
-    #[inline]
-    fn blend_and(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgba([bg_r, bg_g, bg_b, _]) = self;
-        *bg_r &= fg_r;
-        *bg_g &= fg_g;
-        *bg_b &= fg_b;
-    }
-
-    #[inline]
-    fn blend_or(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgba([bg_r, bg_g, bg_b, _]) = self;
-        *bg_r |= fg_r;
-        *bg_g |= fg_g;
-        *bg_b |= fg_b;
-    }
-
-    #[inline]
-    fn blend_xor(&mut self, mut fg: Rgba<u8>) {
-        premul_alpha(&mut fg);
-        let Rgba([fg_r, fg_g, fg_b, _]) = fg;
-        let Rgba([bg_r, bg_g, bg_b, _]) = self;
-        *bg_r ^= fg_r;
-        *bg_g ^= fg_g;
-        *bg_b ^= fg_b;
-    }
+    // Convert back to 0..=255
+    bg[0] = (out_r * 255.0 + 0.5) as u8;
+    bg[1] = (out_g * 255.0 + 0.5) as u8;
+    bg[2] = (out_b * 255.0 + 0.5) as u8;
 }
 
 #[inline]
-fn premul_alpha(pixel: &mut Rgba<u8>) {
-    let Rgba([r, g, b, a]) = pixel;
-    let alpha_norm = *a as f32 / 255.0;
-    *r = (*r as f32 * alpha_norm) as u8;
-    *g = (*g as f32 * alpha_norm) as u8;
-    *b = (*b as f32 * alpha_norm) as u8;
+fn blend_add(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+    premul_alpha(&mut fg);
+    bg[0] = bg[0].saturating_add(fg[0]);
+    bg[1] = bg[1].saturating_add(fg[1]);
+    bg[2] = bg[2].saturating_add(fg[2]);
+}
+
+#[inline]
+fn blend_sub(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+    premul_alpha(&mut fg);
+    bg[0] = bg[0].saturating_sub(fg[0]);
+    bg[1] = bg[1].saturating_sub(fg[1]);
+    bg[2] = bg[2].saturating_sub(fg[2]);
+}
+
+#[inline]
+fn blend_and(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+    premul_alpha(&mut fg);
+    bg[0] &= fg[0];
+    bg[1] &= fg[1];
+    bg[2] &= fg[2];
+}
+
+#[inline]
+fn blend_or(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+    premul_alpha(&mut fg);
+    bg[0] |= fg[0];
+    bg[1] |= fg[1];
+    bg[2] |= fg[2];
+}
+
+#[inline]
+fn blend_xor(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+    premul_alpha(&mut fg);
+    bg[0] ^= fg[0];
+    bg[1] ^= fg[1];
+    bg[2] ^= fg[2];
+}
+
+#[inline]
+fn premul_alpha(p: &mut Rgba<u8>) {
+    let alpha_norm = p[3] as f32 / 255.0;
+    p[0] = (p[0] as f32 * alpha_norm + 0.5) as u8;
+    p[1] = (p[1] as f32 * alpha_norm + 0.5) as u8;
+    p[2] = (p[2] as f32 * alpha_norm + 0.5) as u8;
 }
 
 /// Adapted from image crate
 /// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
-pub fn overlay<P, I, J>(bottom: &mut I, top: &J, x: i64, y: i64)
+pub fn overlay<I, J>(bottom: &mut I, top: &J, x: i64, y: i64)
 where
-    P: KsmapPixel,
-    I: GenericImage<Pixel = P>,
+    I: GenericImage<Pixel = Rgb<u8>>,
     J: GenericImageView<Pixel = Rgba<u8>>,
 {
     let OverlayBounds {
@@ -293,7 +134,7 @@ where
         for x in 0..x_range {
             let mut pixel_bot = bottom.get_pixel(origin_bot_x + x, origin_bot_y + y);
             let pixel_top = top.get_pixel(origin_top_x + x, origin_top_y + y);
-            pixel_bot.blend_over(pixel_top);
+            blend_over(&mut pixel_bot, pixel_top);
             bottom.put_pixel(origin_bot_x + x, origin_bot_y + y, pixel_bot);
         }
     }
@@ -301,10 +142,9 @@ where
 
 /// Adapted from image crate
 /// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
-pub fn overlay_ex<P, I, J>(bottom: &mut I, top: &J, x: i64, y: i64, blend_mode: BlendMode, alpha: f32)
+pub fn overlay_ex<I, J>(bottom: &mut I, top: &J, x: i64, y: i64, blend_mode: BlendMode, alpha: f32)
 where
-    P: KsmapPixel,
-    I: GenericImage<Pixel = P>,
+    I: GenericImage<Pixel = Rgb<u8>>,
     J: GenericImageView<Pixel = Rgba<u8>>,
 {
     let OverlayBounds {

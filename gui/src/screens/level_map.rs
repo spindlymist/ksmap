@@ -1097,11 +1097,15 @@ fn smoothstep(x: f32) -> f32 {
     x * x * (3.0 - 2.0 * x)
 }
 
+fn rgb_to_rgba(image: image::RgbImage) -> RgbaImage {
+    image::DynamicImage::from(image).to_rgba8()
+}
+
 fn draw_single_screen(render_state: &mut RenderState, screen_pos: ScreenCoord) -> Option<RgbaImage> {
     let screen_index = render_state.screen_map.index_of(&screen_pos)?;
     let screen = &render_state.screen_map[screen_index];
     
-    ksmap::drawing::draw_screen(
+    let image_rgb = ksmap::drawing::draw_screen(
         render_state.seed,
         screen,
         screen_index,
@@ -1110,7 +1114,8 @@ fn draw_single_screen(render_state: &mut RenderState, screen_pos: ScreenCoord) -
         &render_state.ini,
         render_state.draw_options,
         &render_state.world_sync
-    ).ok()
+    );
+    Some(rgb_to_rgba(image_rgb))
 }
 
 fn draw_all_screens_and_create_textures(
@@ -1120,7 +1125,7 @@ fn draw_all_screens_and_create_textures(
     generate_mipmaps: bool,
 ) {
     for (i, screen) in render_state.screen_map.iter().enumerate() {
-        let Ok(image) = ksmap::drawing::draw_screen(
+        let image_rgb = ksmap::drawing::draw_screen(
             render_state.seed,
             screen,
             i,
@@ -1129,7 +1134,8 @@ fn draw_all_screens_and_create_textures(
             &render_state.ini,
             render_state.draw_options,
             &render_state.world_sync
-        ) else { continue };
+        );
+        let image = rgb_to_rgba(image_rgb);
         let texture_id = textures.create_texture(image.width(), image.height(), &image.into_vec(), generate_mipmaps);
         lookup.insert(screen.position, texture_id);
     }

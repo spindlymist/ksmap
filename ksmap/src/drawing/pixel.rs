@@ -1,16 +1,19 @@
-use image::{ImageBuffer, Rgb, Rgba};
-
-use super::blend_modes::BlendWithRgba8;
+use image::{DynamicImage, ImageBuffer, Pixel, Rgb, RgbImage, Rgba};
 
 pub type OutputImage<P> = ImageBuffer<P, Vec<u8>>;
 
 pub trait KsmapImage {
     fn into_bytes(self) -> Vec<u8>;
+    fn from_rgb(image: RgbImage) -> Self;
 }
 
 impl KsmapImage for OutputImage<Rgb<u8>> {
     fn into_bytes(self) -> Vec<u8> {
         self.into_raw()
+    }
+    
+    fn from_rgb(image: RgbImage) -> Self {
+        image
     }
 }
 
@@ -18,11 +21,14 @@ impl KsmapImage for OutputImage<Rgba<u8>> {
     fn into_bytes(self) -> Vec<u8> {
         self.into_raw()
     }
+    
+    fn from_rgb(image: RgbImage) -> Self {
+        DynamicImage::from(image).to_rgba8()
+    }
 }
 
-pub trait KsmapPixel: BlendWithRgba8 {
+pub trait KsmapPixel: Pixel<Subpixel = u8> {
     fn zero() -> Self::Subpixel { 0 }
-    fn white() -> Self;
     fn mtpng_color_type() -> mtpng::ColorType;
     fn image_color_type() -> image::ExtendedColorType;
     fn bytes_per_pixel() -> u8;
@@ -30,14 +36,6 @@ pub trait KsmapPixel: BlendWithRgba8 {
 }
 
 impl KsmapPixel for Rgb<u8> {
-    fn zero() -> Self::Subpixel {
-        0
-    }
-    
-    fn white() -> Self {
-        Self([255, 255, 255])
-    }
-    
     fn mtpng_color_type() -> mtpng::ColorType {
         mtpng::ColorType::Truecolor
     }
@@ -52,14 +50,6 @@ impl KsmapPixel for Rgb<u8> {
 }
 
 impl KsmapPixel for Rgba<u8> {
-    fn zero() -> Self::Subpixel {
-        0
-    }
-    
-    fn white() -> Self {
-        Self([255, 255, 255, 255])
-    }
-    
     fn mtpng_color_type() -> mtpng::ColorType {
         mtpng::ColorType::TruecolorAlpha
     }

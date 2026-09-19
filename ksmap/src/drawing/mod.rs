@@ -49,11 +49,11 @@ pub struct DrawContext<'a> {
     pub options: DrawOptions,
 }
 
-struct ScreenContext<'a, P: KsmapPixel> {
+struct ScreenContext<'a> {
     seed: MapSeed,
     screen_pos: ScreenCoord,
     layer: u8,
-    image: OutputImage<P>,
+    image: RgbImage,
     tileset_a: Option<&'a RgbaImage>,
     tileset_b: Option<&'a RgbaImage>,
     gradient: Option<&'a Gradient>,
@@ -121,20 +121,20 @@ fn draw_partition_generic<P: KsmapPixel>(
     ctx: DrawContext,
     partition: &Partition,
     background: Option<P>
-) -> Result<OutputImage<P>> {
+) -> Result<OutputImage<P>>
+where
+    OutputImage<P>: KsmapImage
+{
     let bounds = partition.bounds();
     let mut canvas: OutputImage<P> = make_canvas(&bounds, background)?;
     for pos in partition {
         let Some(index_screen) = ctx.screens.index_of(pos) else { continue };
         let screen = &ctx.screens[index_screen];
-        match draw_screen_generic(ctx.seed, screen, index_screen, ctx.gfx, ctx.defs, ctx.ini, ctx.options, ctx.world_sync) {
-            Ok(screen_image) => {
-                let canvas_x: u32 = ((screen.position.0 as i64 - bounds.x.start) * 600).try_into().unwrap();
-                let canvas_y: u32 = ((screen.position.1 as i64 - bounds.y.start) * 240).try_into().unwrap();
-                canvas.copy_from(&screen_image, canvas_x, canvas_y)?;
-            },
-            Err(err) => return Err(err),
-        }
+        let screen_image = draw_screen(ctx.seed, screen, index_screen, ctx.gfx, ctx.defs, ctx.ini, ctx.options, ctx.world_sync);
+        let screen_image = OutputImage::<P>::from_rgb(screen_image);
+        let canvas_x: u32 = ((screen.position.0 as i64 - bounds.x.start) * 600).try_into().unwrap();
+        let canvas_y: u32 = ((screen.position.1 as i64 - bounds.y.start) * 240).try_into().unwrap();
+        canvas.copy_from(&screen_image, canvas_x, canvas_y)?;
     }
     Ok(canvas)
 }
@@ -251,33 +251,7 @@ pub fn draw_screen(
     ini: &Ini,
     opts: DrawOptions,
     world_sync: &WorldSync,
-) -> Result<RgbaImage> {
-    draw_screen_generic(seed, screen, index_screen, gfx, defs, ini, opts, world_sync)
-}
-
-pub fn draw_screen_rgb(
-    seed: MapSeed,
-    screen: &ScreenData,
-    index_screen: usize,
-    gfx: &Graphics,
-    defs: &ObjectDefs,
-    ini: &Ini,
-    opts: DrawOptions,
-    world_sync: &WorldSync,
-) -> Result<RgbImage> {
-    draw_screen_generic(seed, screen, index_screen, gfx, defs, ini, opts, world_sync)
-}
-
-fn draw_screen_generic<P: KsmapPixel>(
-    seed: MapSeed,
-    screen: &ScreenData,
-    index_screen: usize,
-    gfx: &Graphics,
-    defs: &ObjectDefs,
-    ini: &Ini,
-    opts: DrawOptions,
-    world_sync: &WorldSync,
-) -> Result<OutputImage<P>> {
+) -> RgbImage {
     let ini_section = ini.section(&format!("x{}y{}", screen.position.0, screen.position.1));
     let is_overlay = ini_section
         .as_ref()
@@ -294,7 +268,7 @@ fn draw_screen_generic<P: KsmapPixel>(
         seed,
         screen_pos: screen.position,
         layer: 0,
-        image: OutputImage::<P>::from_pixel(600, 240, P::white()),
+        image: RgbImage::from_pixel(600, 240, [255, 255, 255].into()),
         tileset_a: gfx.tileset(screen.assets.tileset_a),
         tileset_b: gfx.tileset(screen.assets.tileset_b),
         gradient: gfx.gradient(screen.assets.gradient),
@@ -350,10 +324,10 @@ fn draw_screen_generic<P: KsmapPixel>(
     
     apply_tint(&mut ctx);
 
-    Ok(ctx.image)
+    ctx.image
 }
 
-fn draw_tile_layer<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, layer: &LayerData) {
+fn draw_tile_layer(ctx: &mut ScreenContext<'_>, layer: &LayerData) {
     for (i, tile) in layer.0.iter().enumerate() {
         if tile.1 == 0 {
             continue;
@@ -375,7 +349,7 @@ fn draw_tile_layer<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, layer: &LayerD
     }
 }
 
-fn draw_object_layer<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, layer: &LayerData) {
+fn draw_object_layer(ctx: &mut ScreenContext<'_>, layer: &LayerData) {
     for (i, tile) in layer.0.iter().enumerate() {
         if tile.1 == 0 { continue }
 
@@ -446,16 +420,16 @@ fn draw_object_layer<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, layer: &Laye
     }
 }
 
-fn draw_object<P: KsmapPixel>(
-    ctx: &mut ScreenContext<'_, P>,
+fn draw_object(
+    ctx: &mut ScreenContext<'_>,
     at_index: usize,
     object: ObjectId,
 ) {
     draw_object_with_offset(ctx, at_index, object, (0, 0));
 }
 
-fn draw_object_with_offset<P: KsmapPixel>(
-    ctx: &mut ScreenContext<'_, P>,
+fn draw_object_with_offset(
+    ctx: &mut ScreenContext<'_>,
     at_index: usize,
     mut id: ObjectId,
     offset: (i32, i32),
@@ -492,8 +466,8 @@ fn draw_object_with_offset<P: KsmapPixel>(
     draw_spritesheet(ctx, at_index as u8, id, &def, anim_t, obj_image, offset, flip);
 }
 
-fn draw_spritesheet<P: KsmapPixel>(
-    ctx: &mut ScreenContext<'_, P>,
+fn draw_spritesheet(
+    ctx: &mut ScreenContext<'_>,
     at_index: u8,
     id: ObjectId,
     def: &ObjectDef,
@@ -557,7 +531,7 @@ fn draw_spritesheet<P: KsmapPixel>(
     blend_modes::overlay_ex(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
 }
 
-fn draw_shift<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor, vis_prop: &str, type_prop: &str) {
+fn draw_shift(ctx: &mut ScreenContext<'_>, curs: Cursor, vis_prop: &str, type_prop: &str) {
     let is_invisible = ctx.ini_section
         .as_ref()
         .and_then(|section| section.get(vis_prop))
@@ -587,12 +561,12 @@ fn draw_shift<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor, vis_p
     draw_object(ctx, curs.i, curs.proxy_id.into_variant(shift_type));
 }
 
-fn draw_with_glow<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor) {
+fn draw_with_glow(ctx: &mut ScreenContext<'_>, curs: Cursor) {
     draw_object(ctx, curs.i, curs.proxy_id.to_variant(ObjectVariant::Glow));
     draw_object(ctx, curs.i, curs.actual_id);
 }
 
-fn draw_elemental<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor) {
+fn draw_elemental(ctx: &mut ScreenContext<'_>, curs: Cursor) {
     let mut rng = ctx.seed.hasher(RngStep::ElementalVariant)
         .write(ctx.screen_pos)
         .write(ctx.layer)
@@ -605,7 +579,7 @@ fn draw_elemental<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor) {
     draw_object(ctx, curs.i, curs.proxy_id.into_variant(*variant));
 }
 
-fn draw_with_random_offset<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: Cursor, range: RangeInclusive<i32>) {
+fn draw_with_random_offset(ctx: &mut ScreenContext<'_>, curs: Cursor, range: RangeInclusive<i32>) {
     let mut rng = ctx.seed.hasher(RngStep::Offset)
         .write(ctx.screen_pos)
         .write(ctx.layer)
@@ -616,7 +590,7 @@ fn draw_with_random_offset<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>, curs: 
     draw_object_with_offset(ctx, curs.i, curs.actual_id, (offset_x, offset_y));
 }
 
-fn apply_tint<P: KsmapPixel>(ctx: &mut ScreenContext<'_, P>) {
+fn apply_tint(ctx: &mut ScreenContext<'_>) {
     if ctx.opts.tint_strategy == TintStrategy::Ignore {
         return;
     }
