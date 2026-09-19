@@ -2,7 +2,7 @@ mod paths;
 
 use std::{collections::HashMap, sync::{Arc, LazyLock}};
 
-use image::ImageReader;
+use image::{ImageReader, RgbaImage};
 use ksmap::{
     analysis,
     definitions,
@@ -97,7 +97,104 @@ fn verify_seeds(level_name: &str, seeds: &[MapSeed]) {
             .expect("IO error or corrupt image while decoding reference")
             .into_rgba8();
         
-        assert!(expected == actual, "Seed {seed} did not match for {level_name}");
+        match compare_images(&expected, &actual) {
+            CompareImagesResult::Same => { }
+            CompareImagesResult::SizesDiffer => {
+                panic!("Seed {seed} did not match for {level_name}: expected dimensions {:?}, got {:?}",
+                    expected.dimensions(),
+                    actual.dimensions());
+            }
+            CompareImagesResult::PixelsDiffer {
+                n_pixels,
+                max_error,
+                max_error_pos,
+                max_channel_error,
+                max_channel_error_pos,
+                sum_of_errors
+            } => {
+                println!("Level name:    {level_name}");
+                println!("Seed:          {seed}");
+                println!("# of pixels:   {n_pixels}");
+                println!("Max error:     {max_error} at {max_error_pos:?}");
+                println!("Sum of errors: {sum_of_errors}");
+                for (index, channel) in ['r', 'g', 'b', 'a'].iter().enumerate() {
+                    println!("Max error {channel}:   {} at {:?}", max_channel_error[index], max_channel_error_pos[index]);
+                }
+                panic!("Seed {seed} did not match for {level_name}: {n_pixels} pixels differed (max error: {max_error} sum: {sum_of_errors})");
+            }
+        }
+    }
+}
+
+enum CompareImagesResult {
+    Same,
+    SizesDiffer,
+    PixelsDiffer {
+        n_pixels: usize,
+        max_error: f64,
+        max_error_pos: (u32, u32),
+        max_channel_error: [u8; 4],
+        max_channel_error_pos: [(u32, u32); 4],
+        sum_of_errors: f64,
+    }
+}
+
+fn compare_images(a: &RgbaImage, b: &RgbaImage) -> CompareImagesResult {
+    if a.dimensions() != b.dimensions() {
+        return CompareImagesResult::SizesDiffer;
+    }
+    
+    let mut n_pixels = 0;
+    let mut max_error = 0.0;
+    let mut max_error_pos = (0, 0);
+    let mut max_channel_error = [0, 0, 0, 0];
+    let mut max_channel_error_pos = [(0, 0), (0, 0), (0, 0), (0, 0)];
+    let mut sum_of_errors = 0.0;
+    
+    for (i, (pixel_a, pixel_b)) in a.pixels().zip(b.pixels()).enumerate() {
+        if pixel_a != pixel_b {
+            n_pixels += 1;
+            let x = i as u32 % a.width();
+            let y = i as u32 / a.width();
+            let channel_errors = [
+                pixel_b[0] as f64 - pixel_a[0] as f64,
+                pixel_b[1] as f64 - pixel_a[1] as f64,
+                pixel_b[2] as f64 - pixel_a[2] as f64,
+                pixel_b[3] as f64 - pixel_a[3] as f64,
+            ];
+            let error = f64::sqrt(
+                channel_errors[0].powi(2)
+                + channel_errors[1].powi(2)
+                + channel_errors[2].powi(2)
+                + channel_errors[3].powi(2)
+            );
+            if error > max_error {
+                max_error = error;
+                max_error_pos = (x, y);
+            }
+            for channel in 0..4 {
+                let channel_error = channel_errors[channel].abs() as u8;
+                if channel_error > max_channel_error[channel] {
+                    max_channel_error[channel] = channel_error;
+                    max_channel_error_pos[channel] = (x, y);
+                }
+            }
+            sum_of_errors += error;
+        }
+    }
+    
+    if n_pixels == 0 {
+        CompareImagesResult::Same
+    }
+    else {
+        CompareImagesResult::PixelsDiffer {
+            n_pixels,
+            max_error,
+            max_error_pos,
+            max_channel_error,
+            max_channel_error_pos,
+            sum_of_errors,
+        }
     }
 }
 
