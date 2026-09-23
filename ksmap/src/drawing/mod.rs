@@ -515,7 +515,7 @@ fn draw_spritesheet(
     
     let alpha =
         if def.draw.trans_algo == TransAlgorithm::None {
-            1.0
+            255
         }
         else {
             let mut rng_alpha = ctx.seed.hasher(RngStep::Alpha)
@@ -616,13 +616,13 @@ fn apply_tint(ctx: &mut ScreenContext<'_>) {
         "xor" => BlendMode::Xor,
         _ => {
             let tint_trans = section.get_i32_or("TintTrans", 46) % 128;
-            a = (trans_to_alpha(tint_trans) * 255.0) as u8;
+            a = trans_to_alpha(tint_trans as u8);
             BlendMode::Over
         }
     };
-    let tint_final = image::Rgba([r, g, b, a]);
+    let tint_final = [r, g, b, a];
     
     for pixel in ctx.image.pixels_mut() {
-        blend_modes::blend_pixels(pixel, tint_final, blend_mode);
+        blend_modes::blend_pixels(pixel, tint_final.into(), blend_mode);
     }
 }

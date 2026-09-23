@@ -142,11 +142,12 @@ where
 
 /// Adapted from image crate
 /// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
-pub fn overlay_ex<I, J>(bottom: &mut I, top: &J, x: i64, y: i64, blend_mode: BlendMode, alpha: f32)
+pub fn overlay_ex<I, J>(bottom: &mut I, top: &J, x: i64, y: i64, blend_mode: BlendMode, alpha: u8)
 where
     I: GenericImage<Pixel = Rgb<u8>>,
     J: GenericImageView<Pixel = Rgba<u8>>,
 {
+    let alpha_norm = alpha as f32 / 255.0;
     let OverlayBounds {
         origin_bot_x,
         origin_bot_y,
@@ -159,7 +160,7 @@ where
         for x in 0..x_range {
             let mut pixel_bot = bottom.get_pixel(origin_bot_x + x, origin_bot_y + y);
             let mut pixel_top = top.get_pixel(origin_top_x + x, origin_top_y + y);
-            pixel_top.0[3] = (pixel_top.0[3] as f32 * alpha) as u8;
+            pixel_top.0[3] = (pixel_top.0[3] as f32 * alpha_norm + 0.5) as u8;
             blend_pixels(&mut pixel_bot, pixel_top, blend_mode);
             bottom.put_pixel(origin_bot_x + x, origin_bot_y + y, pixel_bot);
         }
