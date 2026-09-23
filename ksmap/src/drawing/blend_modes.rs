@@ -1,4 +1,4 @@
-use image::{GenericImage, GenericImageView, Rgb, Rgba};
+use image::{GenericImage, GenericImageView, Pixel, Rgb, Rgba};
 use serde::Deserialize;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
@@ -12,101 +12,292 @@ pub enum BlendMode {
     Xor,
 }
 
-#[inline]
-pub fn blend_pixels(bg: &mut Rgb<u8>, fg: Rgba<u8>, blend_mode: BlendMode) {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlendAlgorithm {
+    Quality,
+    Compat,
+}
+
+pub trait Blend {
+    type CustomObjectAlgorithm: Blend;
+    fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>);
+    fn blend_over_with_opacity(bg: &mut Rgb<u8>, fg: Rgba<u8>, opacity: u8);
+    fn blend_add(bg: &mut Rgb<u8>, fg: Rgba<u8>);
+    fn blend_sub(bg: &mut Rgb<u8>, fg: Rgba<u8>);
+    fn blend_and(bg: &mut Rgb<u8>, fg: Rgba<u8>);
+    fn blend_or(bg: &mut Rgb<u8>, fg: Rgba<u8>);
+    fn blend_xor(bg: &mut Rgb<u8>, fg: Rgba<u8>);
+}
+
+pub struct BlendAlgorithmQuality;
+pub struct BlendAlgorithmCompat;
+pub struct BlendAlgorithmCompatCustomObj;
+
+impl Blend for BlendAlgorithmQuality {
+    type CustomObjectAlgorithm = Self;
+
+    /// Adapted from image crate
+    /// Source: https://github.com/image-rs/image/blob/ee6ecbf897ce0ad733849a0535f55d6fa6eb237c/src/color.rs
+    fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        match fg[3] {
+            0 => { return }
+            255 => { *bg = fg.to_rgb(); return }
+            _ => {}
+        }
+
+        // Convert to 0.0..=1.0
+        let (bg_r, bg_g, bg_b) = (
+            bg[0] as f32 / 255.0,
+            bg[1] as f32 / 255.0,
+            bg[2] as f32 / 255.0,
+        );
+        let (fg_r, fg_g, fg_b, fg_a) = (
+            fg[0] as f32 / 255.0,
+            fg[1] as f32 / 255.0,
+            fg[2] as f32 / 255.0,
+            fg[3] as f32 / 255.0,
+        );
+
+        // Premultiply channels by their alpha to simplify calculations
+        let (fg_r_a, fg_g_a, fg_b_a) = (fg_r * fg_a, fg_g * fg_a, fg_b * fg_a);
+
+        // Standard formula for src-over alpha compositing
+        let (out_r, out_g, out_b) = (
+            fg_r_a + bg_r * (1.0 - fg_a),
+            fg_g_a + bg_g * (1.0 - fg_a),
+            fg_b_a + bg_b * (1.0 - fg_a),
+        );
+
+        // Convert back to 0..=255
+        bg[0] = (out_r * 255.0 + 0.5) as u8;
+        bg[1] = (out_g * 255.0 + 0.5) as u8;
+        bg[2] = (out_b * 255.0 + 0.5) as u8;
+    }
+
+    #[inline(always)]
+    fn blend_over_with_opacity(bg: &mut Rgb<u8>, mut fg: Rgba<u8>, opacity: u8) {
+        let opacity_norm = opacity as f32 / 255.0;
+        fg[3] = (fg[3] as f32 * opacity_norm + 0.5) as u8;
+        Self::blend_over(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_add(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_add::<Self>(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_sub(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_sub::<Self>(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_and(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_and::<Self>(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_or(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_or::<Self>(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_xor(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_xor::<Self>(bg, fg);
+    }
+}
+
+impl Blend for BlendAlgorithmCompat {
+    type CustomObjectAlgorithm = BlendAlgorithmCompatCustomObj;
+
+    fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        match fg[3] {
+            0 => { return }
+            255 => { *bg = fg.to_rgb(); return }
+            _ => {}
+        }
+
+        let (bg_r, bg_g, bg_b) = (
+            bg[0] as u16,
+            bg[1] as u16,
+            bg[2] as u16,
+        );
+        let (fg_r, fg_g, fg_b, fg_a) = (
+            fg[0] as u16,
+            fg[1] as u16,
+            fg[2] as u16,
+            fg[3] as u16,
+        );
+        let (out_r, out_g, out_b) = (
+            ((fg_a * fg_r) + (256 - fg_a) * bg_r) / 256,
+            ((fg_a * fg_g) + (256 - fg_a) * bg_g) / 256,
+            ((fg_a * fg_b) + (256 - fg_a) * bg_b) / 256,
+        );
+
+        bg.0 = [out_r as u8, out_g as u8, out_b as u8];
+    }
+
+    #[inline(always)]
+    fn blend_over_with_opacity(bg: &mut Rgb<u8>, fg: Rgba<u8>, opacity: u8) {
+        let mut temp = bg.clone();
+        Self::blend_over(&mut temp, [fg[0], fg[1], fg[2], opacity].into());
+        Self::blend_over(bg, [temp[0], temp[1], temp[2], fg[3]].into());
+    }
+
+    #[inline(always)]
+    fn blend_add(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_add::<Self>(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_sub(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_sub::<Self>(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_and(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_and::<Self>(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_or(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_or::<Self>(bg, fg);
+    }
+
+    #[inline(always)]
+    fn blend_xor(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_xor::<Self>(bg, fg);
+    }
+}
+
+impl Blend for BlendAlgorithmCompatCustomObj {
+    type CustomObjectAlgorithm = Self;
+
+    fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        match fg[3] {
+            0 => { return }
+            255 => { *bg = fg.to_rgb(); return }
+            _ => {}
+        }
+
+        let (bg_r, bg_g, bg_b) = (
+            bg[0] as u16,
+            bg[1] as u16,
+            bg[2] as u16,
+        );
+        let (fg_r, fg_g, fg_b, fg_a) = (
+            fg[0] as u16,
+            fg[1] as u16,
+            fg[2] as u16,
+            fg[3] as u16,
+        );
+        let (out_r, out_g, out_b) = (
+            ((fg_a * fg_r) + (256 - fg_a) * bg_r) / 256,
+            ((fg_a * fg_g) + (256 - fg_a) * bg_g) / 256,
+            ((fg_a * fg_b) + (256 - fg_a) * bg_b) / 256,
+        );
+
+        bg.0 = [out_r as u8, out_g as u8, out_b as u8];
+    }
+
+    /// Unused
+    #[inline(always)]
+    fn blend_over_with_opacity(bg: &mut Rgb<u8>, fg: Rgba<u8>, opacity: u8) {
+        if opacity == 255 {
+            Self::blend_over(bg, fg);
+        }
+        else {
+            let mut temp = bg.clone();
+            Self::blend_over(&mut temp, [fg[0], fg[1], fg[2], opacity].into());
+            Self::blend_over(bg, [temp[0], temp[1], temp[2], fg[3]].into());
+        }
+    }
+
+    /// Unused
+    #[inline(always)]
+    fn blend_add(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_add::<BlendAlgorithmCompat>(bg, fg);
+    }
+
+    /// Unused
+    #[inline(always)]
+    fn blend_sub(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_sub::<BlendAlgorithmCompat>(bg, fg);
+    }
+
+    /// Unused
+    #[inline(always)]
+    fn blend_and(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_and::<BlendAlgorithmCompat>(bg, fg);
+    }
+
+    /// Unused
+    #[inline(always)]
+    fn blend_or(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_or::<BlendAlgorithmCompat>(bg, fg);
+    }
+
+    /// Unused
+    #[inline(always)]
+    fn blend_xor(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
+        blend_xor::<BlendAlgorithmCompat>(bg, fg);
+    }
+}
+
+#[inline(always)]
+pub fn blend_pixels<B: Blend>(bg: &mut Rgb<u8>, fg: Rgba<u8>, blend_mode: BlendMode, opacity: u8) {
     match blend_mode {
-        BlendMode::Over => blend_over(bg, fg),
-        BlendMode::Add => blend_add(bg, fg),
-        BlendMode::Sub => blend_sub(bg, fg),
-        BlendMode::And => blend_and(bg, fg),
-        BlendMode::Or => blend_or(bg, fg),
-        BlendMode::Xor => blend_xor(bg, fg),
+        BlendMode::Over => B::blend_over_with_opacity(bg, fg, opacity),
+        BlendMode::Add => B::blend_add(bg, fg),
+        BlendMode::Sub => B::blend_sub(bg, fg),
+        BlendMode::And => B::blend_and(bg, fg),
+        BlendMode::Or => B::blend_or(bg, fg),
+        BlendMode::Xor => B::blend_xor(bg, fg),
     }
 }
 
-/// Adapted from image crate
-/// Source: https://github.com/image-rs/image/blob/ee6ecbf897ce0ad733849a0535f55d6fa6eb237c/src/color.rs
-fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
-    if fg[3] == 0 {
-        return;
-    }
-    if fg[3] == 255 {
-        bg[0] = fg[0];
-        bg[1] = fg[1];
-        bg[2] = fg[2];
-        return;
-    }
-
-    // Convert to 0.0..=1.0
-    let (bg_r, bg_g, bg_b) = (
-        bg[0] as f32 / 255.0,
-        bg[1] as f32 / 255.0,
-        bg[2] as f32 / 255.0,
-    );
-    let (fg_r, fg_g, fg_b, fg_a) = (
-        fg[0] as f32 / 255.0,
-        fg[1] as f32 / 255.0,
-        fg[2] as f32 / 255.0,
-        fg[3] as f32 / 255.0,
-    );
-
-    // Premultiply channels by their alpha to simplify calculations
-    let (fg_r_a, fg_g_a, fg_b_a) = (fg_r * fg_a, fg_g * fg_a, fg_b * fg_a);
-
-    // Standard formula for src-over alpha compositing
-    let (out_r, out_g, out_b) = (
-        fg_r_a + bg_r * (1.0 - fg_a),
-        fg_g_a + bg_g * (1.0 - fg_a),
-        fg_b_a + bg_b * (1.0 - fg_a),
-    );
-
-    // Convert back to 0..=255
-    bg[0] = (out_r * 255.0 + 0.5) as u8;
-    bg[1] = (out_g * 255.0 + 0.5) as u8;
-    bg[2] = (out_b * 255.0 + 0.5) as u8;
-}
-
-fn blend_add(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+fn blend_add<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] = bg[0].saturating_add(fg[0]);
     fg[1] = bg[1].saturating_add(fg[1]);
     fg[2] = bg[2].saturating_add(fg[2]);
-    blend_over(bg, fg);
+    B::blend_over(bg, fg);
 }
 
-fn blend_sub(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+fn blend_sub<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] = bg[0].saturating_sub(fg[0]);
     fg[1] = bg[1].saturating_sub(fg[1]);
     fg[2] = bg[2].saturating_sub(fg[2]);
-    blend_over(bg, fg);
+    B::blend_over(bg, fg);
 }
 
-fn blend_and(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+fn blend_and<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] &= bg[0];
     fg[1] &= bg[1];
     fg[2] &= bg[2];
-    blend_over(bg, fg);
+    B::blend_over(bg, fg);
 }
 
-fn blend_or(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+fn blend_or<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] |= bg[0];
     fg[1] |= bg[1];
     fg[2] |= bg[2];
-    blend_over(bg, fg);
+    B::blend_over(bg, fg);
 }
 
-fn blend_xor(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
+fn blend_xor<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] ^= bg[0];
     fg[1] ^= bg[1];
     fg[2] ^= bg[2];
-    blend_over(bg, fg);
+    B::blend_over(bg, fg);
 }
 
 /// Adapted from image crate
 /// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
-pub fn overlay<I, J>(bottom: &mut I, top: &J, x: i64, y: i64)
+pub fn overlay<B, I, J>(bottom: &mut I, top: &J, x: i64, y: i64)
 where
+    B: Blend,
     I: GenericImage<Pixel = Rgb<u8>>,
-    J: GenericImageView<Pixel = Rgba<u8>>,
+    J: GenericImageView<Pixel = Rgba<u8>>
 {
     let OverlayBounds {
         origin_bot_x,
@@ -120,7 +311,7 @@ where
         for x in 0..x_range {
             let mut pixel_bot = bottom.get_pixel(origin_bot_x + x, origin_bot_y + y);
             let pixel_top = top.get_pixel(origin_top_x + x, origin_top_y + y);
-            blend_over(&mut pixel_bot, pixel_top);
+            B::blend_over(&mut pixel_bot, pixel_top);
             bottom.put_pixel(origin_bot_x + x, origin_bot_y + y, pixel_bot);
         }
     }
@@ -128,12 +319,12 @@ where
 
 /// Adapted from image crate
 /// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
-pub fn overlay_ex<I, J>(bottom: &mut I, top: &J, x: i64, y: i64, blend_mode: BlendMode, alpha: u8)
+pub fn overlay_ex<B, I, J>(bottom: &mut I, top: &J, x: i64, y: i64, blend_mode: BlendMode, opacity: u8)
 where
+    B: Blend,
     I: GenericImage<Pixel = Rgb<u8>>,
-    J: GenericImageView<Pixel = Rgba<u8>>,
+    J: GenericImageView<Pixel = Rgba<u8>>
 {
-    let alpha_norm = alpha as f32 / 255.0;
     let OverlayBounds {
         origin_bot_x,
         origin_bot_y,
@@ -145,9 +336,8 @@ where
     for y in 0..y_range {
         for x in 0..x_range {
             let mut pixel_bot = bottom.get_pixel(origin_bot_x + x, origin_bot_y + y);
-            let mut pixel_top = top.get_pixel(origin_top_x + x, origin_top_y + y);
-            pixel_top.0[3] = (pixel_top.0[3] as f32 * alpha_norm + 0.5) as u8;
-            blend_pixels(&mut pixel_bot, pixel_top, blend_mode);
+            let pixel_top = top.get_pixel(origin_top_x + x, origin_top_y + y);
+            blend_pixels::<B>(&mut pixel_bot, pixel_top, blend_mode, opacity);
             bottom.put_pixel(origin_bot_x + x, origin_bot_y + y, pixel_bot);
         }
     }

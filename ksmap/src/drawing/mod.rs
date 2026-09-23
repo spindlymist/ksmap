@@ -1,4 +1,4 @@
-use std::{fs, ops::RangeInclusive, path::Path};
+use std::{fs, marker::PhantomData, ops::RangeInclusive, path::Path};
 
 use anyhow::{anyhow, Result};
 use image::{GenericImage, ImageEncoder, Rgb, RgbImage, RgbaImage, codecs::png::PngEncoder, imageops};
@@ -21,7 +21,11 @@ mod transparency;
 pub use transparency::{trans_to_alpha, alpha_to_trans};
 
 mod blend_modes;
-pub use blend_modes::BlendMode;
+use blend_modes::Blend;
+pub use blend_modes::{
+    BlendAlgorithm,
+    BlendMode,
+};
 
 mod pixel;
 use pixel::{OutputImage, KsmapImage, KsmapPixel};
@@ -49,23 +53,26 @@ pub struct DrawContext<'a> {
     pub options: DrawOptions,
 }
 
-struct ScreenContext<'a> {
-    seed: MapSeed,
-    screen_pos: ScreenCoord,
-    layer: u8,
+#[repr(C)]
+struct ScreenContext<'a, B: Blend> {
+    sync: ScreenSync,
     image: RgbImage,
+    ini_section: Option<LogicalSection<'a>>,
+    seed: MapSeed,
     tileset_a: Option<&'a RgbaImage>,
     tileset_b: Option<&'a RgbaImage>,
     gradient: Option<&'a Gradient>,
     gfx: &'a Graphics,
     defs: &'a ObjectDefs,
-    ini_section: Option<LogicalSection<'a>>,
-    sync: ScreenSync,
     opts: DrawOptions,
+    screen_pos: ScreenCoord,
+    layer: u8,
+    blend_algorithm: PhantomData<B>,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DrawOptions {
+    pub blend_algorithm: BlendAlgorithm,
     pub show_invisible: bool,
     pub show_proximity: bool,
     /// Overrides the maximum transparency for objects that have random opacity to ensure they are visible.
@@ -82,6 +89,7 @@ pub struct DrawOptions {
 impl Default for DrawOptions {
     fn default() -> Self {
         Self {
+            blend_algorithm: BlendAlgorithm::Quality,
             show_invisible: false,
             show_proximity: false,
             trans_max_override: 122,
@@ -93,7 +101,7 @@ impl Default for DrawOptions {
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TintStrategy {
     Ignore,
     Explicit,
@@ -106,10 +114,12 @@ struct Cursor {
     proxy_id: ObjectId,
 }
 
+#[inline(always)]
 pub fn draw_partition(ctx: DrawContext, partition: &Partition) -> Result<RgbaImage> {
     draw_partition_generic(ctx, partition, None)
 }
 
+#[inline(always)]
 pub fn draw_partition_rgb<C>(ctx: DrawContext, partition: &Partition, background: Option<C>) -> Result<RgbImage>
 where
     C: Into<Rgb<u8>>
@@ -117,12 +127,13 @@ where
     draw_partition_generic(ctx, partition, background.map(|c| c.into()))
 }
 
-fn draw_partition_generic<P: KsmapPixel>(
+fn draw_partition_generic<P>(
     ctx: DrawContext,
     partition: &Partition,
     background: Option<P>
 ) -> Result<OutputImage<P>>
 where
+    P: KsmapPixel,
     OutputImage<P>: KsmapImage
 {
     let bounds = partition.bounds();
@@ -242,7 +253,42 @@ where
     Ok(())
 }
 
+#[inline(always)]
 pub fn draw_screen(
+    seed: MapSeed,
+    screen: &ScreenData,
+    index_screen: usize,
+    gfx: &Graphics,
+    defs: &ObjectDefs,
+    ini: &Ini,
+    opts: DrawOptions,
+    world_sync: &WorldSync,
+) -> RgbImage {
+    match opts.blend_algorithm {
+        BlendAlgorithm::Quality => draw_screen_generic::<blend_modes::BlendAlgorithmQuality>(
+            seed,
+            screen,
+            index_screen,
+            gfx,
+            defs,
+            ini,
+            opts,
+            world_sync,
+        ),
+        BlendAlgorithm::Compat => draw_screen_generic::<blend_modes::BlendAlgorithmCompat>(
+            seed,
+            screen,
+            index_screen,
+            gfx,
+            defs,
+            ini,
+            opts,
+            world_sync,
+        ),
+    }
+}
+
+fn draw_screen_generic<B: Blend>(
     seed: MapSeed,
     screen: &ScreenData,
     index_screen: usize,
@@ -277,6 +323,7 @@ pub fn draw_screen(
         ini_section,
         sync,
         opts,
+        blend_algorithm: PhantomData::<B>
     };
     
     // Believe it or not, KS renders the gradient and tiles twice in alternating fashion. This appears to be a bug in
@@ -296,7 +343,7 @@ pub fn draw_screen(
             let gradient_reps = 600 / gradient.image.width();
             for i in 0..gradient_reps {
                 let x = i * gradient.image.width();
-                blend_modes::overlay(&mut ctx.image, gradient.image.as_ref(), x as i64, 0);
+                blend_modes::overlay::<B, _, _>(&mut ctx.image, gradient.image.as_ref(), x as i64, 0);
             }
         }
         
@@ -327,7 +374,7 @@ pub fn draw_screen(
     ctx.image
 }
 
-fn draw_tile_layer(ctx: &mut ScreenContext<'_>, layer: &LayerData) {
+fn draw_tile_layer<B: Blend>(ctx: &mut ScreenContext<'_, B>, layer: &LayerData) {
     for (i, tile) in layer.0.iter().enumerate() {
         if tile.1 == 0 {
             continue;
@@ -345,11 +392,11 @@ fn draw_tile_layer(ctx: &mut ScreenContext<'_>, layer: &LayerData) {
         let (screen_x, screen_y) = screen_index_to_pixels(i as u8);
         
         let tile_img = imageops::crop_imm(tileset, tile_x, tile_y, 24, 24);
-        blend_modes::overlay(&mut ctx.image, &*tile_img, screen_x as i64, screen_y as i64);
+        blend_modes::overlay::<B, _, _>(&mut ctx.image, &*tile_img, screen_x as i64, screen_y as i64);
     }
 }
 
-fn draw_object_layer(ctx: &mut ScreenContext<'_>, layer: &LayerData) {
+fn draw_object_layer<B: Blend>(ctx: &mut ScreenContext<'_, B>, layer: &LayerData) {
     for (i, tile) in layer.0.iter().enumerate() {
         if tile.1 == 0 { continue }
 
@@ -415,21 +462,36 @@ fn draw_object_layer(ctx: &mut ScreenContext<'_>, layer: &LayerData) {
             Tile(2, 18 | 19) => draw_elemental(ctx, curs),
             Tile(8, 10) => draw_with_random_offset(ctx, curs, -6..=6),
             Tile(8, 15) => draw_with_random_offset(ctx, curs, -12..=12),
+            Tile(254.., _) => {
+                let ctx_temp = change_blend_algorithm::<_, B::CustomObjectAlgorithm>(ctx);
+                draw_object(ctx_temp, curs.i, curs.actual_id);
+            }
             _ => draw_object(ctx, curs.i, curs.actual_id),
         }
     }
 }
 
-fn draw_object(
-    ctx: &mut ScreenContext<'_>,
+/// Alters the phantom data of `ctx` to use a different blending algorithm.
+fn change_blend_algorithm<'a, 'b, In, Out>(ctx: &'a mut ScreenContext<'b, In>) -> &'a mut ScreenContext<'b, Out>
+where
+    In: Blend,
+    Out: Blend
+{
+    // SAFETY: The only thing changed here is the type of the PhantomData
+    // PhantomData does not affect layout in repr(c)
+    unsafe { &mut *(ctx as *mut ScreenContext<'b, In> as *mut ScreenContext<'b, Out>) }
+}
+
+fn draw_object<B: Blend>(
+    ctx: &mut ScreenContext<'_, B>,
     at_index: usize,
     object: ObjectId,
 ) {
     draw_object_with_offset(ctx, at_index, object, (0, 0));
 }
 
-fn draw_object_with_offset(
-    ctx: &mut ScreenContext<'_>,
+fn draw_object_with_offset<B: Blend>(
+    ctx: &mut ScreenContext<'_, B>,
     at_index: usize,
     mut id: ObjectId,
     offset: (i32, i32),
@@ -466,8 +528,8 @@ fn draw_object_with_offset(
     draw_spritesheet(ctx, at_index as u8, id, &def, anim_t, obj_image, offset, flip);
 }
 
-fn draw_spritesheet(
-    ctx: &mut ScreenContext<'_>,
+fn draw_spritesheet<B: Blend>(
+    ctx: &mut ScreenContext<'_, B>,
     at_index: u8,
     id: ObjectId,
     def: &ObjectDef,
@@ -513,7 +575,7 @@ fn draw_spritesheet(
         + (offset_y + offset.1) as i64
         - (spritesheet.frame_height / 2) as i64;
     
-    let alpha =
+    let opacity =
         if def.draw.trans_algo == TransAlgorithm::None {
             255
         }
@@ -528,10 +590,10 @@ fn draw_spritesheet(
             transparency::simulate(def.draw.trans_algo, &mut rng_alpha, params, ctx.opts.trans_frames)
         };
     
-    blend_modes::overlay_ex(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, alpha);
+    blend_modes::overlay_ex::<B, _, _>(&mut ctx.image, &*frame, final_x, final_y, def.draw.blend_mode, opacity);
 }
 
-fn draw_shift(ctx: &mut ScreenContext<'_>, curs: Cursor, vis_prop: &str, type_prop: &str) {
+fn draw_shift<B: Blend>(ctx: &mut ScreenContext<'_, B>, curs: Cursor, vis_prop: &str, type_prop: &str) {
     let is_invisible = ctx.ini_section
         .as_ref()
         .and_then(|section| section.get(vis_prop))
@@ -561,12 +623,12 @@ fn draw_shift(ctx: &mut ScreenContext<'_>, curs: Cursor, vis_prop: &str, type_pr
     draw_object(ctx, curs.i, curs.proxy_id.into_variant(shift_type));
 }
 
-fn draw_with_glow(ctx: &mut ScreenContext<'_>, curs: Cursor) {
+fn draw_with_glow<B: Blend>(ctx: &mut ScreenContext<'_, B>, curs: Cursor) {
     draw_object(ctx, curs.i, curs.proxy_id.to_variant(ObjectVariant::Glow));
     draw_object(ctx, curs.i, curs.actual_id);
 }
 
-fn draw_elemental(ctx: &mut ScreenContext<'_>, curs: Cursor) {
+fn draw_elemental<B: Blend>(ctx: &mut ScreenContext<'_, B>, curs: Cursor) {
     let mut rng = ctx.seed.hasher(RngStep::ElementalVariant)
         .write(ctx.screen_pos)
         .write(ctx.layer)
@@ -579,7 +641,7 @@ fn draw_elemental(ctx: &mut ScreenContext<'_>, curs: Cursor) {
     draw_object(ctx, curs.i, curs.proxy_id.into_variant(*variant));
 }
 
-fn draw_with_random_offset(ctx: &mut ScreenContext<'_>, curs: Cursor, range: RangeInclusive<i32>) {
+fn draw_with_random_offset<B: Blend>(ctx: &mut ScreenContext<'_, B>, curs: Cursor, range: RangeInclusive<i32>) {
     let mut rng = ctx.seed.hasher(RngStep::Offset)
         .write(ctx.screen_pos)
         .write(ctx.layer)
@@ -590,7 +652,7 @@ fn draw_with_random_offset(ctx: &mut ScreenContext<'_>, curs: Cursor, range: Ran
     draw_object_with_offset(ctx, curs.i, curs.actual_id, (offset_x, offset_y));
 }
 
-fn apply_tint(ctx: &mut ScreenContext<'_>) {
+fn apply_tint<B: Blend>(ctx: &mut ScreenContext<'_, B>){
     if ctx.opts.tint_strategy == TintStrategy::Ignore {
         return;
     }
@@ -603,7 +665,7 @@ fn apply_tint(ctx: &mut ScreenContext<'_>) {
     }
     
     let [r, g, b] = unpack_color(tint);
-    let mut a = 255u8;
+    let mut opacity = 255u8;
     let blend_mode = match section.get("TintInk")
         .unwrap_or("")
         .to_ascii_lowercase()
@@ -616,13 +678,12 @@ fn apply_tint(ctx: &mut ScreenContext<'_>) {
         "xor" => BlendMode::Xor,
         _ => {
             let tint_trans = section.get_i32_or("TintTrans", 46) % 128;
-            a = trans_to_alpha(tint_trans as u8);
+            opacity = trans_to_alpha(tint_trans as u8);
             BlendMode::Over
         }
     };
-    let tint_final = [r, g, b, a];
     
     for pixel in ctx.image.pixels_mut() {
-        blend_modes::blend_pixels(pixel, tint_final.into(), blend_mode);
+        blend_modes::blend_pixels::<B>(pixel, [r, g, b, 255].into(), blend_mode, opacity);
     }
 }

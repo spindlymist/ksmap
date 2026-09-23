@@ -13,7 +13,7 @@ use ksmap::synchronization::{SyncOptions, WorldSync};
 use libks::{map_bin, world_ini};
 
 use ksmap::{analysis, definitions};
-use ksmap::drawing::{self, DrawContext, DrawOptions};
+use ksmap::drawing::{self, BlendAlgorithm, DrawContext, DrawOptions};
 use ksmap::graphics::Graphics;
 use ksmap::screen_map::ScreenMap;
 
@@ -117,6 +117,7 @@ fn main() -> Result<()> {
         cli.force);
 
     let draw_options = DrawOptions {
+        blend_algorithm: BlendAlgorithm::Quality,
         show_invisible: cli.show_invisible,
         show_proximity: cli.show_proximity,
         trans_max_override: drawing::alpha_to_trans(cli.min_alpha),
