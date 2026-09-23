@@ -26,7 +26,6 @@ pub fn blend_pixels(bg: &mut Rgb<u8>, fg: Rgba<u8>, blend_mode: BlendMode) {
 
 /// Adapted from image crate
 /// Source: https://github.com/image-rs/image/blob/ee6ecbf897ce0ad733849a0535f55d6fa6eb237c/src/color.rs
-#[inline]
 fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
     if fg[3] == 0 {
         return;
@@ -67,52 +66,39 @@ fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
     bg[2] = (out_b * 255.0 + 0.5) as u8;
 }
 
-#[inline]
 fn blend_add(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
-    premul_alpha(&mut fg);
-    bg[0] = bg[0].saturating_add(fg[0]);
-    bg[1] = bg[1].saturating_add(fg[1]);
-    bg[2] = bg[2].saturating_add(fg[2]);
+    fg[0] = bg[0].saturating_add(fg[0]);
+    fg[1] = bg[1].saturating_add(fg[1]);
+    fg[2] = bg[2].saturating_add(fg[2]);
+    blend_over(bg, fg);
 }
 
-#[inline]
 fn blend_sub(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
-    premul_alpha(&mut fg);
-    bg[0] = bg[0].saturating_sub(fg[0]);
-    bg[1] = bg[1].saturating_sub(fg[1]);
-    bg[2] = bg[2].saturating_sub(fg[2]);
+    fg[0] = bg[0].saturating_sub(fg[0]);
+    fg[1] = bg[1].saturating_sub(fg[1]);
+    fg[2] = bg[2].saturating_sub(fg[2]);
+    blend_over(bg, fg);
 }
 
-#[inline]
 fn blend_and(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
-    premul_alpha(&mut fg);
-    bg[0] &= fg[0];
-    bg[1] &= fg[1];
-    bg[2] &= fg[2];
+    fg[0] &= bg[0];
+    fg[1] &= bg[1];
+    fg[2] &= bg[2];
+    blend_over(bg, fg);
 }
 
-#[inline]
 fn blend_or(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
-    premul_alpha(&mut fg);
-    bg[0] |= fg[0];
-    bg[1] |= fg[1];
-    bg[2] |= fg[2];
+    fg[0] |= bg[0];
+    fg[1] |= bg[1];
+    fg[2] |= bg[2];
+    blend_over(bg, fg);
 }
 
-#[inline]
 fn blend_xor(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
-    premul_alpha(&mut fg);
-    bg[0] ^= fg[0];
-    bg[1] ^= fg[1];
-    bg[2] ^= fg[2];
-}
-
-#[inline]
-fn premul_alpha(p: &mut Rgba<u8>) {
-    let alpha_norm = p[3] as f32 / 255.0;
-    p[0] = (p[0] as f32 * alpha_norm + 0.5) as u8;
-    p[1] = (p[1] as f32 * alpha_norm + 0.5) as u8;
-    p[2] = (p[2] as f32 * alpha_norm + 0.5) as u8;
+    fg[0] ^= bg[0];
+    fg[1] ^= bg[1];
+    fg[2] ^= bg[2];
+    blend_over(bg, fg);
 }
 
 /// Adapted from image crate
