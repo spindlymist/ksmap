@@ -189,27 +189,27 @@ impl Blend for BlendAlgorithmAccurateCustomObj {
             fg[0] as u16,
             fg[1] as u16,
             fg[2] as u16,
-            fg[3] as u16,
+            (fg[3] / 2) as u16,
         );
         let (out_r, out_g, out_b) = (
-            ((fg_a * fg_r) + (256 - fg_a) * bg_r) / 256,
-            ((fg_a * fg_g) + (256 - fg_a) * bg_g) / 256,
-            ((fg_a * fg_b) + (256 - fg_a) * bg_b) / 256,
+            ((fg_a * fg_r) + (128 - fg_a) * bg_r) / 128,
+            ((fg_a * fg_g) + (128 - fg_a) * bg_g) / 128,
+            ((fg_a * fg_b) + (128 - fg_a) * bg_b) / 128,
         );
 
         bg.0 = [out_r as u8, out_g as u8, out_b as u8];
     }
 
-    /// Unused
     #[inline(always)]
     fn blend_over_with_opacity(bg: &mut Rgb<u8>, fg: Rgba<u8>, opacity: u8) {
         if opacity == 255 {
             Self::blend_over(bg, fg);
         }
         else {
+            // Unused
             let mut temp = bg.clone();
             Self::blend_over(&mut temp, [fg[0], fg[1], fg[2], opacity].into());
-            Self::blend_over(bg, [temp[0], temp[1], temp[2], fg[3]].into());
+            BlendAlgorithmAccurate::blend_over(bg, [temp[0], temp[1], temp[2], fg[3]].into());
         }
     }
 
