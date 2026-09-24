@@ -352,7 +352,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
     // Partition list
     {
         let go_to_partition_index = ui.window("Partition List").build(|| {
-            build_partition_table(ui, ex.fonts, partition_state, &mut render_state.partitions)
+            build_partition_table(ui, ex.fonts, partition_state, &mut render_state.partitions, export_state.rgb)
         }).unwrap_or_default();
         
         if let Some(i) = go_to_partition_index
@@ -833,7 +833,13 @@ const PARTITION_TABLE_COL_LABELS: [&'static str; PARTITION_TABLE_N_COLUMNS] = [
     "Memory",
 ];
 
-fn build_partition_table(ui: &Ui, fonts: &Fonts, partition_state: &mut PartitionState, partitions: &mut [Partition]) -> Option<usize> {
+fn build_partition_table(
+    ui: &Ui,
+    fonts: &Fonts,
+    partition_state: &mut PartitionState,
+    partitions: &mut [Partition],
+    rgb: bool,
+) -> Option<usize> {
     let mut go_to_partition_index: Option<usize> = None;
     
     let table_height = {
@@ -906,7 +912,8 @@ fn build_partition_table(ui: &Ui, fonts: &Fonts, partition_state: &mut Partition
             let height = y_max - y_min + 1;
             let width_px = width * 600;
             let height_px = height * 240;
-            let memory_bytes = (width_px * height_px * 4) as usize;
+            let bytes_per_pixel = if rgb { 3 } else { 4 };
+            let memory_bytes = (width_px * height_px * bytes_per_pixel) as usize;
             
             ui.table_next_row();
             ui.table_next_column();
@@ -985,20 +992,14 @@ fn sort_partitions(partitions: &mut [Partition], column_index: usize, descending
         PARTITION_TABLE_COL_Y_MAX => do_sort!(partitions, descending, p, {
             (p.bounds().y_max(), p.bounds().x_max())
         }),
-        PARTITION_TABLE_COL_WIDTH => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_WIDTH | PARTITION_TABLE_COL_WIDTH_PX => do_sort!(partitions, descending, p, {
             (p.bounds().width(), p.bounds().height())
         }),
-        PARTITION_TABLE_COL_HEIGHT => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_HEIGHT | PARTITION_TABLE_COL_HEIGHT_PX => do_sort!(partitions, descending, p, {
             (p.bounds().height(), p.bounds().width())
         }),
-        PARTITION_TABLE_COL_WIDTH_PX => do_sort!(partitions, descending, p, {
-            (p.bounds().width_px(), p.bounds().height_px())
-        }),
-        PARTITION_TABLE_COL_HEIGHT_PX => do_sort!(partitions, descending, p, {
-            (p.bounds().height_px(), p.bounds().width_px())
-        }),
         PARTITION_TABLE_COL_MEMORY => do_sort!(partitions, descending, p, {
-            p.bounds().size_bytes_rgba()
+            p.bounds().width() * p.bounds().height() // Size in memory is proportional to # of screens
         }),
         _ => {}
     }

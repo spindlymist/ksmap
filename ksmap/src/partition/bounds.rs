@@ -17,6 +17,10 @@ impl Bounds {
         (self.width(), self.height())
     }
     
+    pub fn size_bytes_rgb(&self) -> u64 {
+        self.width_px() * self.height_px() * 3
+    }
+    
     pub fn size_bytes_rgba(&self) -> u64 {
         self.width_px() * self.height_px() * 4
     }
