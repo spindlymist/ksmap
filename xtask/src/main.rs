@@ -216,7 +216,7 @@ fn render_seeds(level_dir: &Path, seeds: &[MapSeed], output_dir: &Path, level_na
             options: draw_options,
         };
         
-        let canvas = drawing::draw_partition(draw_context, partition)
+        let canvas = drawing::draw_partition(draw_context, partition, None)
             .expect("IO error while drawing map");
         
         let output_path = output_dir.join(format!("{seed}.png"));

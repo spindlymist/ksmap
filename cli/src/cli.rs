@@ -58,9 +58,9 @@ pub struct Cli {
     /// Output RGB instead of RGBA. Try this if you're running out of memory
     #[arg(long)]
     pub rgb: bool,
-    /// Background color if outputting RGB (hex code such as #0088ff). Defaults to black
-    #[arg(long = "bg")]
-    pub background_color: Option<String>,
+    /// Background color, hex code such as #0088ff (rgb) or #0088ffaa (rgba)
+    #[arg(long = "bg", default_value = "#00000000")]
+    pub background_color: String,
     /// Don't use the multithreaded PNG encoder
     #[arg(long)]
     pub single_threaded_encoder: bool,

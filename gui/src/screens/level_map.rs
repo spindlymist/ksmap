@@ -1552,7 +1552,7 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
         }
         
         let _ = tx.send(RenderMessage::PartitionUpdate(i, RenderTaskStatus::Rendering));
-        let canvas = match drawing::draw_partition(draw_context, partition) {
+        let canvas = match drawing::draw_partition(draw_context, partition, None) {
             Ok(canvas) => canvas,
             Err(err) => {
                 let _ = tx.send(RenderMessage::Error(err.to_string()));

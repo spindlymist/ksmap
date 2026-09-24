@@ -28,11 +28,11 @@ impl KsmapImage for OutputImage<Rgba<u8>> {
 }
 
 pub trait KsmapPixel: Pixel<Subpixel = u8> {
-    fn zero() -> Self::Subpixel { 0 }
     fn mtpng_color_type() -> mtpng::ColorType;
     fn image_color_type() -> image::ExtendedColorType;
     fn bytes_per_pixel() -> u8;
     fn bit_depth() -> u8 { 8 }
+    fn to_repeated_byte(&self) -> Option<u8>;
 }
 
 impl KsmapPixel for Rgb<u8> {
@@ -47,6 +47,15 @@ impl KsmapPixel for Rgb<u8> {
     fn bytes_per_pixel() -> u8 {
         3
     }
+    
+    fn to_repeated_byte(&self) -> Option<u8> {
+        if self[0] == self[1] && self[0] == self[2] {
+            Some(self[0])
+        }
+        else {
+            None
+        }
+    }
 }
 
 impl KsmapPixel for Rgba<u8> {
@@ -60,5 +69,14 @@ impl KsmapPixel for Rgba<u8> {
     
     fn bytes_per_pixel() -> u8 {
         4
+    }
+    
+    fn to_repeated_byte(&self) -> Option<u8> {
+        if self[0] == self[1] && self[0] == self[2] && self[0] == self[3] {
+            Some(self[0])
+        }
+        else {
+            None
+        }
     }
 }

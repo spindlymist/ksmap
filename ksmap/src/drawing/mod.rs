@@ -1,7 +1,7 @@
 use std::{fs, marker::PhantomData, ops::RangeInclusive, path::Path};
 
 use anyhow::{anyhow, Result};
-use image::{GenericImage, ImageEncoder, Rgb, RgbImage, RgbaImage, codecs::png::PngEncoder, imageops};
+use image::{GenericImage, ImageEncoder, RgbImage, RgbaImage, codecs::png::PngEncoder, imageops};
 use rand::prelude::*;
 use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::edit::{Ini, LogicalSection};
@@ -115,22 +115,21 @@ struct Cursor {
 }
 
 #[inline(always)]
-pub fn draw_partition(ctx: DrawContext, partition: &Partition) -> Result<RgbaImage> {
-    draw_partition_generic(ctx, partition, None)
+pub fn draw_partition(ctx: DrawContext, partition: &Partition, background: Option<[u8; 4]>) -> Result<RgbaImage> {
+    let background = background.unwrap_or([0, 0, 0, 0]);
+    draw_partition_generic(ctx, partition, background.into())
 }
 
 #[inline(always)]
-pub fn draw_partition_rgb<C>(ctx: DrawContext, partition: &Partition, background: Option<C>) -> Result<RgbImage>
-where
-    C: Into<Rgb<u8>>
-{
-    draw_partition_generic(ctx, partition, background.map(|c| c.into()))
+pub fn draw_partition_rgb(ctx: DrawContext, partition: &Partition, background: Option<[u8; 3]>) -> Result<RgbImage> {
+    let background = background.unwrap_or([0, 0, 0]);
+    draw_partition_generic(ctx, partition, background.into())
 }
 
 fn draw_partition_generic<P>(
     ctx: DrawContext,
     partition: &Partition,
-    background: Option<P>
+    background: P
 ) -> Result<OutputImage<P>>
 where
     P: KsmapPixel,
@@ -150,7 +149,7 @@ where
     Ok(canvas)
 }
 
-fn make_canvas<P: KsmapPixel>(bounds: &Bounds, background: Option<P>) -> Result<OutputImage<P>> {
+fn make_canvas<P: KsmapPixel>(bounds: &Bounds, background: P) -> Result<OutputImage<P>> {
     let (width, height) = bounds.size();
 
     let Ok(Some(width)) = u32::try_from(width)
@@ -171,23 +170,23 @@ fn make_canvas<P: KsmapPixel>(bounds: &Bounds, background: Option<P>) -> Result<
             return Err(anyhow!("Partition is too large: {bounds}"));
         };
     
-    let mut buffer = Vec::<P::Subpixel>::new();
+    let mut buffer = Vec::<u8>::new();
     match buffer.try_reserve_exact(n_bytes) {
         Ok(_) => {
             unsafe { buffer.set_len(n_bytes); }
-            let image = match background {
-                Some(background) => {
+            let image = match background.to_repeated_byte() {
+                Some(byte) => {
+                    buffer.fill(byte);
+                    OutputImage::<P>::from_vec(width, height, buffer)
+                        .expect("Buffer should be the correct size.")
+                }
+                None => {
                     let mut image = OutputImage::<P>::from_vec(width, height, buffer)
                         .expect("Buffer should be the correct size.");
                     for pixel in image.pixels_mut() {
                         *pixel = background;
                     }
                     image
-                }
-                None => {
-                    buffer.fill(P::zero());
-                    OutputImage::<P>::from_vec(width, height, buffer)
-                        .expect("Buffer should be the correct size.")
                 }
             };
             Ok(image)

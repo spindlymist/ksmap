@@ -87,7 +87,7 @@ fn verify_seeds(level_name: &str, seeds: &[MapSeed]) {
             options: draw_options,
         };
         
-        let actual = drawing::draw_partition(draw_context, partition)
+        let actual = drawing::draw_partition(draw_context, partition, None)
             .expect("IO error while drawing map");
         
         let expected_path = SEEDS_DIR.join(format!("{level_name}/{seed}.png"));

@@ -28,9 +28,8 @@ fn main() -> Result<()> {
     }
     let cli = Cli::parse();
     
-    let background_color = cli.background_color
-        .map(|s| parse_hex_color(&s))
-        .transpose()?;
+    let background_color = parse_hex_color(&cli.background_color)?;
+    let background_color_rgb = [background_color[0], background_color[1], background_color[2]];
 
     let seed = match cli.seed.map(MapSeed::try_from) {
         Some(Ok(seed)) => seed,
@@ -167,10 +166,10 @@ fn main() -> Result<()> {
             };
         
         if cli.rgb {
-            draw_and_export_rgb(draw_context, partition, path, cli.single_threaded_encoder, cli.compression, background_color)?;
+            draw_and_export_rgb(draw_context, partition, path, cli.single_threaded_encoder, cli.compression, background_color_rgb)?;
         }
         else {
-            draw_and_export(draw_context, partition, path, cli.single_threaded_encoder, cli.compression)?;
+            draw_and_export(draw_context, partition, path, cli.single_threaded_encoder, cli.compression, background_color)?;
         }
     }
     println!();
@@ -187,12 +186,13 @@ fn draw_and_export(
     output_path: &Path,
     single_threaded_encoder: bool,
     compression: u8,
+    background_color: [u8; 4]
 ) -> Result<()> {
     let canvas = time_it!("    Drawing", {
-        drawing::draw_partition(draw_context, &partition)
+        drawing::draw_partition(draw_context, &partition, Some(background_color))
             .inspect_err(|_| println!(" [failed]"))?
     });
-        
+    
     time_it!("    Exporting", {
         if single_threaded_encoder {
             drawing::export_canvas(canvas, output_path, compression)
@@ -213,13 +213,13 @@ fn draw_and_export_rgb(
     output_path: &Path,
     single_threaded_encoder: bool,
     compression: u8,
-    background_color: Option<[u8; 3]>,
+    background_color: [u8; 3],
 ) -> Result<()> {
     let canvas = time_it!("    Drawing", {
-        drawing::draw_partition_rgb(draw_context, &partition, background_color)
+        drawing::draw_partition_rgb(draw_context, &partition, Some(background_color))
             .inspect_err(|_| println!(" [failed]"))?
     });
-        
+    
     time_it!("    Exporting", {
         if single_threaded_encoder {
             drawing::export_canvas(canvas, output_path, compression)
@@ -275,7 +275,7 @@ fn make_partitions(
     partitions
 }
 
-fn parse_hex_color(s: &str) -> anyhow::Result<[u8; 3]> {
+fn parse_hex_color(s: &str) -> anyhow::Result<[u8; 4]> {
     if !s.is_ascii() {
         anyhow::bail!("Invalid hex color: {s}");
     }
@@ -286,23 +286,39 @@ fn parse_hex_color(s: &str) -> anyhow::Result<[u8; 3]> {
             .map_err(|_| anyhow::anyhow!("Invalid color channel: {s}"))
     }
     
-    let (r, g, b) = match s.len() {
+    let color = match s.len() {
         3 => {
             let r = parse_hex_channel(&s[0..1])?;
             let g = parse_hex_channel(&s[1..2])?;
             let b = parse_hex_channel(&s[2..3])?;
-            (r << 4 | r, g << 4 | g, b << 4 | b)
+            let a = 255;
+            [r << 4 | r, g << 4 | g, b << 4 | b, a]
+        }
+        4 => {
+            let r = parse_hex_channel(&s[0..1])?;
+            let g = parse_hex_channel(&s[1..2])?;
+            let b = parse_hex_channel(&s[2..3])?;
+            let a = parse_hex_channel(&s[3..4])?;
+            [r << 4 | r, g << 4 | g, b << 4 | b, a << 4 | a]
         }
         6 => {
             let r = parse_hex_channel(&s[0..2])?;
             let g = parse_hex_channel(&s[2..4])?;
             let b = parse_hex_channel(&s[4..6])?;
-            (r, g, b)
+            let a = 255;
+            [r, g, b, a]
+        }
+        8 => {
+            let r = parse_hex_channel(&s[0..2])?;
+            let g = parse_hex_channel(&s[2..4])?;
+            let b = parse_hex_channel(&s[4..6])?;
+            let a = parse_hex_channel(&s[6..8])?;
+            [r, g, b, a]
         }
         _ => anyhow::bail!("Invalid hex color: {s}")
     };
     
-    Ok([r, g, b])
+    Ok(color)
 }
 
 #[cfg(test)]
@@ -312,14 +328,16 @@ mod test {
     #[test]
     fn parse_hex_color_works() {
         let test_cases = [
-            ("#abcdef", [171, 205, 239]),
-            ("#ABCDEF", [171, 205, 239]),
-            ("abcdef", [171, 205, 239]),
-            ("#abc", [170, 187, 204]),
-            ("#ABC", [170, 187, 204]),
-            ("abc", [170, 187, 204]),
-            ("#012345", [1, 35, 69]),
-            ("#678", [102, 119, 136]),
+            ("#abcdef", [171, 205, 239, 255]),
+            ("#ABCDEF", [171, 205, 239, 255]),
+            ("abcdef", [171, 205, 239, 255]),
+            ("#abc", [170, 187, 204, 255]),
+            ("#ABC", [170, 187, 204, 255]),
+            ("abc", [170, 187, 204, 255]),
+            ("#012345", [1, 35, 69, 255]),
+            ("#678", [102, 119, 136, 255]),
+            ("#9abc", [153, 170, 187, 204]),
+            ("#12345678", [18, 52, 86, 120]),
         ];
         for (input, expected) in test_cases {
             let actual = parse_hex_color(input).unwrap();
