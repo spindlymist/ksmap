@@ -74,6 +74,10 @@ pub enum Task {
     Exit,
 }
 
+const DRAG_SPEED_SLOW  : f32 = 0.050;
+const DRAG_SPEED_MEDIUM: f32 = 0.100;
+const DRAG_SPEED_FAST  : f32 = 0.150;
+
 pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
     // Show progress window when rendering
     if state.render_thread.is_some() || state.render_error.is_some() {
@@ -707,7 +711,7 @@ fn build_window_partitions(ui: &Ui, _ex: &mut Extras, partition_state: &mut Part
     ui.widget_group_label("Max width");
     ui.drag_int_config("##MaxWidth")
         .range(1, i32::MAX)
-        .speed(0.1)
+        .speed(DRAG_SPEED_FAST)
         .try_display_format(format!("%d screens / {max_width_px}px"))
         .expect("Invalid display format")
         .build(ui, &mut partition_state.max_width);
@@ -717,7 +721,7 @@ fn build_window_partitions(ui: &Ui, _ex: &mut Extras, partition_state: &mut Part
     ui.widget_group_label("Max height");
     ui.drag_int_config("##MaxHeight")
         .range(1, i32::MAX)
-        .speed(0.1)
+        .speed(DRAG_SPEED_FAST)
         .try_display_format(format!("%d screens / {max_height_px}px"))
         .expect("Invalid display format")
         .build(ui, &mut partition_state.max_height);
@@ -751,7 +755,7 @@ fn build_partition_options_islands(ui: &Ui, state: &mut PartitionState) {
     ui.widget_group_label("Min gap");
     ui.drag_int_config("##MinGap")
         .range(1, i32::MAX)
-        .speed(0.05)
+        .speed(DRAG_SPEED_SLOW)
         .build(ui, &mut state.min_gap);
     tooltip(ui, "If the max gap setting produces an island that is too big, that island will be broken up into \
         smaller islands by gradually reducing the gap size down to this value. Set this to the same value as max gap \
@@ -761,7 +765,7 @@ fn build_partition_options_islands(ui: &Ui, state: &mut PartitionState) {
     ui.widget_group_label("Max gap");
     ui.drag_int_config("##MaxGap")
         .range(state.min_gap, i32::MAX)
-        .speed(0.05)
+        .speed(DRAG_SPEED_SLOW)
         .build(ui, &mut state.max_gap);
     tooltip(ui, "The number of empty screens allowed between the screens of an island.");
 
@@ -784,7 +788,7 @@ fn build_partition_options_grid(ui: &Ui, state: &mut PartitionState) {
         ui.set_next_item_width(-checkbox_width - inner_spacing_x);
         ui.drag_int_config("##Rows")
             .range(1, i32::MAX)
-            .speed(0.05)
+            .speed(DRAG_SPEED_SLOW)
             .build(ui, &mut state.rows);
         tooltip(ui, "The number of rows to divide the level into.");
     }
@@ -798,7 +802,7 @@ fn build_partition_options_grid(ui: &Ui, state: &mut PartitionState) {
         ui.set_next_item_width(-checkbox_width - inner_spacing_x);
         ui.drag_int_config("##Columns")
             .range(state.min_gap, i32::MAX)
-            .speed(0.05)
+            .speed(DRAG_SPEED_SLOW)
             .build(ui, &mut state.cols);
         tooltip(ui, "The number of columns to divide the level into.");
     }
@@ -1284,7 +1288,7 @@ fn build_window_drawing(
     ui.widget_group_label("Min alpha");
     if ui.drag_int_config("##MinAlpha")
         .range(0, 255)
-        .speed(0.1)
+        .speed(DRAG_SPEED_MEDIUM)
         .build(ui, &mut state.min_alpha)
     {
         draw_options.trans_max_override = alpha_to_trans(state.min_alpha as u8);
@@ -1295,7 +1299,7 @@ fn build_window_drawing(
     ui.widget_group_label("Min alpha threshold");
     if ui.drag_int_config("##AlphaThreshold")
         .range(0, i32::MAX)
-        .speed(0.1)
+        .speed(DRAG_SPEED_SLOW)
         .build(ui, &mut state.min_alpha_threshold)
     {
         draw_options.trans_max_threshold = state.min_alpha_threshold as u32;
