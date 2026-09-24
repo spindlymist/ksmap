@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use clap::{Args, Parser};
-use ksmap::drawing::TintStrategy;
+use ksmap::drawing::{BlendAlgorithm, TintStrategy};
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -51,6 +51,10 @@ pub struct Cli {
     /// How many game frames to simulate for objects that have random opacity (50 = 1 second)
     #[arg(long, default_value = "150")]
     pub alpha_sim_frames: u32,
+    /// The alpha blending algorithm to use. The accurate algorithm may be preferred if the level uses bitwise tints
+    /// (AND, OR, and XOR) or if you notice any artifacts that aren't present in game.
+    #[arg(long, default_value = "quality")]
+    pub blending: BlendAlgorithmCli,
     /// Output RGB instead of RGBA. Try this if you're running out of memory
     #[arg(long)]
     pub rgb: bool,
@@ -145,4 +149,22 @@ pub enum LaserStrategy {
     Randomize,
     /// Draw all lasers regardless of phase
     All,
+}
+
+#[derive(Clone, Copy, Default, clap::ValueEnum)]
+pub enum BlendAlgorithmCli {
+    /// Use high quality alpha blending
+    #[default]
+    Quality,
+    /// Emulate the alpha blending in KS
+    Accurate,
+}
+
+impl Into<BlendAlgorithm> for BlendAlgorithmCli {
+    fn into(self) -> BlendAlgorithm {
+        match self {
+            BlendAlgorithmCli::Quality => BlendAlgorithm::Quality,
+            BlendAlgorithmCli::Accurate => BlendAlgorithm::Accurate,
+        }
+    }
 }

@@ -275,7 +275,7 @@ pub fn draw_screen(
             opts,
             world_sync,
         ),
-        BlendAlgorithm::Compat => draw_screen_generic::<blend_modes::BlendAlgorithmCompat>(
+        BlendAlgorithm::Accurate => draw_screen_generic::<blend_modes::BlendAlgorithmAccurate>(
             seed,
             screen,
             index_screen,

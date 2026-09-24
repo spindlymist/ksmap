@@ -15,7 +15,7 @@ pub enum BlendMode {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BlendAlgorithm {
     Quality,
-    Compat,
+    Accurate,
 }
 
 pub trait Blend {
@@ -30,8 +30,8 @@ pub trait Blend {
 }
 
 pub struct BlendAlgorithmQuality;
-pub struct BlendAlgorithmCompat;
-pub struct BlendAlgorithmCompatCustomObj;
+pub struct BlendAlgorithmAccurate;
+pub struct BlendAlgorithmAccurateCustomObj;
 
 impl Blend for BlendAlgorithmQuality {
     type CustomObjectAlgorithm = Self;
@@ -107,8 +107,8 @@ impl Blend for BlendAlgorithmQuality {
     }
 }
 
-impl Blend for BlendAlgorithmCompat {
-    type CustomObjectAlgorithm = BlendAlgorithmCompatCustomObj;
+impl Blend for BlendAlgorithmAccurate {
+    type CustomObjectAlgorithm = BlendAlgorithmAccurateCustomObj;
 
     fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
         match fg[3] {
@@ -170,7 +170,7 @@ impl Blend for BlendAlgorithmCompat {
     }
 }
 
-impl Blend for BlendAlgorithmCompatCustomObj {
+impl Blend for BlendAlgorithmAccurateCustomObj {
     type CustomObjectAlgorithm = Self;
 
     fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
@@ -216,31 +216,31 @@ impl Blend for BlendAlgorithmCompatCustomObj {
     /// Unused
     #[inline(always)]
     fn blend_add(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
-        blend_add::<BlendAlgorithmCompat>(bg, fg);
+        blend_add::<BlendAlgorithmAccurate>(bg, fg);
     }
 
     /// Unused
     #[inline(always)]
     fn blend_sub(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
-        blend_sub::<BlendAlgorithmCompat>(bg, fg);
+        blend_sub::<BlendAlgorithmAccurate>(bg, fg);
     }
 
     /// Unused
     #[inline(always)]
     fn blend_and(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
-        blend_and::<BlendAlgorithmCompat>(bg, fg);
+        blend_and::<BlendAlgorithmAccurate>(bg, fg);
     }
 
     /// Unused
     #[inline(always)]
     fn blend_or(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
-        blend_or::<BlendAlgorithmCompat>(bg, fg);
+        blend_or::<BlendAlgorithmAccurate>(bg, fg);
     }
 
     /// Unused
     #[inline(always)]
     fn blend_xor(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
-        blend_xor::<BlendAlgorithmCompat>(bg, fg);
+        blend_xor::<BlendAlgorithmAccurate>(bg, fg);
     }
 }
 
