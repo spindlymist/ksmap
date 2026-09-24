@@ -38,6 +38,7 @@ impl Blend for BlendAlgorithmQuality {
 
     /// Adapted from image crate
     /// Source: https://github.com/image-rs/image/blob/ee6ecbf897ce0ad733849a0535f55d6fa6eb237c/src/color.rs
+    #[inline(always)]
     fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
         match fg[3] {
             0 => { return }
@@ -110,6 +111,7 @@ impl Blend for BlendAlgorithmQuality {
 impl Blend for BlendAlgorithmAccurate {
     type CustomObjectAlgorithm = BlendAlgorithmAccurateCustomObj;
 
+    #[inline(always)]
     fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
         match fg[3] {
             0 => { return }
@@ -173,6 +175,7 @@ impl Blend for BlendAlgorithmAccurate {
 impl Blend for BlendAlgorithmAccurateCustomObj {
     type CustomObjectAlgorithm = Self;
 
+    #[inline(always)]
     fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
         match fg[3] {
             0 => { return }
@@ -256,6 +259,7 @@ pub fn blend_pixels<B: Blend>(bg: &mut Rgb<u8>, fg: Rgba<u8>, blend_mode: BlendM
     }
 }
 
+#[inline(always)]
 fn blend_add<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] = bg[0].saturating_add(fg[0]);
     fg[1] = bg[1].saturating_add(fg[1]);
@@ -263,6 +267,7 @@ fn blend_add<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     B::blend_over(bg, fg);
 }
 
+#[inline(always)]
 fn blend_sub<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] = bg[0].saturating_sub(fg[0]);
     fg[1] = bg[1].saturating_sub(fg[1]);
@@ -270,6 +275,7 @@ fn blend_sub<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     B::blend_over(bg, fg);
 }
 
+#[inline(always)]
 fn blend_and<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] &= bg[0];
     fg[1] &= bg[1];
@@ -277,6 +283,7 @@ fn blend_and<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     B::blend_over(bg, fg);
 }
 
+#[inline(always)]
 fn blend_or<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] |= bg[0];
     fg[1] |= bg[1];
@@ -284,6 +291,7 @@ fn blend_or<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     B::blend_over(bg, fg);
 }
 
+#[inline(always)]
 fn blend_xor<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     fg[0] ^= bg[0];
     fg[1] ^= bg[1];
