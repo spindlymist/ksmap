@@ -36,8 +36,6 @@ pub struct BlendAlgorithmAccurateCustomObj;
 impl Blend for BlendAlgorithmQuality {
     type CustomObjectAlgorithm = Self;
 
-    /// Adapted from image crate
-    /// Source: https://github.com/image-rs/image/blob/ee6ecbf897ce0ad733849a0535f55d6fa6eb237c/src/color.rs
     #[inline(always)]
     fn blend_over(bg: &mut Rgb<u8>, fg: Rgba<u8>) {
         match fg[3] {
@@ -46,33 +44,24 @@ impl Blend for BlendAlgorithmQuality {
             _ => {}
         }
 
-        // Convert to 0.0..=1.0
         let (bg_r, bg_g, bg_b) = (
-            bg[0] as f32 / 255.0,
-            bg[1] as f32 / 255.0,
-            bg[2] as f32 / 255.0,
+            bg[0] as u16,
+            bg[1] as u16,
+            bg[2] as u16,
         );
         let (fg_r, fg_g, fg_b, fg_a) = (
-            fg[0] as f32 / 255.0,
-            fg[1] as f32 / 255.0,
-            fg[2] as f32 / 255.0,
-            fg[3] as f32 / 255.0,
+            fg[0] as u16,
+            fg[1] as u16,
+            fg[2] as u16,
+            fg[3] as u16,
         );
-
-        // Premultiply channels by their alpha to simplify calculations
-        let (fg_r_a, fg_g_a, fg_b_a) = (fg_r * fg_a, fg_g * fg_a, fg_b * fg_a);
-
-        // Standard formula for src-over alpha compositing
         let (out_r, out_g, out_b) = (
-            fg_r_a + bg_r * (1.0 - fg_a),
-            fg_g_a + bg_g * (1.0 - fg_a),
-            fg_b_a + bg_b * (1.0 - fg_a),
+            ((fg_a * fg_r) + (255 - fg_a) * bg_r + 127) / 255,
+            ((fg_a * fg_g) + (255 - fg_a) * bg_g + 127) / 255,
+            ((fg_a * fg_b) + (255 - fg_a) * bg_b + 127) / 255,
         );
 
-        // Convert back to 0..=255
-        bg[0] = (out_r * 255.0 + 0.5) as u8;
-        bg[1] = (out_g * 255.0 + 0.5) as u8;
-        bg[2] = (out_b * 255.0 + 0.5) as u8;
+        bg.0 = [out_r as u8, out_g as u8, out_b as u8];
     }
 
     #[inline(always)]
