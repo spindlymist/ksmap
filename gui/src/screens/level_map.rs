@@ -3,8 +3,8 @@ use std::thread::JoinHandle;
 use std::{path::{Path, PathBuf}, sync::{Arc, atomic::{self, AtomicBool}, mpsc::{self, TryRecvError}, RwLock}};
 use image::RgbaImage;
 use imgui_app::{Extras, Fonts, Textures};
-use imgui_app::dear_imgui_rs::{Condition, DockLayout, DockLayoutApply, DockSplit, InputText, InputTextCallbackHandler, InputTextFlags, Key, MouseButton, SelectableFlags, SortDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnUserData, TableColumnWidth, TableFlags, TextureId, Ui, WindowFlags, WindowKey};
-use ksmap::drawing::DrawContext;
+use imgui_app::dear_imgui_rs::{ColorEditFlags, Condition, DockLayout, DockLayoutApply, DockSplit, InputText, InputTextCallbackHandler, InputTextFlags, Key, MouseButton, SelectableFlags, SortDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnUserData, TableColumnWidth, TableFlags, TextureId, Ui, WindowFlags, WindowKey};
+use ksmap::drawing::{BlendAlgorithm, DrawContext};
 use ksmap::{
     definitions::ObjectDefs,
     drawing::{self, alpha_to_trans, DrawOptions, TintStrategy},
@@ -520,7 +520,7 @@ fn create_dockspace_layout(ui: &Ui) -> DockLayout {
     let preview_total_height = preview_inner_height + tab_bar_height + half_separator;
     let export_inner_height =
         (ui.text_line_height() * 2.0 + item_spacing_y) // Button
-        + (ui.text_line_height() + 2.0 * frame_padding_y + item_spacing_y) * 8.0 // Options
+        + (ui.text_line_height() + 2.0 * frame_padding_y + item_spacing_y) * 10.0 // Options
         + 2.0 * window_padding_y; // Padding
     let export_total_height = export_inner_height + tab_bar_height + half_separator;
 
@@ -1210,6 +1210,26 @@ fn build_window_drawing(
         *seed = MapSeed::random();
     }
     
+    let mut blend_index = match draw_options.blend_algorithm {
+        BlendAlgorithm::Quality => 0,
+        BlendAlgorithm::Accurate => 1,
+    };
+    ui.widget_group_label("Alpha blending");
+    if ui.combo_simple_string("##Blending", &mut blend_index, &[
+        "Quality",
+        "Accurate"
+    ]) {
+        match blend_index {
+            0 => draw_options.blend_algorithm = BlendAlgorithm::Quality,
+            1 => draw_options.blend_algorithm = BlendAlgorithm::Accurate,
+            _ => {}
+        }
+    }
+    tooltip(ui, "The alpha blending algorithm to use. The accurate algorithm may be preferred if the level uses \
+        bitwise tints (AND, OR, and XOR) or if you notice any artifacts that aren't present in game.\n\
+        - Quality: Use high quality alpha blending.\n\
+        - Accurate: Emulate the alpha blending in KS.");
+    
     let mut lasers_index = match (draw_options.ignore_laser_phase, sync_options.maximize_visible_lasers) {
         (false, true) => 0,
         (false, false) => 1,
@@ -1327,6 +1347,8 @@ struct ExportState {
     use_subdir_name_for_single: bool,
     use_multithreaded_encoder: bool,
     compression_level: u8,
+    rgb: bool,
+    background_color: [f32; 4],
 }
 
 impl ExportState {
@@ -1341,6 +1363,8 @@ impl ExportState {
             use_subdir_name_for_single: true,
             use_multithreaded_encoder: true,
             compression_level: 9,
+            rgb: false,
+            background_color: [0.0, 0.0, 0.0, 0.0],
         }
     }
 }
@@ -1460,6 +1484,18 @@ fn build_window_export(
     ui.checkbox("Multithreaded encoding", &mut export_state.use_multithreaded_encoder);
     tooltip(ui, "When enabled, multiple threads will be used for PNG encoding. This is usually MUCH faster, but the \
         compression ratio may be slightly worse.");
+        
+    ui.checkbox("Output RGB", &mut export_state.rgb);
+    tooltip(ui, "When enabled, the output image will have no alpha channel. This reduces memory usage and produces a \
+        smaller file, but void screens have to be filled with a solid color.");
+    
+    let mut bg_color_flags = ColorEditFlags::NO_INPUTS;
+    if export_state.rgb {
+        bg_color_flags |= ColorEditFlags::NO_ALPHA;
+    }
+    ui.color_edit4_config("Background color", &mut export_state.background_color)
+        .flags(bg_color_flags)
+        .build();
 }
 
 pub struct RenderState {
@@ -1545,57 +1581,152 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
         return;
     }
     
-    for (i, partition) in render_state.partitions.iter().enumerate() {
+    fn channel_to_u8(f: f32) -> u8 {
+        (f * 255.0 + 0.5) as u8
+    }
+    let [r, g, b, a] = export_state.background_color;
+    let background_color = [channel_to_u8(r), channel_to_u8(g), channel_to_u8(b), channel_to_u8(a)];
+    let background_color_rgb = [background_color[0], background_color[1], background_color[2]];
+    
+    for (partition_index, partition) in render_state.partitions.iter().enumerate() {
         if cancel.load(atomic::Ordering::Relaxed) {
             let _ = tx.send(RenderMessage::Aborted);
             return;
         }
         
-        let _ = tx.send(RenderMessage::PartitionUpdate(i, RenderTaskStatus::Rendering));
-        let canvas = match drawing::draw_partition(draw_context, partition, None) {
-            Ok(canvas) => canvas,
-            Err(err) => {
-                let _ = tx.send(RenderMessage::Error(err.to_string()));
-                return;
-            }
-        };
-
-        if cancel.load(atomic::Ordering::Relaxed) {
-            let _ = tx.send(RenderMessage::Aborted);
-            return;
-        }
-        
-        let _ = tx.send(RenderMessage::PartitionUpdate(i, RenderTaskStatus::Exporting));
         let file_name =
             if is_single_partition && export_state.use_subdir_name_for_single {
                 subdir_name.clone()
             }
             else {
                 let partition_info = name_pattern::PartitionInfo {
-                    index: i,
+                    index: partition_index,
                     bounds: partition.bounds(),
                 };
                 partition_name_pattern.make_string(&level_info, Some(partition_info))
             };
         let output_path = output_dir.join(file_name).with_extension("png");
         
-        if export_state.use_multithreaded_encoder {
-            if let Err(err) = drawing::export_canvas_multithreaded(canvas, &output_path, export_state.compression_level) {
-                let _ = tx.send(RenderMessage::Error(err.to_string()));
-                return;
-            }
+        let success = if export_state.rgb {
+            draw_and_export_rgb(
+                &tx,
+                &cancel,
+                partition_index,
+                partition,
+                draw_context,
+                &output_path,
+                export_state.use_multithreaded_encoder,
+                export_state.compression_level,
+                background_color_rgb
+            )
         }
         else {
-            if let Err(err) = drawing::export_canvas(canvas, &output_path, export_state.compression_level) {
-                let _ = tx.send(RenderMessage::Error(err.to_string()));
-                return;
-            }
+            draw_and_export(
+                &tx,
+                &cancel,
+                partition_index,
+                partition,
+                draw_context,
+                &output_path,
+                export_state.use_multithreaded_encoder,
+                export_state.compression_level,
+                background_color
+            )
+        };
+        if !success {
+            return;
         }
         
-        let _ = tx.send(RenderMessage::PartitionUpdate(i, RenderTaskStatus::Done));
+        let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Done));
     }
 
     let _ = tx.send(RenderMessage::Done);
+}
+
+#[inline]
+fn draw_and_export(
+    tx: &mpsc::Sender<RenderMessage>,
+    cancel: &Arc<AtomicBool>,
+    partition_index: usize,
+    partition: &Partition,
+    draw_context: DrawContext,
+    output_path: &Path,
+    use_multithreaded_encoder: bool,
+    compression_level: u8,
+    background_color: [u8; 4]
+) -> bool {
+    let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Rendering));
+    let canvas = match drawing::draw_partition(draw_context, partition, Some(background_color)) {
+        Ok(canvas) => canvas,
+        Err(err) => {
+            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            return false;
+        }
+    };
+    
+    if cancel.load(atomic::Ordering::Relaxed) {
+        let _ = tx.send(RenderMessage::Aborted);
+        return false;
+    }
+    
+    let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Exporting));
+    if use_multithreaded_encoder {
+        if let Err(err) = drawing::export_canvas_multithreaded(canvas, &output_path, compression_level) {
+            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            return false;
+        }
+    }
+    else {
+        if let Err(err) = drawing::export_canvas(canvas, &output_path, compression_level) {
+            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            return false;
+        }
+    }
+    
+    true
+}
+
+#[inline]
+fn draw_and_export_rgb(
+    tx: &mpsc::Sender<RenderMessage>,
+    cancel: &Arc<AtomicBool>,
+    partition_index: usize,
+    partition: &Partition,
+    draw_context: DrawContext,
+    output_path: &Path,
+    use_multithreaded_encoder: bool,
+    compression_level: u8,
+    background_color: [u8; 3]
+) -> bool {
+    let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Rendering));
+    let canvas = match drawing::draw_partition_rgb(draw_context, partition, Some(background_color)) {
+        Ok(canvas) => canvas,
+        Err(err) => {
+            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            return false;
+        }
+    };
+    
+    if cancel.load(atomic::Ordering::Relaxed) {
+        let _ = tx.send(RenderMessage::Aborted);
+        return false;
+    }
+    
+    let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Exporting));
+    if use_multithreaded_encoder {
+        if let Err(err) = drawing::export_canvas_multithreaded(canvas, &output_path, compression_level) {
+            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            return false;
+        }
+    }
+    else {
+        if let Err(err) = drawing::export_canvas(canvas, &output_path, compression_level) {
+            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            return false;
+        }
+    }
+    
+    true
 }
 
 fn build_window_progress(ui: &Ui, _ex: &mut Extras, state: &mut State) {
