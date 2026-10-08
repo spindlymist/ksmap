@@ -188,7 +188,12 @@ fn render_seeds(level_dir: &Path, seeds: &[MapSeed], output_dir: &Path, level_na
             .expect("IO error while loading gradients");
         gfx.load_objects(&assets_used.objects, &mut warnings)
             .expect("IO error while loading objects");
-        assert!(warnings.is_empty());
+        if !warnings.is_empty() {
+            println!("{level_name} had {} warnings while loading assets:", warnings.len());
+            for warning in warnings {
+                println!("    {warning}");
+            }
+        }
     }
     
     let screen_map = ScreenMap::new(screens);

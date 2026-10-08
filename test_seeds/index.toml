@@ -131,6 +131,13 @@ seeds = [
     "98EA9BB88B4527C6",
 ]
 
+["Lit Knob - Transparent Gradient Test"]
+seeds = [
+    "2552A20AED1C008C",
+    "46F60E75B3BDE305",
+    "EA801AAA9DEF404F",
+]
+
 ["Lit Knob - Umbrella and Keys Test"]
 seeds = [
     "4168898A8FBF3308",
