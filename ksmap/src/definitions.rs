@@ -536,8 +536,18 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
     
     let draw_params = {
         let base_offset = def.base.oco_offset.unwrap_or(def.draw.offset);
-        offset_x += base_offset.0;
-        offset_y += base_offset.1;
+        match def.base.oco_support {
+            OcoSupport::NoCustomGraphics => {
+                (offset_x, offset_y) = base_offset;
+            }
+            OcoSupport::Invisible => {
+                (offset_x, offset_y) = (0, 0);
+            }
+            _ => {
+                offset_x += base_offset.0;
+                offset_y += base_offset.1;
+            }
+        };
         
         let flip = if def.base.flip_ocos {
                 Flip::Always
