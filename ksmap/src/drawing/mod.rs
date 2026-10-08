@@ -7,7 +7,7 @@ use libks::{ScreenCoord, map_bin::{LayerData, ScreenData, Tile}};
 use libks_ini::edit::{Ini, LogicalSection};
 
 use crate::{
-    definitions::{AnimSync, Flip, ObjectDef, ObjectDefs, ObjectKind, TransAlgorithm, Visibility},
+    definitions::{AnimSync, Flip, FxType, ObjectDef, ObjectDefs, ObjectKind, TransAlgorithm, Visibility},
     graphics::{Gradient, Graphics, spritesheet::Spritesheet},
     id::{ObjectId, ObjectVariant},
     ini_util::{LogicalSectionExt, unpack_color},
@@ -401,8 +401,8 @@ fn draw_object_layer<B: Blend>(ctx: &mut ScreenContext<'_, B>, layer: &LayerData
 
         let actual_id = ObjectId::from(tile);
         let Some(object_def) = ctx.defs.get(&actual_id) else { continue };
-        let proxy_id = match object_def.kind {
-            ObjectKind::OverrideObject(tile_original) => ObjectId::from(tile_original),
+        let proxy_id = match &object_def.kind {
+            ObjectKind::OverrideObject(original_id) => *original_id,
             _ => ObjectId::from(tile),
         };
         let mut curs = Cursor {
@@ -459,6 +459,7 @@ fn draw_object_layer<B: Blend>(ctx: &mut ScreenContext<'_, B>, layer: &LayerData
             Tile(0, 34) => draw_shift(ctx, curs, "TrigVisible(C)", "TrigType(C)"),
             Tile(1, 5 | 10 | 12 | 22) => draw_with_glow(ctx, curs),
             Tile(2, 18 | 19) => draw_elemental(ctx, curs),
+            Tile(7, _) => draw_nature_fx(ctx, curs, object_def),
             Tile(8, 10) => draw_with_random_offset(ctx, curs, -6..=6),
             Tile(8, 15) => draw_with_random_offset(ctx, curs, -12..=12),
             Tile(254.., _) => {
@@ -481,6 +482,7 @@ where
     unsafe { &mut *(ctx as *mut ScreenContext<'b, In> as *mut ScreenContext<'b, Out>) }
 }
 
+#[inline(always)]
 fn draw_object<B: Blend>(
     ctx: &mut ScreenContext<'_, B>,
     at_index: usize,
@@ -518,13 +520,12 @@ fn draw_object_with_offset<B: Blend>(
     }
     
     let Some(obj_image) = ctx.gfx.object(&id) else { return };
-    
-    let anim_t = match &def.sync.sync_to {
+    let anim_t = match def.sync.sync_to {
         AnimSync::None => None,
         AnimSync::Screen => Some(ctx.sync.anim_t),
         AnimSync::Group => Some(ctx.sync.group.anim_t),
     };
-    draw_spritesheet(ctx, at_index as u8, id, &def, anim_t, obj_image, offset, flip);
+    draw_spritesheet(ctx, at_index as u8, id, def, anim_t, obj_image, offset, flip);
 }
 
 fn draw_spritesheet<B: Blend>(
@@ -649,6 +650,24 @@ fn draw_with_random_offset<B: Blend>(ctx: &mut ScreenContext<'_, B>, curs: Curso
     let offset_x = rng.random_range(range.clone());
     let offset_y = rng.random_range(range);
     draw_object_with_offset(ctx, curs.i, curs.actual_id, (offset_x, offset_y));
+}
+
+fn draw_nature_fx<B: Blend>(ctx: &mut ScreenContext<'_, B>, curs: Cursor, object_def: &ObjectDef) {
+    if object_def.sync.fx_type == FxType::Particle
+        && let Some(particle_id) = &object_def.sync.fx_particle
+    {
+        let color = ctx.sync.color_overrides.get(particle_id)
+            .cloned()
+            .unwrap_or(object_def.base.color_base);
+        // This is essentially a stripped down draw_object with no support for flipping or animation sync,
+        // which aren't needed for bank 7
+        let Some(def) = ctx.defs.get(particle_id) else { return };
+        let Some(obj_image) = ctx.gfx.particle(particle_id, color) else { return };
+        draw_spritesheet(ctx, curs.i as u8, *particle_id, def, None, obj_image, (0, 0), false);
+    }
+    else {
+        draw_object(ctx, curs.i, curs.actual_id);
+    }
 }
 
 fn apply_tint<B: Blend>(ctx: &mut ScreenContext<'_, B>){

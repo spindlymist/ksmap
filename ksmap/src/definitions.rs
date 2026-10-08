@@ -9,7 +9,7 @@ use serde::Deserialize;
 use crate::{
     drawing::BlendMode,
     id::{ObjectId, ObjectVariant},
-    ini_util::{unpack_color, LogicalSectionExt},
+    ini_util::LogicalSectionExt,
 };
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -25,8 +25,6 @@ pub struct ObjectDef {
     pub draw: DrawParams,
     #[serde(flatten)]
     pub anim: AnimParams,
-    #[serde(skip)]
-    pub replace_colors: Vec<ColorReplacement>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -34,7 +32,7 @@ pub enum ObjectKind {
     #[default]
     Object,
     CustomObject,
-    OverrideObject(Tile),
+    OverrideObject(ObjectId),
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -46,7 +44,8 @@ pub struct BaseParams {
     pub flip_ocos: bool,
     #[serde(default)]
     pub no_oco_black_transparency: bool,
-    pub color_base: Option<i32>,
+    #[serde(default)]
+    pub color_base: i32,
     #[serde(default)]
     pub color_offsets: Vec<i32>,
     pub override_key: Option<String>,
@@ -74,6 +73,9 @@ pub struct SyncParams {
     pub sync_offset: u32,
     #[serde(default)]
     pub laser_phase: Option<LaserPhase>,
+    #[serde(default)]
+    pub fx_type: FxType,
+    pub fx_particle: Option<ObjectId>,
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -182,6 +184,7 @@ pub enum OcoSupport {
     #[default]
     Full,
     NoCustomGraphics,
+    Invisible,
     None,
 }
 
@@ -210,17 +213,18 @@ pub enum LaserPhase {
     Green,
 }
 
-#[derive(Debug, Clone)]
-pub struct ColorReplacement {
-    pub old: [u8; 3],
-    pub new: [u8; 3],
-    pub is_transparent: bool,
-}
-
 #[derive(Debug, Clone, Copy, Default, Deserialize)]
 pub struct AnimRange {
     pub from: u32,
     pub to: u32,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Deserialize)]
+pub enum FxType {
+    #[default]
+    None,
+    Generator,
+    Particle,
 }
 
 #[derive(Clone)]
@@ -375,10 +379,10 @@ fn co_def_from_ini(
             let oco_id = ObjectId::from((bank, object));
             let oco_def = defs.get(&oco_id);
             match oco_def.map(|def| def.base.oco_support) {
-                Some(OcoSupport::Full | OcoSupport::NoCustomGraphics) => {
+                Some(OcoSupport::None) | None => create_botched_oco_def(props),
+                _ => {
                     create_oco_def(id, oco_id, props, oco_def.unwrap())
                 }
-                _ => create_botched_oco_def(props)
             }
         }
         _ => create_botched_oco_def(props)
@@ -395,7 +399,9 @@ fn co_def_from_ini(
         // and inherit a different frame size from the base object.
         let new_size = locked_sizes.entry(path_lower)
             .or_insert((tile_width, tile_height));
-        if def.base.oco_support != OcoSupport::NoCustomGraphics {
+        if def.base.oco_support != OcoSupport::NoCustomGraphics
+            && def.base.oco_support != OcoSupport::Invisible
+        {
             def.anim.frame_size = *new_size;
         }
     }
@@ -455,7 +461,6 @@ fn create_regular_co_def(props: CustomObjectProps) -> Option<ObjectDef> {
         sync: sync_params,
         draw: draw_params,
         anim: anim_params,
-        replace_colors: Vec::new(),
     })
 }
 
@@ -484,9 +489,15 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
     assert!(object > 0);
     assert!(def.base.oco_support != OcoSupport::None);
     
-    if image == "" && def.base.oco_support != OcoSupport::NoCustomGraphics {
+    let needs_graphics = match def.base.oco_support {
+        OcoSupport::NoCustomGraphics => false,
+        OcoSupport::Invisible => false,
+        _ => true
+    };
+    if needs_graphics && image.is_empty() {
         return None;
     }
+    let path = needs_graphics.then_some(image);
     
     let sync_params = {
         let mut sync_north = Vec::new();
@@ -518,6 +529,8 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
             sync_south,
             sync_offset: def.sync.sync_offset,
             laser_phase: def.sync.laser_phase,
+            fx_type: def.sync.fx_type,
+            fx_particle: def.sync.fx_particle,
         }
     };
     
@@ -546,10 +559,17 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
     };
     
     let anim_params = {
-        if def.base.oco_support == OcoSupport::NoCustomGraphics {
-            tile_width = def.anim.frame_size.0;
-            tile_height = def.anim.frame_size.1;
-        }
+        match def.base.oco_support {
+            OcoSupport::NoCustomGraphics => {
+                tile_width = def.anim.frame_size.0;
+                tile_height = def.anim.frame_size.1;
+            }
+            OcoSupport::Invisible => {
+                tile_width = 24;
+                tile_height = 24;
+            }
+            _ => {}
+        };
         
         AnimParams {
             frame_size: (tile_width, tile_height),
@@ -557,31 +577,17 @@ fn create_oco_def(id: ObjectId, oco_id: ObjectId, props: CustomObjectProps, def:
         }
     };
     
-    let mut replace_colors = Vec::new();
-    if let Some(color_base) = def.base.color_base {
-        for offset in [0].iter().chain(def.base.color_offsets.iter()) {
-            let old = unpack_color(color_base + offset);
-            let new = unpack_color(color + offset);
-            let is_transparent = !def.base.no_oco_black_transparency && new == [0, 0, 0];
-            replace_colors.push(ColorReplacement {
-                old,
-                new,
-                is_transparent,
-            });
-        }
-    }
-    
     Some(ObjectDef {
-        kind: ObjectKind::OverrideObject(oco_id.0),
-        path: Some(image),
+        kind: ObjectKind::OverrideObject(oco_id),
+        path,
         base: BaseParams {
             oco_support: def.base.oco_support,
+            color_base: color,
             ..Default::default()
         },
         sync: sync_params,
         draw: draw_params,
         anim: anim_params,
-        replace_colors,
     })
 }
 

@@ -1019,20 +1019,30 @@ visibility = "Proximity"
 
 [7-1]
 visibility = "Never"
-oco_support = "NoCustomGraphics"
+color_base = 8
+oco_support = "Invisible"
+fx_type = "Generator"
+fx_particle = "7-2"
 
 [7-2]
 anim_to = 12
 color_base = 8
 oco_support = "NoCustomGraphics"
+fx_type = "Particle"
+fx_particle = "7-2"
 
 [7-3]
 visibility = "Never"
-oco_support = "NoCustomGraphics"
+color_base = 14408667
+oco_support = "Invisible"
+fx_type = "Generator"
+fx_particle = "7-4"
 
 [7-4]
 color_base = 14408667
 oco_support = "NoCustomGraphics"
+fx_type = "Particle"
+fx_particle = "7-4"
 
 [7-5]
 color_base = 16711679
@@ -1043,56 +1053,83 @@ transparency_min = 108
 frame_size = [20, 98]
 offset = [-2, 37]
 oco_support = "NoCustomGraphics"
+fx_type = "Particle"
+fx_particle = "7-5"
 
 [7-6]
 visibility = "Never"
-oco_support = "NoCustomGraphics"
+color_base = 10639221
+oco_support = "Invisible"
+fx_type = "Generator"
+fx_particle = "7-7"
 
 [7-7]
 anim_to = 22
 color_base = 10639221
 color_offsets = [989204, -1970198]
 oco_support = "NoCustomGraphics"
+fx_type = "Particle"
+fx_particle = "7-7"
 
 [7-8]
 visibility = "Never"
-oco_support = "NoCustomGraphics"
+color_base = 8944745
+oco_support = "Invisible"
+fx_type = "Generator"
+fx_particle = "7-9"
 
 [7-9]
 anim_to = 4
 color_base = 8944745
 color_offsets = [-1249551]
 oco_support = "NoCustomGraphics"
+fx_type = "Particle"
+fx_particle = "7-9"
 
 [7-10]
 visibility = "Never"
-oco_support = "NoCustomGraphics"
+color_base = 2709554
+oco_support = "Invisible"
+fx_type = "Generator"
+fx_particle = "7-11"
 
 [7-11]
 anim_to = 22
 color_base = 2709554
 oco_support = "NoCustomGraphics"
+fx_type = "Particle"
+fx_particle = "7-11"
 
 [7-12]
 visibility = "Never"
-oco_support = "NoCustomGraphics"
+color_base = 16711679
+oco_support = "Invisible"
+fx_type = "Generator"
+fx_particle = "7-13"
 
 [7-13]
 anim_to = 22
 color_base = 16711679
 oco_support = "NoCustomGraphics"
+fx_type = "Particle"
+fx_particle = "7-13"
 
 [7-14]
 visibility = "Never"
-oco_support = "NoCustomGraphics"
+color_base = 986895
+oco_support = "Invisible"
+fx_type = "Generator"
+fx_particle = "7-15"
 
 [7-15]
 color_base = 986895
 oco_support = "NoCustomGraphics"
+fx_type = "Particle"
+fx_particle = "7-15"
 
 [7-16]
 visibility = "Never"
-oco_support = "NoCustomGraphics"
+oco_support = "Invisible"
 
 [7-17]
 visibility = "Never"

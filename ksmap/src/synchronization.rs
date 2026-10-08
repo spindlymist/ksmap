@@ -6,11 +6,7 @@ use rand::prelude::*;
 use libks::{constants::{SCREEN_WIDTH, TILES_PER_LAYER}, map_bin::{LayerData, ScreenData}};
 
 use crate::{
-    analysis::count_laser_phases,
-    definitions::{LaserPhase, Limit, ObjectDefs, ObjectKind, TransAlgorithm, TransParams},
-    id::ObjectId,
-    screen_map::ScreenMap,
-    seed::{MapSeed, RngStep},
+    analysis::count_laser_phases, definitions::{FxType, LaserPhase, Limit, ObjectDefs, ObjectKind, TransAlgorithm, TransParams}, id::ObjectId, screen_map::ScreenMap, seed::{MapSeed, RngStep},
 };
 
 pub struct WorldSync {
@@ -28,6 +24,7 @@ pub struct ScreenSync {
     pub anim_t: u32,
     pub limiters: FxHashMap<ObjectId, Limiter>,
     pub trans_overrides: FxHashMap<ObjectId, TransParams>,
+    pub color_overrides: FxHashMap<ObjectId, i32>,
 }
 
 pub struct Limiter {
@@ -186,17 +183,20 @@ impl ScreenSync {
             .write(screen.position)
             .next_u32();
         
+        // Iterate one time over all objects and tally etc.
         let mut limit_counts = FxHashMap::default();
         let mut trans_counts = FxHashMap::default();
-
+        let mut generators = FxHashMap::<ObjectId, (i32, Option<i32>)>::default();
+        let mut particles = FxHashMap::<ObjectId, i32>::default();
         for LayerData(layer) in &screen.layers[4..] {
             for tile in layer {
                 if tile.1 == 0 { continue }
                 let Some(def) = object_defs.get(&ObjectId::from(tile)) else { continue };
                 
+                // Limited objects
                 if def.sync.limit != Limit::None {
-                    let id = match &def.kind {
-                        ObjectKind::OverrideObject(tile_original) => ObjectId::from(tile_original),
+                    let id = match def.kind {
+                        ObjectKind::OverrideObject(original_id) => original_id,
                         _ => ObjectId::from(tile),
                     };
                     limit_counts.entry(id)
@@ -204,6 +204,7 @@ impl ScreenSync {
                         .or_insert(1);
                 }
                 
+                // Random transparency objects
                 if def.draw.trans_algo == TransAlgorithm::Ghost
                     || def.draw.trans_algo == TransAlgorithm::Firefly
                 {
@@ -212,9 +213,29 @@ impl ScreenSync {
                         .and_modify(|count| *count += 1)
                         .or_insert(1);
                 }
+                
+                // Nature FX generators and particles
+                if let Some(particle_id) = &def.sync.fx_particle {
+                    let color = def.base.color_base;
+                    match def.sync.fx_type {
+                        FxType::Generator => {
+                            generators.entry(*particle_id)
+                                .and_modify(|(last_color, penultimate_color)| {
+                                    penultimate_color.replace(*last_color);
+                                    *last_color = color;
+                                })
+                                .or_insert((color, None));
+                        }
+                        FxType::Particle => {
+                            particles.insert(*particle_id, color);
+                        }
+                        FxType::None => {}
+                    }
+                }
             }
         }
         
+        // Limited objects
         let mut limiters = FxHashMap::default();
         for (id, count) in limit_counts {
             let mut rng = seed.hasher(RngStep::Limiters)
@@ -243,6 +264,7 @@ impl ScreenSync {
             }
         }
         
+        // Random transparency objects
         let mut trans_overrides = FxHashMap::default();
         for (id, count) in trans_counts {
             if count >= trans_max_threshold { continue }
@@ -252,12 +274,35 @@ impl ScreenSync {
             params.sanitize();
             trans_overrides.insert(id, params);
         }
-    
+        
+        // Nature FX generators and particles
+        // If there are no generators, particles in the same group take the color of the last one on the screen
+        // Otherwise, they take the color of one of the last two generators in that group (alternating each frame)
+        let mut color_overrides = FxHashMap::default();
+        for (particle_id, (last_color, penultimate_color)) in generators {
+            let override_color = match penultimate_color {
+                Some(penultimate_color) => {
+                    let mut rng = seed.hasher(RngStep::FxGenerator)
+                        .write(screen.position)
+                        .write(particle_id)
+                        .into_rng();
+                    if rng.random() { last_color } else { penultimate_color }
+                }
+                None => last_color
+            };
+            color_overrides.insert(particle_id, override_color);
+        }
+        for (particle_id, last_color) in particles {
+            color_overrides.entry(particle_id)
+                .or_insert(last_color);
+        }
+        
         Self {
             group,
             anim_t,
             limiters,
             trans_overrides,
+            color_overrides,
         }
     }
 }

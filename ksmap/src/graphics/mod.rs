@@ -12,11 +12,12 @@ use std::{
 use anyhow::Result;
 use image::{DynamicImage, ExtendedColorType, ImageError, Pixel, Rgba, RgbaImage, error::UnsupportedErrorKind};
 use libks::map_bin::AssetId;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
-    definitions::{ColorReplacement, ObjectDef, ObjectDefs, ObjectKind, OcoSupport},
+    definitions::{ObjectDef, ObjectDefs, ObjectKind, OcoSupport},
     id::{ObjectId, ObjectVariant},
+    ini_util::unpack_color,
 };
 use spritesheet::Spritesheet;
 
@@ -31,6 +32,7 @@ struct GraphicsInner {
     tilesets: FxHashMap<AssetId, Arc<RgbaImage>>,
     gradients: FxHashMap<AssetId, Gradient>,
     objects: FxHashMap<ObjectId, Spritesheet>,
+    particles: FxHashMap<Particle, Spritesheet>,
 }
 
 struct Paths {
@@ -60,6 +62,18 @@ impl Clone for ImageInfo {
 pub struct Gradient {
     pub image: Arc<RgbaImage>,
     pub has_transparency: bool,
+}
+
+#[derive(PartialEq, Eq, Hash)]
+struct Particle {
+    id: ObjectId,
+    color: i32,
+}
+
+struct ColorReplacement {
+    pub old: [u8; 3],
+    pub new: [u8; 3],
+    pub is_transparent: bool,
 }
 
 impl Paths {
@@ -119,6 +133,7 @@ impl Graphics {
             tilesets: FxHashMap::default(),
             gradients: FxHashMap::default(),
             objects: FxHashMap::default(),
+            particles: FxHashMap::default(),
         };
 
         Self {
@@ -138,6 +153,13 @@ impl Graphics {
 
     pub fn object(&self, id: &ObjectId) -> Option<&Spritesheet> {
         self.inner.objects.get(&id)
+    }
+    
+    pub fn particle(&self, id: &ObjectId, color: i32) -> Option<&Spritesheet> {
+        self.inner.particles.get(&Particle {
+            id: *id,
+            color
+        })
     }
     
     pub fn load_tilesets(&mut self, ids: &[AssetId], warnings: &mut Vec<LoadImageWarning>) -> Result<()> {
@@ -160,18 +182,41 @@ impl Graphics {
     
     pub fn load_objects(&mut self, ids: &[ObjectId], warnings: &mut Vec<LoadImageWarning>) -> Result<()> {
         let object_defs = self.object_defs.as_ref();
+        let mut particles = FxHashSet::<Particle>::default();
+        
         for id in ids {
-            let Some(def) = object_defs.get(id) else { continue };
-            let image = match &def.kind {
-                ObjectKind::Object => self.inner.load_stock_object(id, def, warnings)?,
-                ObjectKind::CustomObject => self.inner.load_custom_object(def, warnings)?,
-                ObjectKind::OverrideObject(_) => self.inner.load_override_object(def, object_defs, warnings)?,
-            };
-            if let Some(image) = image {
-                let spritesheet = Spritesheet::new(image, &def.anim);
-                self.inner.objects.insert(id.clone(), spritesheet);
+            let Some(def) = object_defs.get(&id) else { continue };
+            self.inner.load_object(id, def, &self.object_defs, warnings)?;
+            
+            // Particles may need to be loaded/recolored even if they aren't used directly
+            if let Some(particle_id) = def.sync.fx_particle {
+                particles.insert(Particle {
+                    id: particle_id,
+                    color: def.base.color_base
+                });
             }
         }
+        
+        for particle in particles {
+            let Some(def) = object_defs.get(&particle.id) else { continue };
+            self.inner.load_object(&particle.id, def, &self.object_defs, warnings)?;
+            
+            let Some(base_spritesheet) = self.inner.objects.get(&particle.id) else { continue };
+            let recolored_image = recolor_image(
+                &base_spritesheet.image,
+                def.base.color_base,
+                &def.base.color_offsets,
+                particle.color,
+                !def.base.no_oco_black_transparency
+            );
+            let recolored_spritesheet = Spritesheet {
+                image: recolored_image,
+                ..base_spritesheet.clone()
+            };
+            
+            self.inner.particles.insert(particle, recolored_spritesheet);
+        }
+        
         Ok(())
     }
 }
@@ -350,6 +395,30 @@ impl GraphicsInner {
             has_transparency,
         }
     }
+    
+    fn load_object(
+        &mut self,
+        id: &ObjectId,
+        def: &ObjectDef,
+        object_defs: &ObjectDefs,
+        warnings: &mut Vec<LoadImageWarning>
+    ) -> Result<()> {
+        if self.objects.contains_key(id) {
+            return Ok(());
+        }
+        
+        let image = match def.kind {
+            ObjectKind::Object => self.load_stock_object(id, def, warnings)?,
+            ObjectKind::CustomObject => self.load_custom_object(def, warnings)?,
+            ObjectKind::OverrideObject(_) => self.load_override_object(id, def, object_defs, warnings)?,
+        };
+        
+        let Some(image) = image else { return Ok(()) };
+        let spritesheet = Spritesheet::new(image, &def.anim);
+        self.objects.insert(*id, spritesheet);
+        
+        Ok(())
+    }
 
     fn load_stock_object(
         &mut self,
@@ -406,48 +475,28 @@ impl GraphicsInner {
 
     fn load_override_object(
         &mut self,
+        id: &ObjectId,
         def: &ObjectDef,
         object_defs: &ObjectDefs,
         warnings: &mut Vec<LoadImageWarning>,
     ) -> Result<MaybeImageRc, LoadImageError> {
-        let image = match def.base.oco_support {
+        match def.base.oco_support {
+            OcoSupport::Full | OcoSupport::None => {
+                self.load_custom_object(def, warnings)
+            }
             OcoSupport::NoCustomGraphics => {
-                let ObjectKind::OverrideObject(original_tile) = def.kind else {
+                let ObjectKind::OverrideObject(original_id) = def.kind else {
                     return Ok(None);
                 };
-                let original_id = ObjectId::from(original_tile);
                 let Some(original_def) = object_defs.get(&original_id) else {
                     return Ok(None);
                 };
-                self.load_stock_object(&original_id, original_def, warnings)?
+                self.load_stock_object(&original_id, original_def, warnings)
             }
-            _ => self.load_custom_object(def, warnings)?
-        };
-        
-        if def.replace_colors.is_empty() {
-            return Ok(image);
-        }
-        let Some(image) = image else {
-            return Ok(image);
-        };
-        
-        let mut transformed_image = (*image).clone();
-
-        for Rgba(pixel) in transformed_image.pixels_mut() {
-            for ColorReplacement { old, new, is_transparent } in &def.replace_colors {
-                if pixel[..3] == old[..3] {
-                    pixel[0] = new[0];
-                    pixel[1] = new[1];
-                    pixel[2] = new[2];
-                    if *is_transparent {
-                        pixel[3] = 0;
-                    }
-                    break;
-                }
+            OcoSupport::Invisible => {
+                self.load_stock_object(&id, def, warnings)
             }
         }
-        
-        Ok(Some(Arc::new(transformed_image)))
     }
 }
 
@@ -464,6 +513,47 @@ fn resize_image_canvas(image: &RgbaImage, new_width: u32, new_height: u32, fill:
     }
     
     new_image
+}
+
+fn recolor_image(
+    image: &Arc<RgbaImage>,
+    color_base: i32,
+    color_offsets: &[i32],
+    color_new: i32,
+    black_is_transparent: bool
+) -> Arc<RgbaImage> {
+    if color_new == color_base {
+        return Arc::clone(image);
+    }
+    
+    let mut replace_colors = Vec::with_capacity(color_offsets.len() + 1);
+    for offset in [0].iter().chain(color_offsets.iter()) {
+        let old = unpack_color(color_base + offset);
+        let new = unpack_color(color_new + offset);
+        let is_transparent = black_is_transparent && new == [0, 0, 0];
+        replace_colors.push(ColorReplacement {
+            old,
+            new,
+            is_transparent,
+        });
+    }
+    
+    let mut recolored_image = RgbaImage::clone(image);
+    for Rgba(pixel) in recolored_image.pixels_mut() {
+        for ColorReplacement { old, new, is_transparent } in &replace_colors {
+            if pixel[..3] == old[..3] {
+                pixel[0] = new[0];
+                pixel[1] = new[1];
+                pixel[2] = new[2];
+                if *is_transparent {
+                    pixel[3] = 0;
+                }
+                break;
+            }
+        }
+    }
+    
+    Arc::new(recolored_image)
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]

@@ -5,6 +5,7 @@ use rand::{Rng, RngExt};
 
 use crate::definitions::AnimParams;
 
+#[derive(Clone)]
 pub struct Spritesheet {
     pub image: Arc<RgbaImage>,
     pub n_frames: u32,

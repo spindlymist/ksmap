@@ -20,6 +20,7 @@ pub enum RngStep {
     GroupAnimationTime = 2,
     LaserPhases = 3,
     Limiters = 4,
+    FxGenerator = 10,
     // Drawing
     Frame = 5,
     Offset = 6,

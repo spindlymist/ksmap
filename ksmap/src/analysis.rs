@@ -44,8 +44,8 @@ pub fn list_assets(screens: &[ScreenData], defs: &ObjectDefs) -> AssetsUsed {
     let mut objects_original = HashSet::<ObjectId>::new();
     for id in &objects_seen {
         let Some(def) = defs.get(id) else { continue };
-        if let ObjectKind::OverrideObject(tile_original) = &def.kind {
-            objects_original.insert(ObjectId::from(tile_original));
+        if let ObjectKind::OverrideObject(original_id) = def.kind {
+            objects_original.insert(original_id);
         }
     }
     objects_seen.extend(objects_original.into_iter());
