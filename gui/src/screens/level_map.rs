@@ -47,7 +47,7 @@ impl State {
         level_dir: PathBuf,
         render_state: RenderState,
         partition_state: PartitionState,
-        can_return_to_level_list: bool
+        can_return_to_level_list: bool,
     ) -> Self {
         State {
             can_return_to_level_list,
@@ -392,6 +392,28 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                 &render_state.sync_options
             );
         }
+        // If the blending accuracy was changed and the level has 16-bit assets, we need to reload the graphics
+        // due to the lossy conversion from 16-bit to 8-bit.
+        if invalidations.graphics && render_state.gfx.has_quantized_assets() {
+            let emulate_mmf_quantization = render_state.draw_options.blend_algorithm == BlendAlgorithm::Accurate;
+            render_state.gfx.set_emulate_mmf_quantization(emulate_mmf_quantization);
+            
+            let assets = ksmap::analysis::list_assets(render_state.screen_map.as_slice(), &render_state.object_defs);
+            let mut warnings = Vec::new();
+            render_state.gfx.clear();
+            if render_state.gfx.load_tilesets(&assets.tilesets, &mut warnings).is_err()
+                || render_state.gfx.load_gradients(&assets.gradients, &mut warnings).is_err()
+                || render_state.gfx.load_objects(&assets.objects, &mut warnings).is_err()
+            {
+                if *can_return_to_level_list {
+                    show_level_list = true;
+                }
+                else {
+                    // There's no easy way to handle this extremely niche error state, so just terminate the process
+                    return Some(Task::Exit);
+                }
+            }
+        }
     }
     
     // Map
@@ -492,7 +514,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         }
     }
     
-    if show_level_list {
+    if *can_return_to_level_list && show_level_list {
         Some(Task::ShowLevelList)
     }
     else {
@@ -1166,6 +1188,7 @@ impl Default for DrawingState {
 struct Invalidations {
     world_sync: bool,
     preview: bool,
+    graphics: bool,
 }
 
 struct MapSeedEditCallback(usize);
@@ -1190,6 +1213,7 @@ fn build_window_drawing(
     let original_seed = seed.clone();
     let original_draw_options = draw_options.clone();
     let original_sync_options = sync_options.clone();
+    let original_blend_algorithm = draw_options.blend_algorithm;
     
     let _token = ui.widget_group_begin();
     
@@ -1336,6 +1360,9 @@ fn build_window_drawing(
     if *seed != original_seed {
         invalidations.preview = true;
         invalidations.world_sync = true;
+    }
+    if draw_options.blend_algorithm != original_blend_algorithm {
+        invalidations.graphics = true;
     }
     
     invalidations

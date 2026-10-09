@@ -163,7 +163,13 @@ fn init_render_state(tx: mpsc::Sender<LoadMessage>, ks_dir: PathBuf, level_dir: 
         current_dir.set_file_name("ksmap_data/templates");
         current_dir
     };
-    let mut gfx = Graphics::new(data_dir, level_dir.clone(), templates_dir, Arc::clone(&object_defs));
+    let mut gfx = Graphics::new(
+        data_dir,
+        level_dir.clone(),
+        templates_dir,
+        Arc::clone(&object_defs),
+        false
+    );
 
     let assets = list_assets(screen_map.as_slice(), &object_defs);
     let mut warnings = Vec::new();

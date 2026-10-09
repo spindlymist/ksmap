@@ -13,7 +13,7 @@ use ksmap::synchronization::{SyncOptions, WorldSync};
 use libks::{map_bin, world_ini};
 
 use ksmap::{analysis, definitions};
-use ksmap::drawing::{self, DrawContext, DrawOptions};
+use ksmap::drawing::{self, BlendAlgorithm, DrawContext, DrawOptions};
 use ksmap::graphics::Graphics;
 use ksmap::screen_map::ScreenMap;
 
@@ -81,11 +81,13 @@ fn main() -> Result<()> {
     });
     
     let data_dir = cli.data_dir.unwrap_or_else(|| level_dir.join("../../Data"));
+    let blend_algorithm: BlendAlgorithm = cli.blending.into();
     let mut gfx = Graphics::new(
         data_dir,
         &level_dir,
         &cli.templates_dir,
         Arc::clone(&object_defs),
+        blend_algorithm == BlendAlgorithm::Accurate
     );
     
     let mut asset_warnings = Vec::new();
@@ -116,7 +118,7 @@ fn main() -> Result<()> {
         cli.force);
 
     let draw_options = DrawOptions {
-        blend_algorithm: cli.blending.into(),
+        blend_algorithm,
         show_invisible: cli.show_invisible,
         show_proximity: cli.show_proximity,
         trans_max_override: drawing::alpha_to_trans(cli.min_alpha),

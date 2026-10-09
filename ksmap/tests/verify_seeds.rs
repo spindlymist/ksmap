@@ -50,6 +50,7 @@ fn verify_seeds(level_name: &str, seeds: &[MapSeed]) {
         &level_dir,
         TEMPLATES_DIR.as_path(),
         Arc::clone(&object_defs),
+        false
     );
     let assets_used = analysis::list_assets(&screens, &object_defs);
     

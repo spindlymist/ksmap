@@ -177,6 +177,7 @@ fn render_seeds(level_dir: &Path, seeds: &[MapSeed], output_dir: &Path, level_na
         &level_dir,
         TEMPLATES_DIR.as_path(),
         Arc::clone(&object_defs),
+        false
     );
     let assets_used = analysis::list_assets(&screens, &object_defs);
     

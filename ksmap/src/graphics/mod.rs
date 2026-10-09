@@ -33,6 +33,8 @@ struct GraphicsInner {
     gradients: FxHashMap<AssetId, Gradient>,
     objects: FxHashMap<ObjectId, Spritesheet>,
     particles: FxHashMap<Particle, Spritesheet>,
+    emulate_mmf_quantization: bool,
+    has_quantized_assets: bool,
 }
 
 struct Paths {
@@ -121,6 +123,7 @@ impl Graphics {
         level_dir: impl AsRef<Path>,
         templates_dir: impl Into<PathBuf>,
         object_defs: Arc<ObjectDefs>,
+        emulate_mmf_quantization: bool,
     ) -> Self {
         let paths = Paths::new(
             data_dir,
@@ -134,6 +137,8 @@ impl Graphics {
             gradients: FxHashMap::default(),
             objects: FxHashMap::default(),
             particles: FxHashMap::default(),
+            emulate_mmf_quantization,
+            has_quantized_assets: false,
         };
 
         Self {
@@ -219,6 +224,20 @@ impl Graphics {
         
         Ok(())
     }
+    
+    pub fn clear(&mut self) {
+        self.inner.clear();
+    }
+    
+    /// This option does not affect assets that have already been loaded.
+    /// After changing this option, you must call `clear` and `load_*` again.
+    pub fn set_emulate_mmf_quantization(&mut self, enabled: bool) {
+        self.inner.emulate_mmf_quantization = enabled;
+    }
+    
+    pub fn has_quantized_assets(&self) -> bool {
+        self.inner.has_quantized_assets
+    }
 }
 
 impl GraphicsInner {
@@ -278,7 +297,8 @@ impl GraphicsInner {
         };
 
         let has_alpha = image.has_alpha();
-        let mut image = image.into_rgba8();
+        let (mut image, was_quantized) = dyn_image_to_rgba8(image, self.emulate_mmf_quantization);
+        self.has_quantized_assets |= was_quantized;
 
         if !has_alpha || magic_color.force {
             for pixel in image.pixels_mut() {
@@ -498,6 +518,15 @@ impl GraphicsInner {
             }
         }
     }
+    
+    fn clear(&mut self) {
+        self.cache.clear();
+        self.tilesets.clear();
+        self.gradients.clear();
+        self.objects.clear();
+        self.particles.clear();
+        self.has_quantized_assets = false;
+    }
 }
 
 fn resize_image_canvas(image: &RgbaImage, new_width: u32, new_height: u32, fill: Rgba<u8>) -> RgbaImage {
@@ -554,6 +583,68 @@ fn recolor_image(
     }
     
     Arc::new(recolored_image)
+}
+
+/// Returns the converted image and whether the bit depth was reduced.
+/// 
+/// A decoded png will never yield the 32F variants, so they are not handled.
+fn dyn_image_to_rgba8(image: DynamicImage, emulate_mmf_quantization: bool) -> (RgbaImage, bool) {
+    if !emulate_mmf_quantization {
+        let was_quantized = matches!(image,
+            DynamicImage::ImageLuma16(_)
+            | DynamicImage::ImageLumaA16(_)
+            | DynamicImage::ImageRgb16(_)
+            | DynamicImage::ImageRgba16(_)
+        );
+        return (image.to_rgba8(), was_quantized);
+    }
+    
+    #[inline(always)]
+    fn channel_16_to_8(c: u16) -> u8 {
+        (c >> 8) as u8
+    }
+    
+    match image {
+        DynamicImage::ImageLuma16(old_image) => {
+            let mut new_image = RgbaImage::new(old_image.width(), old_image.height());
+            for (old_pixel, new_pixel) in old_image.pixels().zip(new_image.pixels_mut()) {
+                let c = channel_16_to_8(old_pixel[0]);
+                new_pixel.0 = [c, c, c, 255];
+            }
+            (new_image, true)
+        }
+        DynamicImage::ImageLumaA16(old_image) => {
+            let mut new_image = RgbaImage::new(old_image.width(), old_image.height());
+            for (old_pixel, new_pixel) in old_image.pixels().zip(new_image.pixels_mut()) {
+                let c = channel_16_to_8(old_pixel[0]);
+                let a = channel_16_to_8(old_pixel[1]);
+                new_pixel.0 = [c, c, c, a];
+            }
+            (new_image, true)
+        }
+        DynamicImage::ImageRgb16(old_image) => {
+            let mut new_image = RgbaImage::new(old_image.width(), old_image.height());
+            for (old_pixel, new_pixel) in old_image.pixels().zip(new_image.pixels_mut()) {
+                let r = channel_16_to_8(old_pixel[0]);
+                let g = channel_16_to_8(old_pixel[1]);
+                let b = channel_16_to_8(old_pixel[2]);
+                new_pixel.0 = [r, g, b, 255];
+            }
+            (new_image, true)
+        }
+        DynamicImage::ImageRgba16(old_image) => {
+            let mut new_image = RgbaImage::new(old_image.width(), old_image.height());
+            for (old_pixel, new_pixel) in old_image.pixels().zip(new_image.pixels_mut()) {
+                let r = channel_16_to_8(old_pixel[0]);
+                let g = channel_16_to_8(old_pixel[1]);
+                let b = channel_16_to_8(old_pixel[2]);
+                let a = channel_16_to_8(old_pixel[3]);
+                new_pixel.0 = [r, g, b, a];
+            }
+            (new_image, true)
+        }
+        _ => (image.to_rgba8(), false)
+    }
 }
 
 #[derive(Debug, PartialEq, Eq, Hash)]
