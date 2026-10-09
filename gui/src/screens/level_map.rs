@@ -1125,7 +1125,16 @@ fn smoothstep(x: f32) -> f32 {
 }
 
 fn rgb_to_rgba(image: image::RgbImage) -> RgbaImage {
-    image::DynamicImage::from(image).to_rgba8()
+    let mut image_new = RgbaImage::new(image.width(), image.height());
+    for (pixel_old, pixel_new) in image.pixels().zip(image_new.pixels_mut()) {
+        pixel_new.0 = [
+            pixel_old[0],
+            pixel_old[1],
+            pixel_old[2],
+            255
+        ];
+    }
+    image_new
 }
 
 fn draw_single_screen(render_state: &mut RenderState, screen_pos: ScreenCoord) -> Option<RgbaImage> {
