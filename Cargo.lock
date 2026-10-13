@@ -1058,7 +1058,7 @@ checksum = "e7c5cedc30da3a610cac6b4ba17597bdf7152cf974e8aab3afb3d54455e371c8"
 [[package]]
 name = "imgui_app"
 version = "0.1.0"
-source = "git+https://github.com/spindlymist/imgui_app#35f22acc5b4d316ac7f7b149ee840d80838f5d86"
+source = "git+https://github.com/spindlymist/imgui_app#68185621ed54ecfa2cdc3cdf9963925e76d8e330"
 dependencies = [
  "byteorder-lite",
  "dear-imgui-rs",
@@ -1070,6 +1070,7 @@ dependencies = [
  "raw-window-handle",
  "rfd",
  "sdl3",
+ "spin_sleep",
  "thiserror",
  "wgpu",
 ]
@@ -2382,6 +2383,15 @@ name = "smallvec"
 version = "1.15.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
+
+[[package]]
+name = "spin_sleep"
+version = "1.3.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9c07347b7c0301b9adba4350bdcf09c039d0e7160922050db0439b3c6723c8ab"
+dependencies = [
+ "windows-sys",
+]
 
 [[package]]
 name = "spirv"
