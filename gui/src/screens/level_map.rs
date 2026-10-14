@@ -306,9 +306,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         ui.checkbox("Generate mipmaps (looks better when zoomed out, but takes more time and memory)", generate_mipmaps);
         ui.new_line();
         
-        let bytes_per_screen = if *generate_mipmaps { 767848 } else { 576000 };
+        let bytes_per_screen = if *generate_mipmaps { 836096 } else { 614400 };
         let memory_needed = render_state.screen_map.len() * bytes_per_screen;
-        ui.text(format!("Estimated VRAM required: {}", bytes_to_string(memory_needed, 1)));
+        ui.text(format!("Estimated additional VRAM required: {}", bytes_to_string(memory_needed, 1)));
         ui.new_line();
         
         let button_width = ui.calc_text_width("OK") * 4.0;
