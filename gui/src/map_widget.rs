@@ -444,7 +444,7 @@ fn get_hovered_screen_pos(hover_pos: [f32; 2], geom: &MapGeometry) -> (i64, i64)
     (screen_x, screen_y)
 }
 
-const ZOOM_MIN: i32 = -16;
+const ZOOM_MIN: i32 = -15;
 const ZOOM_MAX: i32 = 5;
 const MAG_LEVELS: [f32; 1 + ZOOM_MAX as usize] = [1.0, 2.0, 3.0, 4.0, 6.0, 8.0];
 
