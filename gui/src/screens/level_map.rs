@@ -1474,7 +1474,7 @@ fn build_window_export(
             }
         }
     }
-    tooltip(ui, "The base directory save images to. See also: Subdirectory name");
+    tooltip(ui, "The base directory to save images to. See also: Subdirectory name");
     
     ui.widget_group_label("Subdirectory name");
     ui.input_text("##SubdirectoryName", &mut export_state.subdir_spec).build();
@@ -1505,7 +1505,7 @@ fn build_window_export(
         - $author: The author of the level from World.ini.\n\
         - $name: The name of the level from World.ini.\n\
         \n\
-        Use $$ if you want the file name to have a dollar sign.");
+        Use $$ if you want the filename to have a dollar sign.");
     
     ui.checkbox("Don't create subdirectory", &mut export_state.no_subdir);
     tooltip(ui, "When enabled, the subdirectory name setting is ignored and the images are saved directly to the \
