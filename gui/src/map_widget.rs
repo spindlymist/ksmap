@@ -264,8 +264,19 @@ pub fn build_map(
         draw_rect_relative(top_left, bottom_right, PARTITION_OUTLINE_COLOR, false);
     }
     
+    // Zoom percentage
+    if map_state.opts.use_textures {
+        let zoom_percent = cell_width / 600.0 * 100.0;
+        let precision = if zoom_percent >= 100.0 { 0 } else { 1 };
+        let zoom_string = format!("{zoom_percent:.prec$}%", prec=precision);
+        let [zoom_width, zoom_height] = ui.calc_text_size(&zoom_string);
+        let [window_width, window_height] = ui.window_size();
+        ui.set_cursor_pos([window_width - 5.0 - zoom_width, window_height - 5.0 - zoom_height]);
+        ui.text(zoom_string);
+    }
+    
     // Hover and selection indicator
-    if ui.is_window_hovered() {
+    let hovered_screen_pos = if ui.is_window_hovered() {
         let mouse_pos = screen_to_relative_coords(ui.mouse_pos());
         let hovered_cell = get_hovered_screen_pos(mouse_pos, &geom);
         let hovered_screen_pos =
@@ -363,7 +374,9 @@ pub fn build_map(
     }
     else {
         None
-    }
+    };
+    
+    hovered_screen_pos
 }
 
 #[derive(Clone)]
