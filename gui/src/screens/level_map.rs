@@ -41,6 +41,7 @@ pub struct State {
     preview_state: PreviewState,
     generate_mipmaps: bool,
     screens_per_batch: usize,
+    requested_center: Option<(i64, i64)>,
 }
 
 impl State {
@@ -67,6 +68,7 @@ impl State {
             render_thread: None,
             generate_mipmaps: false,
             screens_per_batch: 0,
+            requested_center: None,
         }
     }
 }
@@ -111,6 +113,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         preview_state,
         generate_mipmaps,
         screens_per_batch,
+        requested_center,
     } = state;
     
     // Initialize dockspace
@@ -144,7 +147,6 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         return Some(Task::ShowLevelList);
     };
     
-    let mut requested_center: Option<(i64, i64)> = None;
     let mut show_level_directory = false;
     let mut show_output_directory = false;
     let mut show_level_list = false;
@@ -183,8 +185,10 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             ui.menu_item_toggle("Use true aspect ratio", None::<&str>, &mut true_aspect_ratio, !map_state.opts.use_textures);
             if ui.is_item_edited() {
                 map_state.opts.aspect_ratio = if true_aspect_ratio { 2.5 } else { 1.0 };
-                if let Some(geom) = &map_state.prev_geom {
-                    requested_center = Some(map_get_center_screen(geom));
+                if let Some(geom) = &map_state.prev_geom
+                    && requested_center.is_none()
+                {
+                    requested_center.replace(map_get_center_screen(geom));
                 }
             }
             
@@ -276,6 +280,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         header("Preview");
         ui.bullet_text("Scroll wheel to zoom in and out.");
         ui.bullet_text("If the preview is too large, simply move the mouse over the preview to pan.");
+        ui.bullet_text("Double click the preview to center that screen.");
         ui.new_line();
         
         let button_width = ui.calc_text_width("OK") * 4.0;
@@ -352,8 +357,10 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         // Force true aspect ratio on
         if map_state.opts.aspect_ratio == 1.0 {
             map_state.opts.aspect_ratio = 2.5;
-            if let Some(geom) = &map_state.prev_geom {
-                requested_center = Some(map_get_center_screen(geom));
+            if let Some(geom) = &map_state.prev_geom
+                && requested_center.is_none()
+            {
+                requested_center.replace(map_get_center_screen(geom));
             }
         }
         if map_state.screen_textures.is_empty() {
@@ -391,7 +398,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                 (bounds.x.start + (bounds.x.end - bounds.x.start) / 2) as i64,
                 (bounds.y.start + (bounds.y.end - bounds.y.start) / 2) as i64,
             );
-            requested_center = Some(partition_center);
+            requested_center.replace(partition_center);
         }
     }
     
@@ -450,10 +457,10 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                     (bounds.x.start + (bounds.x.end - bounds.x.start) / 2) as i64,
                     (bounds.y.start + (bounds.y.end - bounds.y.start) / 2) as i64,
                 );
-                requested_center = Some(partition_center);
+                requested_center.replace(partition_center);
             }
             else {
-                requested_center = Some((1000, 1000));
+                requested_center.replace((1000, 1000));
             }
         }
         
@@ -465,7 +472,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                 &render_state.screen_map,
                 render_state.partitions.get(partition_state.selected),
                 &partition_state.partition_members,
-                requested_center,
+                requested_center.take(),
             )
         }).flatten()
     };
@@ -473,7 +480,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
     // Preview
     {
         let _token = ui.push_style_var(StyleVar::WindowPadding([0.0, 0.0]));
-        ui.window("Preview")
+        // Since we've already processed the map for this frame, we need to remember the center request
+        // and handle it next frame.
+        *requested_center = ui.window("Preview")
             .flags(WindowFlags::NO_SCROLLBAR | WindowFlags::NO_SCROLL_WITH_MOUSE)
         .build(|| {
             let preview_screen =
@@ -483,8 +492,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                 else {
                     hover_pos
                 };
-            build_window_preview(ui, ex, preview_state, &mut render_state, preview_screen);
-        });
+            build_window_preview(ui, ex, preview_state, &mut render_state, preview_screen)
+        }).flatten();
     }
     
     // Hotkeys that should always trigger
@@ -1071,7 +1080,13 @@ impl Default for PreviewState {
     }
 }
 
-fn build_window_preview(ui: &Ui, ex: &mut Extras, preview_state: &mut PreviewState, render_state: &mut RenderState, screen_pos: Option<ScreenCoord>) { 
+fn build_window_preview(
+    ui: &Ui,
+    ex: &mut Extras,
+    preview_state: &mut PreviewState,
+    render_state: &mut RenderState,
+    screen_pos: Option<ScreenCoord>
+) -> Option<(i64, i64)> { 
     let [origin_x, origin_y] = ui.cursor_pos();
     let [origin_x_screen, origin_y_screen] = ui.cursor_screen_pos();
     let [width_avail, height_avail] = ui.content_region_avail();
@@ -1079,7 +1094,7 @@ fn build_window_preview(ui: &Ui, ex: &mut Extras, preview_state: &mut PreviewSta
     
     let Some(pos) = screen_pos else {
         ui.text_aligned_center_center("Mouse over the map to preview a screen");
-        return;
+        return None;
     };
     
     let pos_changed = preview_state.preview.as_ref().is_none_or(|preview| {
@@ -1109,8 +1124,8 @@ fn build_window_preview(ui: &Ui, ex: &mut Extras, preview_state: &mut PreviewSta
         preview_state.zoom_level = (preview_state.zoom_level + mouse_wheel).clamp(MIN_ZOOM, MAX_ZOOM);
     }
     
-    if let Some(preview) = &preview_state.preview
-        && let Some(texture) = ex.textures.get_texture_info(preview.1)
+    if let Some((_, preview_texture)) = &preview_state.preview
+        && let Some(texture) = ex.textures.get_texture_info(*preview_texture)
     {
         let scale = MAG_LEVELS[preview_state.zoom_level as usize];
         let width = texture.width() * scale;
@@ -1141,6 +1156,17 @@ fn build_window_preview(ui: &Ui, ex: &mut Extras, preview_state: &mut PreviewSta
         draw_list.set_sampler_nearest();
         ui.image(texture, [width, height]);
         draw_list.set_sampler_linear();
+    }
+    
+    // Center this screen on double click
+    if is_window_hovered
+        && ui.is_mouse_double_clicked(MouseButton::Left)
+        && let Some((preview_pos, _)) = &preview_state.preview
+    {
+        Some((preview_pos.0 as i64, preview_pos.1 as i64))
+    }
+    else {
+        None
     }
 }
 
