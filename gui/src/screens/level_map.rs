@@ -40,6 +40,7 @@ pub struct State {
     drawing_state: DrawingState,
     preview_state: PreviewState,
     generate_mipmaps: bool,
+    screens_per_batch: usize,
 }
 
 impl State {
@@ -65,6 +66,7 @@ impl State {
             export_state: ExportState::new(level_dir),
             render_thread: None,
             generate_mipmaps: false,
+            screens_per_batch: 0,
         }
     }
 }
@@ -108,6 +110,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         drawing_state,
         preview_state,
         generate_mipmaps,
+        screens_per_batch,
     } = state;
     
     // Initialize dockspace
@@ -212,7 +215,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                         &mut render_state,
                         &mut ex.textures,
                         &mut map_state.screen_textures,
-                        *generate_mipmaps
+                        *generate_mipmaps,
+                        *screens_per_batch,
                     );
                 }
             }
@@ -297,13 +301,32 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         ui.text("This feature is experimental. The application may crash if you don't have enough memory available.");
         ui.new_line();
         
+        ui.bullet_text("The options below are explained in tooltips. Press F1 to toggle them.");
         ui.bullet_text("After clicking OK, the application may become unresponsive while the screens are rendered. :)");
-        ui.bullet_text("The map will not update automatically as you change options.");
-        ui.bullet_text("To update the map, select View -> Refresh screen cache from the menu.");
+        ui.bullet_text("The map will not update automatically as you change options. Use View -> Refresh screen cache instead.");
         ui.bullet_text("That menu item may also cause the app to become unresponsive or crash.");
         ui.new_line();
         
-        ui.checkbox("Generate mipmaps (looks better when zoomed out, but takes more time and memory)", generate_mipmaps);
+        if *screens_per_batch == 0 {
+            *screens_per_batch = 1000.min(render_state.screen_map.len().max(1));
+        }
+        let mut screens_per_batch_u32 = *screens_per_batch as u32;
+        let bytes_per_screen = if *generate_mipmaps { 836096 } else { 614400 };
+        let bytes_per_batch = *screens_per_batch * bytes_per_screen;
+        let batch_size_label = format!("Batch size: %u screens / {}", bytes_to_string(bytes_per_batch, 1));
+        ui.set_next_item_width(-1.0);
+        ui.slider_config("##BatchSize", 1, render_state.screen_map.len().max(1) as u32)
+            .try_display_format(batch_size_label)
+            .expect("Invalid display format")
+            .build(&mut screens_per_batch_u32);
+        tooltip(ui, "Additional temporary RAM or VRAM required (depends on your hardware).\n\
+            Larger batches are faster, but take more memory.\n\
+            Reduce the batch size if it crashes.");
+        *screens_per_batch = screens_per_batch_u32 as usize;
+        
+        ui.checkbox("Generate mipmaps", generate_mipmaps);
+        tooltip(ui, "Looks smoother when zoomed out, but takes longer and requires more memory.\n\
+            Disable if it crashes.");
         ui.new_line();
         
         let bytes_per_screen = if *generate_mipmaps { 836096 } else { 614400 };
@@ -338,7 +361,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                 &mut render_state,
                 &mut ex.textures,
                 &mut map_state.screen_textures,
-                *generate_mipmaps
+                *generate_mipmaps,
+                *screens_per_batch
             );
         }
     }
@@ -1159,6 +1183,7 @@ fn draw_all_screens_and_create_textures(
     textures: &mut Textures,
     lookup: &mut FxHashMap<ScreenCoord, TextureId>,
     generate_mipmaps: bool,
+    screens_per_batch: usize,
 ) {
     for (i, screen) in render_state.screen_map.iter().enumerate() {
         let image_rgb = ksmap::drawing::draw_screen(
@@ -1174,6 +1199,14 @@ fn draw_all_screens_and_create_textures(
         let image = rgb_to_rgba(image_rgb);
         let texture_id = textures.create_texture(image.width(), image.height(), &image.into_vec(), generate_mipmaps);
         lookup.insert(screen.position, texture_id);
+
+        if (i + 1) % screens_per_batch == 0 {
+            textures.upload_new_textures_and_wait();
+        }
+    }
+    
+    if render_state.screen_map.len() % screens_per_batch > 0 {
+        textures.upload_new_textures_and_wait();
     }
 }
 
