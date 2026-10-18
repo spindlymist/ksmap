@@ -33,6 +33,7 @@ pub struct MapOptions {
     pub aspect_ratio: f32,
     pub draw_gridlines: bool,
     pub use_textures: bool,
+    pub show_zoom_level: bool,
 }
 
 impl Default for MapOptions {
@@ -42,6 +43,7 @@ impl Default for MapOptions {
             aspect_ratio: 1.0,
             draw_gridlines: true,
             use_textures: false,
+            show_zoom_level: false,
         }
     }
 }
@@ -327,10 +329,19 @@ pub fn build_map(
     if let Some(pos) = &hovered_screen_pos {
         draw_coord_string(*pos);
     }
-    if map_state.opts.use_textures {
-        let zoom_percent = cell_width / 600.0 * 100.0;
-        let precision = if zoom_percent >= 100.0 { 0 } else { 1 };
-        let zoom_string = format!("{zoom_percent:.prec$}%", prec=precision);
+    if map_state.opts.show_zoom_level {
+        let zoom_string =
+            if map_state.opts.use_textures {
+                let zoom_percent = cell_width / 600.0 * 100.0;
+                let precision = if zoom_percent >= 100.0 { 0 } else { 1 };
+                format!("Scale: {zoom_percent:.prec$}%", prec=precision)
+            }
+            else if cell_width == cell_height {
+                format!("Size: {cell_width}")
+            }
+            else {
+                format!("Size: {cell_width}x{cell_height}")
+            };
         let [zoom_width, zoom_height] = ui.calc_text_size(&zoom_string);
         let [window_width, window_height] = ui.window_size();
         ui.set_cursor_pos([window_width - 5.0 - zoom_width, window_height - 5.0 - zoom_height]);

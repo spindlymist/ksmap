@@ -193,6 +193,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             }
             
             ui.menu_item_toggle("Draw gridlines", None::<&str>, &mut map_state.opts.draw_gridlines, true);
+            ui.menu_item_toggle("Show screen size", None::<&str>, &mut map_state.opts.show_zoom_level, true);
             
             let mut use_textures = map_state.opts.use_textures;
             ui.menu_item_toggle("Draw screens on map", None::<&str>, &mut use_textures, true);
