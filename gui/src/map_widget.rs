@@ -46,6 +46,20 @@ impl Default for MapOptions {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
+pub enum PartitionSelection {
+    #[default]
+    NoChange,
+    Deselect,
+    Index(usize)
+}
+
+#[derive(Default)]
+pub struct MapResult {
+    pub hovered_screen_pos: Option<ScreenCoord>,
+    pub partition_selection: PartitionSelection,
+}
+
 pub fn build_map(
     ui: &Ui,
     map_state: &mut MapState,
@@ -53,7 +67,7 @@ pub fn build_map(
     selected_partition: Option<&Partition>,
     partition_members: &FxHashMap<ScreenCoord, usize>,
     mut requested_center: Option<(i64, i64)>,
-) -> Option<ScreenCoord> {
+) -> MapResult {
     let draw_list = ui.get_window_draw_list();
     let map_size = ui.content_region_avail();
     let [map_x_screen, map_y_screen] = ui.get_cursor_screen_pos();
@@ -264,7 +278,55 @@ pub fn build_map(
         draw_rect_relative(top_left, bottom_right, PARTITION_OUTLINE_COLOR, false);
     }
     
-    // Zoom percentage
+    // Mouse interactions
+    let is_hovered = ui.is_window_hovered();
+    let mouse_pos = screen_to_relative_coords(ui.mouse_pos());
+    let hovered_cell =
+        is_hovered.then(|| get_hovered_screen_pos(mouse_pos, &geom));
+    let hovered_screen_pos = 
+        hovered_cell.and_then(|hovered_cell| {
+            let x = i32::try_from(hovered_cell.0).ok()?;
+            let y = i32::try_from(hovered_cell.1).ok()?;
+            Some((x, y))
+        });
+    
+    let mut partition_selection = PartitionSelection::NoChange;
+    if is_hovered && ui.is_mouse_clicked(MouseButton::Left) {
+        if ui.io().key_alt() {
+            // Select partition
+            if let Some(pos) = hovered_screen_pos
+                && let Some(partition_index) = partition_members.get(&pos)
+            {
+                partition_selection = PartitionSelection::Index(*partition_index);
+            }
+            else {
+                partition_selection = PartitionSelection::Deselect;
+            }
+        }
+        else {
+            // Select screen
+            if let Some(pos) = hovered_screen_pos
+                && screens.index_of(&pos).is_some()
+                && map_state.selected_screen != Some(pos)
+            {
+                map_state.selected_screen = Some(pos);
+            }
+            else {
+                map_state.selected_screen = None;
+            }
+        }
+    }
+    
+    // Indicators
+    if let Some(pos) = map_state.selected_screen {
+        draw_indicator((pos.0 as i64, pos.1 as i64), SELECTION_INDICATOR_COLOR);
+    }
+    if let Some(pos) = hovered_cell {
+        draw_indicator(pos, HOVER_INDICATOR_COLOR);
+    }
+    if let Some(pos) = &hovered_screen_pos {
+        draw_coord_string(*pos);
+    }
     if map_state.opts.use_textures {
         let zoom_percent = cell_width / 600.0 * 100.0;
         let precision = if zoom_percent >= 100.0 { 0 } else { 1 };
@@ -275,108 +337,64 @@ pub fn build_map(
         ui.text(zoom_string);
     }
     
-    // Hover and selection indicator
-    let hovered_screen_pos = if ui.is_window_hovered() {
-        let mouse_pos = screen_to_relative_coords(ui.mouse_pos());
-        let hovered_cell = get_hovered_screen_pos(mouse_pos, &geom);
-        let hovered_screen_pos =
-            if let Ok(x) = i32::try_from(hovered_cell.0)
-                && let Ok(y) = i32::try_from(hovered_cell.1)
-            {
-                Some((x, y))
-            }
-            else {
-                None
-            };
+    // Zoom
+    let new_zoom_level = (map_state.opts.zoom_level + ui.get_mouse_wheel() as i32).clamp(ZOOM_MIN, ZOOM_MAX);
+    if new_zoom_level != map_state.opts.zoom_level
+        && let Some(hovered_cell) = hovered_cell
+        && !map_state.is_dragging
+    {
+        map_state.opts.zoom_level = new_zoom_level;
+        let (new_cell_width, new_cell_height) = get_cell_size(&map_state.opts);
+        let new_line_thickness = get_line_thickness(&map_state.opts, false);
         
-        if ui.is_mouse_clicked(MouseButton::Left) {
-            if let Some(pos) = &hovered_screen_pos
-                && screens.index_of(&pos).is_some()
-                && map_state.selected_screen != Some(*pos)
-            {
-                map_state.selected_screen = Some(*pos);
-            }
-            else {
-                map_state.selected_screen = None;
-            }
-        }
+        // The general idea here is to keep the point the mouse is hovering over in the same position as we zoom
+        // We start by converting the pixel position to a proportion that is agnostic to the zoom level
+        let hovered_cell_top_left = calc_cell_pos(hovered_cell, &geom);
+        let mouse_pos_within_cell = [
+            mouse_pos[0] - hovered_cell_top_left[0],
+            mouse_pos[1] - hovered_cell_top_left[1]
+        ];
+        let mouse_pos_within_cell_proportion = [
+            mouse_pos_within_cell[0] / geom.cell_outer_width,
+            mouse_pos_within_cell[1] / geom.cell_outer_height,
+        ];
         
-        if let Some(pos) = &map_state.selected_screen {
-            draw_indicator((pos.0 as i64, pos.1 as i64), SELECTION_INDICATOR_COLOR);
-        }
-        draw_indicator(hovered_cell, HOVER_INDICATOR_COLOR);
-        if let Some(pos) = &hovered_screen_pos {
-            draw_coord_string(*pos);
-        }
+        // Next, we use that proportion to calculate the pixel offset at the new zoom level
+        let new_cell_outer_width = new_cell_width + new_line_thickness;
+        let new_cell_outer_height = new_cell_height + new_line_thickness;
+        let new_mouse_pos_within_cell = [
+            (mouse_pos_within_cell_proportion[0] * new_cell_outer_width).round().min(new_cell_outer_width - 1.0),
+            (mouse_pos_within_cell_proportion[1] * new_cell_outer_height).round().min(new_cell_outer_height - 1.0),
+        ];
         
-        // Zoom
-        let wheel_delta = ui.get_mouse_wheel();
-        if wheel_delta != 0.0 && !map_state.is_dragging {
-            let new_zoom_level = (map_state.opts.zoom_level + wheel_delta as i32).clamp(ZOOM_MIN, ZOOM_MAX);
-            if new_zoom_level == map_state.opts.zoom_level {
-                return hovered_screen_pos;
-            }
-            
-            map_state.opts.zoom_level = new_zoom_level;
-            let (new_cell_width, new_cell_height) = get_cell_size(&map_state.opts);
-            let new_line_thickness = get_line_thickness(&map_state.opts, false);
-            
-            // The general idea here is to keep the point the mouse is hovering over in the same position as we zoom
-            // We start by converting the pixel position to a proportion that is agnostic to the zoom level
-            let hovered_cell_top_left = calc_cell_pos(hovered_cell, &geom);
-            let mouse_pos_within_cell = [
-                mouse_pos[0] - hovered_cell_top_left[0],
-                mouse_pos[1] - hovered_cell_top_left[1]
-            ];
-            let mouse_pos_within_cell_proportion = [
-                mouse_pos_within_cell[0] / geom.cell_outer_width,
-                mouse_pos_within_cell[1] / geom.cell_outer_height,
-            ];
-            
-            // Next, we use that proportion to calculate the pixel offset at the new zoom level
-            let new_cell_outer_width = new_cell_width + new_line_thickness;
-            let new_cell_outer_height = new_cell_height + new_line_thickness;
-            let new_mouse_pos_within_cell = [
-                (mouse_pos_within_cell_proportion[0] * new_cell_outer_width).round().min(new_cell_outer_width - 1.0),
-                (mouse_pos_within_cell_proportion[1] * new_cell_outer_height).round().min(new_cell_outer_height - 1.0),
-            ];
-            
-            // Working backwards, we can calculate where the top left of the hovered screen is at the new zoom level
-            let new_hovered_cell_top_left = [
-                mouse_pos[0] - new_mouse_pos_within_cell[0],
-                mouse_pos[1] - new_mouse_pos_within_cell[1],
-            ];
-            
-            // Since we know the map coordinates of the hovered screen and the pixel coordinates of its top left corner,
-            // we can do some math to figure out the what screen appears in the top left of the map and where its
-            // top left corner is.
-            let blah_x = f32::ceil(new_hovered_cell_top_left[0] / new_cell_outer_width) as i64;
-            let blah_y = f32::ceil(new_hovered_cell_top_left[1] / new_cell_outer_height) as i64;
-            let new_top_left_screen = (
-                hovered_cell.0 - blah_x,
-                hovered_cell.1 - blah_y,
-            );
-            let new_bias = (
-                new_hovered_cell_top_left[0] - blah_x as f32 * new_cell_outer_width,
-                new_hovered_cell_top_left[1] - blah_y as f32 * new_cell_outer_height,
-            );
-            
-            map_state.top_left = new_top_left_screen;
-            map_state.bias = new_bias;
-        }
+        // Working backwards, we can calculate where the top left of the hovered screen is at the new zoom level
+        let new_hovered_cell_top_left = [
+            mouse_pos[0] - new_mouse_pos_within_cell[0],
+            mouse_pos[1] - new_mouse_pos_within_cell[1],
+        ];
         
-        hovered_screen_pos
+        // Since we know the map coordinates of the hovered screen and the pixel coordinates of its top left corner,
+        // we can do some math to figure out the what screen appears in the top left of the map and where its
+        // top left corner is.
+        let blah_x = f32::ceil(new_hovered_cell_top_left[0] / new_cell_outer_width) as i64;
+        let blah_y = f32::ceil(new_hovered_cell_top_left[1] / new_cell_outer_height) as i64;
+        let new_top_left_screen = (
+            hovered_cell.0 - blah_x,
+            hovered_cell.1 - blah_y,
+        );
+        let new_bias = (
+            new_hovered_cell_top_left[0] - blah_x as f32 * new_cell_outer_width,
+            new_hovered_cell_top_left[1] - blah_y as f32 * new_cell_outer_height,
+        );
+        
+        map_state.top_left = new_top_left_screen;
+        map_state.bias = new_bias;
     }
-    else if let Some(pos) = &map_state.selected_screen {
-        draw_indicator((pos.0 as i64, pos.1 as i64), SELECTION_INDICATOR_COLOR);
-        draw_coord_string(*pos);
-        None
-    }
-    else {
-        None
-    };
     
-    hovered_screen_pos
+    MapResult {
+        hovered_screen_pos,
+        partition_selection,
+    }
 }
 
 #[derive(Clone)]

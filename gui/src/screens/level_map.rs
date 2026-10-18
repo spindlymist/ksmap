@@ -269,6 +269,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         ui.bullet_text("Scroll wheel to zoom in and out.");
         ui.bullet_text("Click on a screen to lock the preview.");
         ui.bullet_text("To unlock the preview, click on the selected screen again, or on an empty screen.");
+        ui.bullet_text("Alt click on a screen to select that partition.");
         ui.new_line();
         
         header("Partition List");
@@ -465,7 +466,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         }
         
         let _token = ui.push_style_var(StyleVar::WindowPadding([0.0, 0.0])); 
-        ui.window("Map").build(|| {
+        let map_result = ui.window("Map").build(|| {
             build_map(
                 ui,
                 map_state,
@@ -474,7 +475,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
                 &partition_state.partition_members,
                 requested_center.take(),
             )
-        }).flatten()
+        }).unwrap_or_default();
+        
+        map_result.hovered_screen_pos
     };
     
     // Preview
