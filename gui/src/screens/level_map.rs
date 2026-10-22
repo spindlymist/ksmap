@@ -483,7 +483,10 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         match map_result.partition_selection {
             PartitionSelection::NoChange => {}
             PartitionSelection::Deselect => { partition_state.selected.take(); }
-            PartitionSelection::Index(i) => { partition_state.selected.replace(i); }
+            PartitionSelection::Index(i) => {
+                partition_state.selected.replace(i);
+                partition_state.scroll_to_selected = true;
+            }
         };
         
         map_result.hovered_screen_pos
@@ -649,6 +652,7 @@ pub struct PartitionState {
     set_sort_column: bool,
     sort_descending: bool,
     sort_column_index: usize,
+    scroll_to_selected: bool,
 }
 
 impl PartitionState {
@@ -718,6 +722,7 @@ impl Default for PartitionState {
             set_sort_column: true,
             sort_descending: true,
             sort_column_index: PARTITION_TABLE_COL_MEMORY,
+            scroll_to_selected: false,
         }
     }
 }
@@ -1000,8 +1005,9 @@ fn build_partition_table(
             // Selection
             {
                 let _id = ui.push_id(partition_idx);
+                let is_selected = partition_state.selected == Some(partition_idx);
                 if ui.selectable_config("##RowSelect")
-                    .selected(partition_state.selected == Some(partition_idx))
+                    .selected(is_selected)
                     .flags(SelectableFlags::SPAN_ALL_COLUMNS)
                     .build()
                 {
@@ -1009,6 +1015,12 @@ fn build_partition_table(
                 }
                 if ui.is_item_clicked() && ui.is_mouse_double_clicked(MouseButton::Left) {
                     go_to_partition_index.replace(partition_idx);
+                }
+                if is_selected && partition_state.scroll_to_selected {
+                    if !ui.is_item_visible() {
+                        ui.set_scroll_here_y(0.5);
+                    }
+                    partition_state.scroll_to_selected = false;
                 }
             }
             
