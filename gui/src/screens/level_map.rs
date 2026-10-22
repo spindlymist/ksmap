@@ -945,6 +945,57 @@ fn build_partition_table(
         }
     };
     
+    // Keyboard controls
+    fn calc_rows_per_page(ui: &Ui, table_height: f32) -> isize {
+        let table_height_abs = if table_height == -1.0 { ui.content_region_avail_height() } else { table_height };
+        let row_height = ui.text_line_height() + 2.0 * unsafe { ui.style().cell_padding()[1] };
+        (table_height_abs / row_height) as isize - 1
+    }
+    if !ui.is_any_item_focused() && !ui.is_any_item_active() {
+        let mut nudge_selection: isize = 0;
+        if ui.is_key_pressed(Key::UpArrow) {
+            nudge_selection = -1;
+        }
+        else if ui.is_key_pressed(Key::DownArrow) {
+            nudge_selection = 1;
+        }
+        else if ui.is_key_pressed(Key::PageUp) {
+            nudge_selection = -calc_rows_per_page(ui, table_height);
+        }
+        else if ui.is_key_pressed(Key::PageDown) {
+            nudge_selection = calc_rows_per_page(ui, table_height);
+        }
+        else if ui.is_key_pressed(Key::Home) {
+            nudge_selection = isize::MIN;
+        }
+        else if ui.is_key_pressed(Key::End) {
+            nudge_selection = isize::MAX;
+        }
+        
+        let n_rows = partition_state.sorted_indices.len();
+        if nudge_selection != 0 && n_rows > 0 {
+            let mut row_idx = match &partition_state.selected {
+                Some(partition_idx) => {
+                    partition_state.sorted_indices.iter()
+                        .position(|i| i == partition_idx)
+                        .map(|i| i as isize)
+                        .unwrap_or(-1)
+                }
+                None => -1
+            };
+            row_idx = row_idx.saturating_add(nudge_selection).clamp(0, (n_rows - 1) as isize);
+            let partition_idx = partition_state.sorted_indices[row_idx as usize];
+            partition_state.selected.replace(partition_idx);
+            partition_state.scroll_to_selected = true;
+        }
+        
+        if ui.is_key_pressed(Key::Enter)
+            && let Some(partition_idx) = partition_state.selected
+        {
+            go_to_partition_index.replace(partition_idx);
+        }
+    }
+    
     let mut table_builder = ui.table("PartitionsTable")
         .outer_size([-1.0, table_height])
         .flags(TableFlags::BORDERS | TableFlags::SCROLL_Y | TableFlags::SORTABLE);
