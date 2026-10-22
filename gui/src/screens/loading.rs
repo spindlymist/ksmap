@@ -178,7 +178,7 @@ fn init_render_state(tx: mpsc::Sender<LoadMessage>, ks_dir: PathBuf, level_dir: 
     gfx.load_objects(&assets.objects, &mut warnings)?;
 
     let _ = tx.send(LoadMessage::Partitioning);
-    let mut partitions;
+    let partitions;
     let partition_state;
     if screen_map.len() < 25000 {
         let partitioner = IslandsPartitioner {
@@ -188,7 +188,7 @@ fn init_render_state(tx: mpsc::Sender<LoadMessage>, ks_dir: PathBuf, level_dir: 
             fallback_to_grid: true,
         };
         partitions = partitioner.partitions(&screen_map);
-        partition_state = PartitionState::from_islands(partitioner, &mut partitions);
+        partition_state = PartitionState::from_islands(partitioner, &partitions);
     }
     else {
         let partitioner = GridPartitioner {
@@ -198,7 +198,7 @@ fn init_render_state(tx: mpsc::Sender<LoadMessage>, ks_dir: PathBuf, level_dir: 
             force: false,
         };
         partitions = partitioner.partitions(&screen_map);
-        partition_state = PartitionState::from_grid(partitioner, &mut partitions);
+        partition_state = PartitionState::from_grid(partitioner, &partitions);
     }
 
     let _ = tx.send(LoadMessage::Syncing);

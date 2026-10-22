@@ -21,7 +21,7 @@ use rustc_hash::FxHashMap;
 use crate::map_widget::MAP_COLORS;
 use crate::name_pattern::{self, NamePattern};
 use crate::tooltips::{set_tooltips_enabled, toggle_tooltips, tooltip, tooltips_are_enabled};
-use crate::{map_widget::{build_map, MapState, map_get_center_screen}, ui_extensions::UiExt};
+use crate::{map_widget::{build_map, MapState, map_get_center_screen, PartitionSelection}, ui_extensions::UiExt};
 use crate::format_bytes::*;
 
 pub struct State {
@@ -466,17 +466,25 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             }
         }
         
-        let _token = ui.push_style_var(StyleVar::WindowPadding([0.0, 0.0])); 
+        let _token = ui.push_style_var(StyleVar::WindowPadding([0.0, 0.0]));
+        let selected_partition = partition_state.selected
+            .and_then(|i| render_state.partitions.get(i));
         let map_result = ui.window("Map").build(|| {
             build_map(
                 ui,
                 map_state,
                 &render_state.screen_map,
-                render_state.partitions.get(partition_state.selected),
+                selected_partition,
                 &partition_state.partition_members,
                 requested_center.take(),
             )
         }).unwrap_or_default();
+        
+        match map_result.partition_selection {
+            PartitionSelection::NoChange => {}
+            PartitionSelection::Deselect => { partition_state.selected.take(); }
+            PartitionSelection::Index(i) => { partition_state.selected.replace(i); }
+        };
         
         map_result.hovered_screen_pos
     };
@@ -623,8 +631,9 @@ fn create_dockspace_layout(ui: &Ui) -> DockLayout {
 }
 
 pub struct PartitionState {
+    sorted_indices: Vec<usize>,
     partition_members: FxHashMap<ScreenCoord, usize>,
-    selected: usize,
+    selected: Option<usize>,
     algorithm: PartitionAlgorithm,
     max_width: i32,
     max_height: i32,
@@ -643,10 +652,8 @@ pub struct PartitionState {
 }
 
 impl PartitionState {
-    /// `partitions` will be sorted. This is kind of weird and can probably be improved later.
-    pub fn from_islands(partitioner: IslandsPartitioner, partitions: &mut [Partition]) -> Self {
+    pub fn from_islands(partitioner: IslandsPartitioner, partitions: &[Partition]) -> Self {
         let mut state = Self {
-            selected: 0,
             algorithm: PartitionAlgorithm::Islands,
             max_width: partitioner.max_size.0 as i32,
             max_height: partitioner.max_size.1 as i32,
@@ -656,16 +663,19 @@ impl PartitionState {
             grid_fallback: partitioner.fallback_to_grid,
             ..Default::default()
         };
-        sort_partitions(partitions, state.sort_column_index, state.sort_descending);
         update_partition_members(&mut state.partition_members, partitions);
+        sort_partitions(
+            partitions,
+            &mut state.sorted_indices,
+            state.sort_column_index,
+            state.sort_descending);
+        state.selected = state.sorted_indices.first().cloned();
         
         state
     }
     
-    /// `partitions` will be sorted. This is kind of weird and can probably be improved later.
-    pub fn from_grid(partitioner: GridPartitioner, partitions: &mut [Partition]) -> Self {
+    pub fn from_grid(partitioner: GridPartitioner, partitions: &[Partition]) -> Self {
         let mut state = Self {
-            selected: 0,
             algorithm: PartitionAlgorithm::Grid,
             max_width: partitioner.max_size.0 as i32,
             max_height: partitioner.max_size.1 as i32,
@@ -676,8 +686,13 @@ impl PartitionState {
             force: partitioner.force,
             ..Default::default()
         };
-        sort_partitions(partitions, state.sort_column_index, state.sort_descending);
         update_partition_members(&mut state.partition_members, partitions);
+        sort_partitions(
+            partitions,
+            &mut state.sorted_indices,
+            state.sort_column_index,
+            state.sort_descending);
+        state.selected = state.sorted_indices.first().cloned();
         
         state
     }
@@ -686,8 +701,9 @@ impl PartitionState {
 impl Default for PartitionState {
     fn default() -> Self {
         Self {
+            sorted_indices: Vec::new(),
             partition_members: FxHashMap::default(),
-            selected: 0,
+            selected: None,
             algorithm: PartitionAlgorithm::Islands,
             max_width: 120,
             max_height: 300,
@@ -749,8 +765,13 @@ fn build_window_partitions(ui: &Ui, _ex: &mut Extras, partition_state: &mut Part
                 partitioner.partitions(&render_state.screen_map)
             }
         };
-        sort_partitions(&mut render_state.partitions, partition_state.sort_column_index, partition_state.sort_descending);
         update_partition_members(&mut partition_state.partition_members, &render_state.partitions);
+        sort_partitions(
+            &render_state.partitions,
+            &mut partition_state.sorted_indices,
+            partition_state.sort_column_index,
+            partition_state.sort_descending);
+        partition_state.selected = partition_state.sorted_indices.first().cloned();
     }
     
     let mut algo_index = partition_state.algorithm as usize;
@@ -900,7 +921,7 @@ fn build_partition_table(
     ui: &Ui,
     fonts: &Fonts,
     partition_state: &mut PartitionState,
-    partitions: &mut [Partition],
+    partitions: &[Partition],
     rgb: bool,
 ) -> Option<usize> {
     let mut go_to_partition_index: Option<usize> = None;
@@ -940,32 +961,27 @@ fn build_partition_table(
         // Sorting
         if partition_state.set_sort_column {
             ui.table_set_column_sort_direction(8, SortDirection::Descending, false);
-            partition_state.selected = 0;
             partition_state.set_sort_column = false;
         }
         if let Some(mut specs) = ui.table_get_sort_specs()
             && specs.is_dirty()
         {
             specs.clear_dirty(ui);
-            let selection_bounds = partitions.get(partition_state.selected)
-                .map(|p| p.bounds());
-
             if let Some(spec) = specs.iter().next() {
                 partition_state.sort_column_index = spec.column_index.get();
                 partition_state.sort_descending = spec.sort_direction == SortDirection::Descending;
-                sort_partitions(partitions, partition_state.sort_column_index, partition_state.sort_descending);
-            }
-            
-            if let Some(bounds) = selection_bounds
-                && let Some(index) = partitions.iter().position(|p| p.bounds() == bounds)
-            {
-                partition_state.selected = index;
+                sort_partitions(
+                    partitions,
+                    &mut partition_state.sorted_indices,
+                    partition_state.sort_column_index,
+                    partition_state.sort_descending);
             }
         }
         
         let _token = ui.push_font(fonts.mono);
         
-        for (i, partition) in partitions.iter().enumerate() {
+        for &partition_idx in &partition_state.sorted_indices {
+            let partition = &partitions[partition_idx];
             let bounds = partition.bounds();
             let x_min = bounds.x_min();
             let x_max = bounds.x_max();
@@ -983,27 +999,23 @@ fn build_partition_table(
             
             // Selection
             {
-                let _id = ui.push_id(i);
+                let _id = ui.push_id(partition_idx);
                 if ui.selectable_config("##RowSelect")
-                    .selected(partition_state.selected == i)
+                    .selected(partition_state.selected == Some(partition_idx))
                     .flags(SelectableFlags::SPAN_ALL_COLUMNS)
                     .build()
                 {
-                    partition_state.selected = i;
+                    partition_state.selected.replace(partition_idx);
                 }
                 if ui.is_item_clicked() && ui.is_mouse_double_clicked(MouseButton::Left) {
-                    go_to_partition_index = Some(i);
+                    go_to_partition_index.replace(partition_idx);
                 }
             }
             
             // Color indicator
             ui.same_line_with_spacing(0.0, 0.0);
             {
-                let color_index = partition.positions()
-                    .first()
-                    .and_then(|pos| partition_state.partition_members.get(pos).cloned())
-                    .unwrap_or(0);
-                let color = MAP_COLORS[color_index % MAP_COLORS.len()];
+                let color = MAP_COLORS[partition_idx % MAP_COLORS.len()];
                 just_a_square(ui, color, true, true);
             }
             ui.same_line();
@@ -1031,37 +1043,52 @@ fn build_partition_table(
     go_to_partition_index
 }
 
-fn sort_partitions(partitions: &mut [Partition], column_index: usize, descending: bool) {
+fn sort_partitions(
+    partitions: &[Partition],
+    sorted_indices: &mut Vec<usize>,
+    column_index: usize,
+    descending: bool
+) {
+    sorted_indices.clear();
+    sorted_indices.extend(0..partitions.len());
+
     macro_rules! do_sort {
-        ($partitions:ident, $is_descending:expr, $p:ident, $get_key:block) => {
+        ($indices:ident, $partitions:ident, $is_descending:expr, $p:ident, $get_key:block) => {
             if $is_descending {
-                $partitions.sort_by_key(|$p: &Partition| cmp::Reverse($get_key));
+                $indices.sort_by_key(|i: &usize| {
+                    let $p = &$partitions[*i];
+                    cmp::Reverse($get_key)
+                });
             }
             else {
-                $partitions.sort_by_key(|$p: &Partition| $get_key);
+                $indices.sort_by_key(|i: &usize| {
+                    let $p = &$partitions[*i];
+                    $get_key
+                });
             }
         };
     }
+
     match column_index {
-        PARTITION_TABLE_COL_X_MIN => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_X_MIN => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().x_min(), p.bounds().y_min())
         }),
-        PARTITION_TABLE_COL_Y_MIN => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_Y_MIN => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().y_min(), p.bounds().x_min())
         }),
-        PARTITION_TABLE_COL_X_MAX => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_X_MAX => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().x_max(), p.bounds().y_max())
         }),
-        PARTITION_TABLE_COL_Y_MAX => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_Y_MAX => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().y_max(), p.bounds().x_max())
         }),
-        PARTITION_TABLE_COL_WIDTH | PARTITION_TABLE_COL_WIDTH_PX => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_WIDTH | PARTITION_TABLE_COL_WIDTH_PX => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().width(), p.bounds().height())
         }),
-        PARTITION_TABLE_COL_HEIGHT | PARTITION_TABLE_COL_HEIGHT_PX => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_HEIGHT | PARTITION_TABLE_COL_HEIGHT_PX => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().height(), p.bounds().width())
         }),
-        PARTITION_TABLE_COL_MEMORY => do_sort!(partitions, descending, p, {
+        PARTITION_TABLE_COL_MEMORY => do_sort!(sorted_indices, partitions, descending, p, {
             p.bounds().width() * p.bounds().height() // Size in memory is proportional to # of screens
         }),
         _ => {}
@@ -1090,7 +1117,7 @@ fn build_window_preview(
     preview_state: &mut PreviewState,
     render_state: &mut RenderState,
     screen_pos: Option<ScreenCoord>
-) -> Option<(i64, i64)> { 
+) -> Option<(i64, i64)> {
     let [origin_x, origin_y] = ui.cursor_pos();
     let [origin_x_screen, origin_y_screen] = ui.cursor_screen_pos();
     let [width_avail, height_avail] = ui.content_region_avail();
