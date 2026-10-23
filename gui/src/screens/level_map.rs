@@ -1,27 +1,56 @@
-use std::cmp;
-use std::thread::JoinHandle;
-use std::{path::{Path, PathBuf}, sync::{Arc, atomic::{self, AtomicBool}, mpsc::{self, TryRecvError}, RwLock}};
+use std::{
+    cmp,
+    path::{Path, PathBuf},
+    sync::{Arc, RwLock},
+    sync::atomic::{self, AtomicBool},
+    sync::mpsc::{self, TryRecvError},
+    thread::JoinHandle,
+};
+
 use image::RgbaImage;
+use rustc_hash::FxHashMap;
 use imgui_app::{Extras, Fonts, Textures};
-use imgui_app::dear_imgui_rs::{ColorEditFlags, Condition, DockLayout, DockLayoutApply, DockSplit, InputText, InputTextCallbackHandler, InputTextFlags, Key, MouseButton, SelectableFlags, SortDirection, StyleColor, StyleVar, TableColumnFlags, TableColumnSetup, TableColumnUserData, TableColumnWidth, TableFlags, TextureId, Ui, WindowFlags, WindowKey};
-use ksmap::drawing::{BlendAlgorithm, DrawContext};
+use imgui_app::dear_imgui_rs::{
+    ColorEditFlags,
+    Condition,
+    DockLayout,
+    DockLayoutApply,
+    DockSplit,
+    InputText,
+    InputTextCallbackHandler,
+    InputTextFlags,
+    Key,
+    MouseButton,
+    SelectableFlags,
+    SortDirection,
+    StyleColor,
+    StyleVar,
+    TableColumnFlags,
+    TableColumnSetup,
+    TableColumnUserData,
+    TableColumnWidth,
+    TableFlags,
+    TextureId,
+    Ui,
+    WindowFlags,
+    WindowKey
+};
 use ksmap::{
     definitions::ObjectDefs,
-    drawing::{self, alpha_to_trans, DrawOptions, TintStrategy},
+    drawing::{self, alpha_to_trans, BlendAlgorithm, DrawContext, DrawOptions, TintStrategy},
     graphics::Graphics,
     partition::{GridPartitioner, IslandsPartitioner, Partition, Partitioner},
+    screen_map::ScreenMap,
     seed::MapSeed,
     synchronization::{SyncOptions, WorldSync},
 };
 use libks::ScreenCoord;
 use libks_ini::edit::Ini;
-use ksmap::screen_map::ScreenMap;
-use rustc_hash::FxHashMap;
 
-use crate::map_widget::MAP_COLORS;
+use crate::map_widget::{build_map, MAP_COLORS, MapState, PartitionSelection};
 use crate::name_pattern::{self, NamePattern};
 use crate::tooltips::{set_tooltips_enabled, toggle_tooltips, tooltip, tooltips_are_enabled};
-use crate::{map_widget::{build_map, MapState, PartitionSelection}, ui_extensions::UiExt};
+use crate::ui_extensions::UiExt;
 use crate::format_bytes::*;
 
 pub struct State {

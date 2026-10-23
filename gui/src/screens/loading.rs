@@ -1,19 +1,23 @@
-use std::thread::JoinHandle;
-use std::{path::PathBuf, sync::{Arc, mpsc}, thread};
+use std::{
+    path::PathBuf,
+    sync::{Arc, mpsc},
+    thread::{self, JoinHandle}
+};
 
+use anyhow::anyhow;
 use imgui_app::Extras ;
 use imgui_app::dear_imgui_rs::{Condition, Ui, WindowFlags};
 use ksmap::{
     analysis::list_assets,
+    definitions,
     drawing::DrawOptions,
     graphics::Graphics,
     partition::{GridPartitioner, IslandsPartitioner, Partitioner},
+    screen_map::ScreenMap,
     seed::MapSeed,
     synchronization::{SyncOptions, WorldSync},
 };
 use libks::{map_bin, world_ini};
-use ksmap::{definitions, screen_map::ScreenMap};
-use anyhow::anyhow;
 
 use crate::screens::level_map::{PartitionState, RenderState};
 
