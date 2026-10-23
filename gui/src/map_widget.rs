@@ -9,6 +9,7 @@ pub struct MapState {
     pub is_dragging: bool,
     pub bias: (f32, f32),
     pub prev_geom: Option<MapGeometry>,
+    pub prev_opts: MapOptions,
     pub selected_screen: Option<ScreenCoord>,
     pub screen_textures: FxHashMap<ScreenCoord, TextureId>,
 }
@@ -21,13 +22,14 @@ impl Default for MapState {
             is_dragging: false,
             bias: (0.0, 0.0),
             prev_geom: None,
+            prev_opts: MapOptions::default(),
             selected_screen: None,
             screen_textures: FxHashMap::default(),
         }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct MapOptions {
     pub zoom_level: i32,
     pub aspect_ratio: f32,
@@ -90,20 +92,40 @@ pub fn build_map(
             (0.0, 0.0)
         };
     
-    // Recenter if map was resized
+    // Recenter if map was resized or relevant options were changed
+    let mut center_proportion = (0.5, 0.5);
     if requested_center.is_none()
         && let Some(prev_geom) = &map_state.prev_geom
-        && map_size != prev_geom.size
+        && (
+            map_size != prev_geom.size
+            || map_state.opts.aspect_ratio != map_state.prev_opts.aspect_ratio
+            || map_state.opts.draw_gridlines != map_state.prev_opts.draw_gridlines
+        )
     {
-        requested_center = Some(map_get_center_screen(prev_geom));
+        let (pos, proportion) = map_get_center(prev_geom);
+        requested_center = Some(pos);
+        center_proportion = proportion;
     }
     
     // Move the top left of the map to get the desired center
     if let Some(center) = requested_center {
-        map_state.top_left = (
-            center.0 as i64 - (map_size[0] / 2.0 / (cell_width + line_thickness)) as i64,
-            center.1 as i64 - (map_size[1] / 2.0 / (cell_height + line_thickness)) as i64,
+        let cell_outer_width = cell_width + line_thickness;
+        let cell_outer_height = cell_height + line_thickness;
+        let top_left_x = (map_size[0] / 2.0 - center_proportion.0 * cell_outer_width).round();
+        let top_left_y = (map_size[1] / 2.0 - center_proportion.1 * cell_outer_height).round();
+        let blah_x = (top_left_x / cell_outer_width).ceil() as i64;
+        let blah_y = (top_left_y / cell_outer_height).ceil() as i64;
+        let new_top_left_screen = (
+            center.0 - blah_x,
+            center.1 - blah_y,
         );
+        let new_bias = (
+            top_left_x - blah_x as f32 * cell_outer_width,
+            top_left_y - blah_y as f32 * cell_outer_height,
+        );
+        
+        map_state.top_left = new_top_left_screen;
+        map_state.bias = new_bias;
     }
     
     // Pan
@@ -402,6 +424,8 @@ pub fn build_map(
         map_state.bias = new_bias;
     }
     
+    map_state.prev_opts = map_state.opts;
+    
     MapResult {
         hovered_screen_pos,
         partition_selection,
@@ -507,10 +531,17 @@ fn get_line_thickness(opts: &MapOptions, ignore_gridline_option: bool) -> f32 {
     }
 }
 
-pub fn map_get_center_screen(geom: &MapGeometry) -> (i64, i64) {
-    let x = geom.x_min + (geom.size[0] / 2.0 / geom.cell_outer_width) as i64;
-    let y = geom.y_min + (geom.size[1] / 2.0 / geom.cell_outer_height) as i64;
-    (x, y)
+fn map_get_center(geom: &MapGeometry) -> ((i64, i64), (f32, f32)) {
+    let center_x = geom.size[0] / 2.0;
+    let center_y = geom.size[1] / 2.0;
+    let screen_pos = get_hovered_screen_pos([center_x, center_y], geom);
+    let [top_left_x, top_left_y] = calc_cell_pos(screen_pos, geom);
+    let offset_x = center_x - top_left_x;
+    let offset_y = center_y - top_left_y;
+    let proportion_x = offset_x / geom.cell_outer_width;
+    let proportion_y = offset_y / geom.cell_outer_height;
+    
+    (screen_pos, (proportion_x, proportion_y))
 }
 
 type Color = [f32; 4];

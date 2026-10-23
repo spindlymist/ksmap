@@ -21,7 +21,7 @@ use rustc_hash::FxHashMap;
 use crate::map_widget::MAP_COLORS;
 use crate::name_pattern::{self, NamePattern};
 use crate::tooltips::{set_tooltips_enabled, toggle_tooltips, tooltip, tooltips_are_enabled};
-use crate::{map_widget::{build_map, MapState, map_get_center_screen, PartitionSelection}, ui_extensions::UiExt};
+use crate::{map_widget::{build_map, MapState, PartitionSelection}, ui_extensions::UiExt};
 use crate::format_bytes::*;
 
 pub struct State {
@@ -185,11 +185,6 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             ui.menu_item_toggle("Use true aspect ratio", None::<&str>, &mut true_aspect_ratio, !map_state.opts.use_textures);
             if ui.is_item_edited() {
                 map_state.opts.aspect_ratio = if true_aspect_ratio { 2.5 } else { 1.0 };
-                if let Some(geom) = &map_state.prev_geom
-                    && requested_center.is_none()
-                {
-                    requested_center.replace(map_get_center_screen(geom));
-                }
             }
             
             ui.menu_item_toggle("Draw gridlines", None::<&str>, &mut map_state.opts.draw_gridlines, true);
@@ -359,11 +354,6 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         // Force true aspect ratio on
         if map_state.opts.aspect_ratio == 1.0 {
             map_state.opts.aspect_ratio = 2.5;
-            if let Some(geom) = &map_state.prev_geom
-                && requested_center.is_none()
-            {
-                requested_center.replace(map_get_center_screen(geom));
-            }
         }
         if map_state.screen_textures.is_empty() {
             draw_all_screens_and_create_textures(
