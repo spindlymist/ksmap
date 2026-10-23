@@ -474,7 +474,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
     let hover_pos = {
         // Initial map center
         if map_state.prev_geom.is_none() {
-            if let Some(partition) = render_state.partitions.first() {
+            if let Some(partition) = partition_state.selected
+                .and_then(|i| render_state.partitions.get(i))
+            {
                 let bounds = partition.bounds();
                 let partition_center = (
                     (bounds.x.start + (bounds.x.end - bounds.x.start) / 2) as i64,
