@@ -299,6 +299,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         
         header("Partition List");
         ui.bullet_text("Double click on a partition to center it.");
+        ui.bullet_text("Press up, down, page up, page down, home, or end to change the selected partition.");
+        ui.bullet_text("Press enter to center the selected partition.");
         ui.bullet_text("Click on a column header to sort by that column.");
         ui.bullet_text("To invert the sort order, click on the column header again.");
         ui.new_line();
