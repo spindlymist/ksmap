@@ -19,7 +19,10 @@ use ksmap::{
 };
 use libks::{map_bin, world_ini};
 
-use crate::screens::level_map::{PartitionState, RenderState};
+use crate::{
+    prefs::Preferences,
+    screens::level_map::{PartitionState, RenderState}
+};
 
 pub struct State {
     can_return_to_level_list: bool,
@@ -71,7 +74,7 @@ impl State {
     }
 }
 
-pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
+pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, _prefs: &mut Preferences) -> Option<Task> {
     let mut task = None;
     
     while let Ok(message) = state.rx.try_recv() {

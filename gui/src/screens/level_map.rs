@@ -52,6 +52,7 @@ use crate::name_pattern::{self, NamePattern};
 use crate::tooltips::{set_tooltips_enabled, toggle_tooltips, tooltip, tooltips_are_enabled};
 use crate::ui_extensions::UiExt;
 use crate::format_bytes::*;
+use crate::prefs::Preferences;
 
 pub struct State {
     can_return_to_level_list: bool,
@@ -79,8 +80,9 @@ impl State {
         render_state: RenderState,
         partition_state: PartitionState,
         can_return_to_level_list: bool,
+        prefs: &Preferences,
     ) -> Self {
-        State {
+        let mut state = State {
             can_return_to_level_list,
             layout: None,
             reset_layout: false,
@@ -98,7 +100,20 @@ impl State {
             generate_mipmaps: false,
             screens_per_batch: 0,
             requested_center: None,
+        };
+        
+        // Apply preferences
+        if let Some(output_dir) = &prefs.output_dir {
+            state.export_state.output_dir = output_dir.clone();
         }
+        if prefs.use_true_aspect_ratio {
+            state.map_state.opts.aspect_ratio = 2.5;
+        }
+        state.map_state.opts.draw_gridlines = prefs.draw_gridlines;
+        state.map_state.opts.show_zoom_level = prefs.show_screen_size;
+        state.generate_mipmaps = prefs.generate_mipmaps;
+        
+        state
     }
 }
 
@@ -111,7 +126,7 @@ const DRAG_SPEED_SLOW  : f32 = 0.050;
 const DRAG_SPEED_MEDIUM: f32 = 0.100;
 const DRAG_SPEED_FAST  : f32 = 0.150;
 
-pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
+pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Preferences) -> Option<Task> {
     // Show progress window when rendering
     if state.render_thread.is_some() || state.render_error.is_some() {
         let (width, height) = ex.window.size();
@@ -210,14 +225,18 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
             }
         });
         ui.menu("View", || {
-            let mut true_aspect_ratio = map_state.opts.aspect_ratio == 2.5;
-            ui.menu_item_toggle("Use true aspect ratio", None::<&str>, &mut true_aspect_ratio, !map_state.opts.use_textures);
+            let mut use_true_aspect_ratio = map_state.opts.aspect_ratio == 2.5;
+            ui.menu_item_toggle("Use true aspect ratio", None::<&str>, &mut use_true_aspect_ratio, !map_state.opts.use_textures);
             if ui.is_item_edited() {
-                map_state.opts.aspect_ratio = if true_aspect_ratio { 2.5 } else { 1.0 };
+                map_state.opts.aspect_ratio = if use_true_aspect_ratio { 2.5 } else { 1.0 };
+                prefs.use_true_aspect_ratio = use_true_aspect_ratio;
             }
             
             ui.menu_item_toggle("Draw gridlines", None::<&str>, &mut map_state.opts.draw_gridlines, true);
+            prefs.draw_gridlines = map_state.opts.draw_gridlines;
+            
             ui.menu_item_toggle("Show screen size", None::<&str>, &mut map_state.opts.show_zoom_level, true);
+            prefs.show_screen_size = map_state.opts.show_zoom_level;
             
             let mut use_textures = map_state.opts.use_textures;
             ui.menu_item_toggle("Draw screens on map", None::<&str>, &mut use_textures, true);
@@ -358,6 +377,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
         *screens_per_batch = screens_per_batch_u32 as usize;
         
         ui.checkbox("Generate mipmaps", generate_mipmaps);
+        prefs.generate_mipmaps = *generate_mipmaps;
         tooltip(ui, "Looks smoother when zoomed out, but takes longer and requires more memory.\n\
             Disable if it crashes.");
         ui.new_line();
@@ -399,7 +419,16 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<Task> {
     
     // Export
     ui.window("Export").build(|| {
-        build_window_export(ui, ex, export_state, &mut render_state, render_thread, render_rx, render_state_lock, render_progress, render_cancel)
+        build_window_export(ui,
+            ex,
+            export_state,
+            &mut render_state,
+            render_thread,
+            render_rx,
+            render_state_lock,
+            render_progress,
+            render_cancel,
+            prefs)
     });
     
     // Partition options
@@ -1586,6 +1615,7 @@ fn build_window_export(
     render_state_lock: &RenderStateLock,
     render_progress: &mut RenderProgress,
     render_cancel: &mut Arc<AtomicBool>,
+    prefs: &mut Preferences,
 ) {
     let _token = ui.widget_group_begin();
     
@@ -1612,6 +1642,7 @@ fn build_window_export(
             });
             render_progress.screens_total += partition.len();
         }
+        prefs.output_dir.replace(export_state.output_dir.clone());
     }
     
     {

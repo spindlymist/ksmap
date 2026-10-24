@@ -3,6 +3,8 @@ use std::{fs, path::{Path, PathBuf}};
 use imgui_app::{Extras, dear_imgui_rs::{Key, MouseButton, SelectableFlags, StyleColor}};
 use imgui_app::dear_imgui_rs::{Condition, Ui, TableFlags, TableSizingPolicy, WindowFlags};
 
+use crate::prefs::Preferences;
+
 pub struct State {
     levels: Vec<LevelListItem>,
     filter: String,
@@ -30,7 +32,7 @@ impl State {
     }
 }
 
-pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) -> Option<PathBuf> {
+pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, _prefs: &mut Preferences) -> Option<PathBuf> {
     let (width, height) = ex.window.size();
     let open_level = ui.window("Level List")
         .position([0.0, 0.0], Condition::Always)

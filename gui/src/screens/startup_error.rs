@@ -1,6 +1,8 @@
 use imgui_app::Extras;
 use imgui_app::dear_imgui_rs::{Condition, Ui, WindowFlags};
 
+use crate::prefs::Preferences;
+
 pub struct State {
     error_message: String
 }
@@ -13,7 +15,7 @@ impl State {
     }
 }
 
-pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State) {
+pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, _prefs: &mut Preferences) {
     let (width, height) = ex.window.size();
     ui.window("Main")
         .position([0.0, 0.0], Condition::Always)

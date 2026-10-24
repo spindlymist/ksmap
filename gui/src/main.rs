@@ -11,6 +11,7 @@ mod map_widget;
 mod name_pattern;
 mod format_bytes;
 mod tooltips;
+mod prefs;
 
 use std::{fs, path::{Path, PathBuf}};
 
@@ -18,14 +19,16 @@ use anyhow::{Result, Context};
 use imgui_app::{imgui_init, platform_init, renderer_init, run};
 use imgui_app::dear_imgui_rs::{ConfigFlags, StyleColor};
 use libks::editions::is_ks_dir;
-
 use libks_ini::edit::Ini;
+
 use screens::*;
+use prefs::{Preferences, load_preferences, save_preferences};
 
 struct App {
     ks_dir: Option<PathBuf>,
     new_title: Option<String>,
     screen: Screen,
+    prefs: Preferences
 }
 
 enum Screen {
@@ -67,22 +70,28 @@ fn main() -> Result<()> {
     
     run(imgui, |ui, mut ex| {
         match &mut app.screen {
-            Screen::StartupError(state) => startup_error::build_ui(ui, &mut ex, state),
-            Screen::LevelList(state) => match level_list::build_ui(ui, &mut ex, state) {
+            Screen::StartupError(state) => startup_error::build_ui(ui, &mut ex, state, &mut app.prefs),
+            Screen::LevelList(state) => match level_list::build_ui(ui, &mut ex, state, &mut app.prefs) {
                 Some(level_dir) => {
                     let state = loading::State::new(app.ks_dir.clone(), level_dir);
                     app.screen = Screen::Loading(state);
                 }
                 None => {}
             }
-            Screen::Loading(state) => match loading::build_ui(ui, &mut ex, state) {
+            Screen::Loading(state) => match loading::build_ui(ui, &mut ex, state, &mut app.prefs) {
                 Some(loading::Task::ShowLevelMap {
                     level_dir,
                     render_state,
                     partition_state,
                 }) => {
                     app.new_title = Some(get_window_title_for_level(&level_dir, &render_state.ini));
-                    let state = level_map::State::new(level_dir, render_state, partition_state, app.ks_dir.is_some());
+                    let state = level_map::State::new(
+                        level_dir,
+                        render_state,
+                        partition_state,
+                        app.ks_dir.is_some(),
+                        &app.prefs
+                    );
                     app.screen = Screen::LevelMap(state);
                 }
                 Some(loading::Task::ShowLevelList) => {
@@ -94,7 +103,7 @@ fn main() -> Result<()> {
                 }
                 None => {}
             }
-            Screen::LevelMap(state) => match level_map::build_ui(ui, &mut ex, state) {
+            Screen::LevelMap(state) => match level_map::build_ui(ui, &mut ex, state, &mut app.prefs) {
                 Some(level_map::Task::ShowLevelList) => {
                     if let Some(ks_dir) = &app.ks_dir {
                         level_map::on_close_screen(ui, &mut ex, state);
@@ -116,6 +125,8 @@ fn main() -> Result<()> {
         
         imgui_app::Task::None
     });
+    
+    let _ = save_preferences(&app.prefs);
 
     Ok(())
 }
@@ -123,6 +134,7 @@ fn main() -> Result<()> {
 fn init_app() -> App {
     let arg = std::env::args().nth(1).map(interpret_path_arg);
     let mut ks_dir: Option<PathBuf> = None;
+    let prefs = load_preferences().unwrap_or_default();
     
     let screen = match arg {
         Some(Ok(PathArg::WorldPath(world_dir))) => {
@@ -174,7 +186,8 @@ fn init_app() -> App {
     App {
         ks_dir,
         new_title: None,
-        screen
+        screen,
+        prefs
     }
 }
 

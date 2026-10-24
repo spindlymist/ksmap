@@ -13,3 +13,5 @@ libks = { git = "https://github.com/spindlymist/libks.git" }
 libks_ini = { git = "https://github.com/spindlymist/libks.git" }
 rustc-hash = "2.1.2"
 rfd = "0.17.2"
+serde = { version = "1.0.229", features = ["derive"] }
+toml = "1.1.8"
