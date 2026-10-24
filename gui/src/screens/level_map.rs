@@ -1768,6 +1768,8 @@ enum RenderMessage {
 }
 
 fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, tx: mpsc::Sender<RenderMessage>, cancel: Arc<AtomicBool>) {
+    const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+    
     let Ok(render_state) = render_state_lock.read() else { return };    
     let draw_context = DrawContext {
         seed: render_state.seed,
@@ -1782,7 +1784,8 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
     let level_info = name_pattern::LevelInfo::new(&render_state.ini, &export_state.level_dir);
     let partition_name_pattern = NamePattern::parse(&export_state.partition_spec);
     let subdir_name_pattern = NamePattern::parse(&export_state.subdir_spec);
-    let subdir_name = subdir_name_pattern.make_string(&level_info, None);
+    let subdir_name = subdir_name_pattern.make_string(&level_info, None)
+        .replace(INVALID_PATH_CHARS, "_");
     
     let is_single_partition = render_state.partitions.len() < 2;
     let output_dir =
@@ -1821,8 +1824,9 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
                     bounds: partition.bounds(),
                 };
                 partition_name_pattern.make_string(&level_info, Some(partition_info))
+                    .replace(INVALID_PATH_CHARS, "_")
             };
-        let output_path = output_dir.join(file_name).with_extension("png");
+        let output_path = output_dir.join(file_name).with_added_extension("png");
         
         let success = if export_state.rgb {
             draw_and_export_rgb(
