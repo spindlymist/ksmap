@@ -954,26 +954,18 @@ fn build_partition_table(
 ) -> Option<usize> {
     let mut go_to_partition_index: Option<usize> = None;
     
-    let table_height = {
-        let style = unsafe { ui.style() };
-        let n_rows = partitions.len() + 1; // +1 for header
-        let row_height = ui.text_line_height()
-            + 2.0 * style.cell_padding()[1];
-        let total_height = n_rows as f32 * row_height + 1.0; // +2 for outer borders, -1 for bottom border of last row
-        if total_height > ui.content_region_avail_height() {
-            -1.0 // fill
-        }
-        else {
-            total_height
-        }
+    let row_height = {
+        let cell_padding_y = unsafe { ui.style().cell_padding()[1] };
+        ui.text_line_height() + 2.0 * cell_padding_y 
     };
+    let table_height = {
+        let n_rows = partitions.len() + 1; // +1 for header
+        let total_height = n_rows as f32 * row_height + 1.0; // +2 for outer borders, -1 for bottom border of last row
+        total_height.min(ui.content_region_avail_height())
+    };
+    let rows_per_page = ((table_height / row_height) as isize - 1).max(1);
     
     // Keyboard controls
-    fn calc_rows_per_page(ui: &Ui, table_height: f32) -> isize {
-        let table_height_abs = if table_height == -1.0 { ui.content_region_avail_height() } else { table_height };
-        let row_height = ui.text_line_height() + 2.0 * unsafe { ui.style().cell_padding()[1] };
-        (table_height_abs / row_height) as isize - 1
-    }
     if !ui.is_any_item_focused() && !ui.is_any_item_active() {
         let mut nudge_selection: isize = 0;
         if ui.is_key_pressed(Key::UpArrow) {
@@ -983,10 +975,10 @@ fn build_partition_table(
             nudge_selection = 1;
         }
         else if ui.is_key_pressed(Key::PageUp) {
-            nudge_selection = -calc_rows_per_page(ui, table_height);
+            nudge_selection = -rows_per_page;
         }
         else if ui.is_key_pressed(Key::PageDown) {
-            nudge_selection = calc_rows_per_page(ui, table_height);
+            nudge_selection = rows_per_page;
         }
         else if ui.is_key_pressed(Key::Home) {
             nudge_selection = isize::MIN;
@@ -1091,9 +1083,7 @@ fn build_partition_table(
                     go_to_partition_index.replace(partition_idx);
                 }
                 if is_selected && partition_state.scroll_to_selected {
-                    if !ui.is_item_visible() {
-                        ui.set_scroll_here_y(0.5);
-                    }
+                    ui.set_scroll_here_y(0.5);
                     partition_state.scroll_to_selected = false;
                 }
             }
