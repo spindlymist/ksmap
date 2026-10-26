@@ -68,7 +68,8 @@ fn index_to_point(index: u64, grid_size_minus_one: u32) -> (u32, u32) {
 
 #[inline(always)]
 fn rotate(n: u64, mut x: u64, mut y: u64, rx: u64, ry: u64) -> (u64, u64) {
-    assert!(n.is_power_of_two());
+    debug_assert!(n.is_power_of_two());
+    
     if ry == 0 {
         if rx == 1 {
             x = n - 1 - x;
@@ -96,67 +97,60 @@ mod test {
     
     #[test]
     fn get_point_relative_to_bounds_handles_positive_coords() {
-        // Positive coords
-        {
-            let bounds = Bounds {
-                x: 10..21,
-                y: 10..21
-            };
-            for (point_abs, point_rel_expected) in [
-                ((10, 10), (0, 0)),
-                ((15, 15), (5, 5)),
-                ((20, 20), (10, 10)),
-            ] {
-                let point_rel_actual = get_point_relative_to_bounds(point_abs, &bounds);
-                assert_eq!(point_rel_actual, point_rel_expected, "\
-                    {point_abs:?} was transformed to {point_rel_actual:?}; \
-                    expected {point_rel_expected:?}");
-            }
+        let bounds = Bounds {
+            x: 10..21,
+            y: 10..21
+        };
+        for (point_abs, point_rel_expected) in [
+            ((10, 10), (0, 0)),
+            ((15, 15), (5, 5)),
+            ((20, 20), (10, 10)),
+        ] {
+            let point_rel_actual = get_point_relative_to_bounds(point_abs, &bounds);
+            assert_eq!(point_rel_actual, point_rel_expected, "\
+                {point_abs:?} was transformed to {point_rel_actual:?}; \
+                expected {point_rel_expected:?}");
         }
     }
     
     #[test]
     fn get_point_relative_to_bounds_handles_negative_coords() {
-        {
-            let bounds = Bounds {
-                x: -20..-9,
-                y: -20..-9
-            };
-            for (point_abs, point_rel_expected) in [
-                ((-10, -10), (10, 10)),
-                ((-15, -15), (5, 5)),
-                ((-20, -20), (0, 0)),
-            ] {
-                let point_rel_actual = get_point_relative_to_bounds(point_abs, &bounds);
-                assert_eq!(point_rel_actual, point_rel_expected, "\
-                    {point_abs:?} was transformed to {point_rel_actual:?}; \
-                    expected {point_rel_expected:?}");
-            }
+        let bounds = Bounds {
+            x: -20..-9,
+            y: -20..-9
+        };
+        for (point_abs, point_rel_expected) in [
+            ((-10, -10), (10, 10)),
+            ((-15, -15), (5, 5)),
+            ((-20, -20), (0, 0)),
+        ] {
+            let point_rel_actual = get_point_relative_to_bounds(point_abs, &bounds);
+            assert_eq!(point_rel_actual, point_rel_expected, "\
+                {point_abs:?} was transformed to {point_rel_actual:?}; \
+                expected {point_rel_expected:?}");
         }
     }
     
     #[test]
     fn get_point_relative_to_bounds_handles_extreme_points() {
-        {
-            let bounds = Bounds {
-                x: (i32::MIN as i64)..(i32::MAX as i64) + 1,
-                y: (i32::MIN as i64)..(i32::MAX as i64) + 1
-            };
-            for (point_abs, point_rel_expected) in [
-                ((i32::MIN, i32::MIN), (0, 0)),
-                ((0, 0), (u32::pow(2, 31), u32::pow(2, 31))),
-                ((i32::MAX, i32::MAX), (u32::MAX, u32::MAX)),
-            ] {
-                let point_rel_actual = get_point_relative_to_bounds(point_abs, &bounds);
-                assert_eq!(point_rel_actual, point_rel_expected, "\
-                    {point_abs:?} was transformed to {point_rel_actual:?}; \
-                    expected {point_rel_expected:?}");
-            }
+        let bounds = Bounds {
+            x: (i32::MIN as i64)..(i32::MAX as i64) + 1,
+            y: (i32::MIN as i64)..(i32::MAX as i64) + 1
+        };
+        for (point_abs, point_rel_expected) in [
+            ((i32::MIN, i32::MIN), (0, 0)),
+            ((0, 0), (u32::pow(2, 31), u32::pow(2, 31))),
+            ((i32::MAX, i32::MAX), (u32::MAX, u32::MAX)),
+        ] {
+            let point_rel_actual = get_point_relative_to_bounds(point_abs, &bounds);
+            assert_eq!(point_rel_actual, point_rel_expected, "\
+                {point_abs:?} was transformed to {point_rel_actual:?}; \
+                expected {point_rel_expected:?}");
         }
     }
     
     #[test]
-    fn index_to_points_works() {
+    fn index_to_point_works() {
         let mut points_used = HashSet::new();
         
         for grid_size in 1..=16 {
