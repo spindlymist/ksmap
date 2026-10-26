@@ -12,7 +12,7 @@ use ksmap::{
     definitions,
     drawing::DrawOptions,
     graphics::Graphics,
-    partition::{GridPartitioner, IslandsPartitioner, Partitioner},
+    partition::{GridPartitioner, IslandsPartitioner, Partitioner, sort_partitions_spatially},
     screen_map::ScreenMap,
     seed::MapSeed,
     synchronization::{SyncOptions, WorldSync},
@@ -185,28 +185,33 @@ fn init_render_state(tx: mpsc::Sender<LoadMessage>, ks_dir: PathBuf, level_dir: 
     gfx.load_objects(&assets.objects, &mut warnings)?;
 
     let _ = tx.send(LoadMessage::Partitioning);
-    let partitions;
-    let partition_state;
-    if screen_map.len() < 25000 {
-        let partitioner = IslandsPartitioner {
-            max_size: (120, 300),
-            gap: 1..=10,
-            force: false,
-            fallback_to_grid: true,
+    let (partitions, partition_state) =
+        if screen_map.len() < 25000 {
+            let partitioner = IslandsPartitioner {
+                max_size: (120, 300),
+                gap: 1..=10,
+                force: false,
+                fallback_to_grid: true,
+            };
+            let mut partitions = partitioner.partitions(&screen_map);
+            sort_partitions_spatially(&mut partitions);
+            let partition_state = PartitionState::from_islands(partitioner, &partitions);
+            
+            (partitions, partition_state)
+        }
+        else {
+            let partitioner = GridPartitioner {
+                max_size: (120, 300),
+                rows: None,
+                cols: None,
+                force: false,
+            };
+            let mut partitions = partitioner.partitions(&screen_map);
+            sort_partitions_spatially(&mut partitions);
+            let partition_state = PartitionState::from_grid(partitioner, &partitions);
+            
+            (partitions, partition_state)
         };
-        partitions = partitioner.partitions(&screen_map);
-        partition_state = PartitionState::from_islands(partitioner, &partitions);
-    }
-    else {
-        let partitioner = GridPartitioner {
-            max_size: (120, 300),
-            rows: None,
-            cols: None,
-            force: false,
-        };
-        partitions = partitioner.partitions(&screen_map);
-        partition_state = PartitionState::from_grid(partitioner, &partitions);
-    }
 
     let _ = tx.send(LoadMessage::Syncing);
     let seed = MapSeed::random();

@@ -1,4 +1,5 @@
 mod bounds;
+mod hilbert;
 mod grid;
 mod islands;
 
@@ -52,6 +53,22 @@ pub fn merge_nested_partitions(partitions: &mut Vec<Partition>) {
         }
         i += 1;
     }
+}
+
+pub fn sort_partitions_spatially(partitions: &mut [Partition]) {
+    let bounds_combined = {
+        let bounds_iter = partitions.iter().map(|partition| &partition.bounds);
+        Bounds::from_iter(bounds_iter)
+    };
+    let grid_size = hilbert::grid_size_from_bounds(&bounds_combined);
+    
+    // Sort the partitions by their index on a Hilbert curve that fills the combined bounds
+    partitions.sort_by_cached_key(|partition| {
+        let center = partition.bounds.center();
+        let center = (center.0 as i32, center.1 as i32);
+        let center_relative = hilbert::get_point_relative_to_bounds(center, &bounds_combined);
+        hilbert::point_to_index(center_relative, grid_size)
+    });
 }
 
 impl Partition {

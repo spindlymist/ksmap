@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use libks::ScreenCoord;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Default)]
 pub struct Bounds {
     pub x: Range<i64>,
     pub y: Range<i64>,
@@ -55,6 +55,12 @@ impl Bounds {
     
     pub fn y_max(&self) -> i64 {
         (self.y.end - 1).max(self.y.start)
+    }
+    
+    pub fn center(&self) -> (i64, i64) {
+        let x = self.x.start + (self.width() / 2) as i64;
+        let y = self.y.start + (self.height() / 2) as i64;
+        (x, y)
     }
     
     pub fn contains(&self, other: &Bounds) -> bool {
@@ -114,6 +120,21 @@ impl<'a> FromIterator<&'a ScreenCoord> for Bounds {
                 y: 0..0,
             }
         }
+    }
+}
+
+impl<'a> FromIterator<&'a Bounds> for Bounds {
+    fn from_iter<T: IntoIterator<Item = &'a Bounds>>(iter: T) -> Self {
+        let mut iter = iter.into_iter();
+        let mut bounds_combined = iter.by_ref().next()
+            .cloned()
+            .unwrap_or_default();
+        
+        for bounds in iter {
+            bounds_combined = Bounds::union(&bounds_combined, bounds);
+        }
+        
+        bounds_combined
     }
 }
 

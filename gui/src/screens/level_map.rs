@@ -39,7 +39,7 @@ use ksmap::{
     definitions::ObjectDefs,
     drawing::{self, alpha_to_trans, BlendAlgorithm, DrawContext, DrawOptions, TintStrategy},
     graphics::Graphics,
-    partition::{GridPartitioner, IslandsPartitioner, Partition, Partitioner},
+    partition::{GridPartitioner, IslandsPartitioner, Partition, Partitioner, sort_partitions_spatially},
     screen_map::ScreenMap,
     seed::MapSeed,
     synchronization::{SyncOptions, WorldSync},
@@ -822,6 +822,7 @@ fn build_window_partitions(ui: &Ui, _ex: &mut Extras, partition_state: &mut Part
                 partitioner.partitions(&render_state.screen_map)
             }
         };
+        sort_partitions_spatially(&mut render_state.partitions);
         update_partition_members(&mut partition_state.partition_members, &render_state.partitions);
         sort_partitions(
             &render_state.partitions,
