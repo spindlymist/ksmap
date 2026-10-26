@@ -438,7 +438,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     
     // Partition list
     {
-        let go_to_partition_index = ui.window("Partition List").build(|| {
+        let window_name = format!("Partitions ({})###Partitions", render_state.partitions.len());
+        let go_to_partition_index = ui.window(window_name).build(|| {
             build_partition_table(ui, ex.fonts, partition_state, &mut render_state.partitions, export_state.rgb)
         }).unwrap_or_default();
         
@@ -665,7 +666,7 @@ fn create_dockspace_layout(ui: &Ui) -> DockLayout {
     let key_partition_opts = WindowKey::new("Partition Options", "Partition Options").unwrap();
     let key_drawing_opts = WindowKey::new("Drawing Options", "Drawing Options").unwrap();
     let key_preview = WindowKey::new("Preview", "Preview").unwrap();
-    let key_partitions = WindowKey::new("Partition List", "Partition List").unwrap();
+    let key_partitions = WindowKey::new("Partitions", "Partitions").unwrap();
     
     DockLayout::split(
         DockSplit::Right,
