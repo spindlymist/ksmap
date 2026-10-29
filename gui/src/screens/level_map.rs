@@ -891,12 +891,24 @@ fn build_window_partitions(
             &partition_state.level_bounds,
             render_state.screen_map.len(),
             false);
+        tooltip(ui, "\
+            The size of the entire level by various measures. \
+            Useful for telling if you have enough memory to render the entire level in a single image.\n\
+            - Screens: the number of screens in the entire level.\n\
+            - Size: the width and height (WxH) in screens of the entire level.\n\
+            - Memory: the amount of memory that would be required to render the entire level in a single image.");
         
         ui.widget_group_label("Largest partition");
         display_bounds_metrics(
             &partition_state.largest_partition_bounds,
             partition_state.largest_partition_n_screens,
             true);
+        tooltip(ui, "\
+            The size of the largest partition by various measures. \
+            Useful for telling if you have enough memory to render with the current partition settings.\n\
+            - Screens: the number of screens in the largest partition.\n\
+            - Size: the width and height (WxH) in screens of the largest partition.\n\
+            - Memory: the amount of memory required to render the largest partition.");
     }
     
     let mut algo_index = partition_state.algorithm as usize;
@@ -943,11 +955,11 @@ fn build_window_partitions(
             .try_display_format(format!("%.1f{unit}"))
             .expect("Invalid display format")
             .build(ui, &mut max_size);
-        tooltip(ui, "The max possible size of a single output image in RAM if it had width and height equal to the \
+        tooltip(ui, "The max possible size of a single output image in memory if it had width and height equal to the \
             max values set above.\n\
             \n\
-            This is likely higher than the actual amount the largest partition will require. Check the Partitions \
-            window to see the amount required (excluding assets and working memory).");
+            This is likely higher than the actual amount the largest partition will require. Check the \"Largest \
+            partition\" stats above to see the amount required (excluding assets and working memory).");
     }
     
     match partition_state.algorithm {
