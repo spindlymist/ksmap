@@ -35,15 +35,13 @@ use imgui_app::dear_imgui_rs::{
     WindowFlags,
     WindowKey
 };
-use ksmap::{
-    definitions::ObjectDefs,
-    drawing::{self, alpha_to_trans, BlendAlgorithm, DrawContext, DrawOptions, TintStrategy},
-    graphics::Graphics,
-    partition::{GridPartitioner, IslandsPartitioner, Partition, Partitioner, sort_partitions_spatially},
-    screen_map::ScreenMap,
-    seed::MapSeed,
-    synchronization::{SyncOptions, WorldSync},
-};
+use ksmap::definitions::ObjectDefs;
+use ksmap::drawing::{self, alpha_to_trans, BlendAlgorithm, DrawContext, DrawOptions, TintStrategy};
+use ksmap::graphics::Graphics;
+use ksmap::partition::{Bounds, GridPartitioner, IslandsPartitioner, Partition, Partitioner, sort_partitions_spatially};
+use ksmap::screen_map::ScreenMap;
+use ksmap::seed::MapSeed;
+use ksmap::synchronization::{SyncOptions, WorldSync};
 use libks::ScreenCoord;
 use libks_ini::edit::Ini;
 
@@ -433,7 +431,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     
     // Partition options
     ui.window("Partition Options").build(|| {
-        build_window_partitions(ui, ex, partition_state, &mut render_state)
+        build_window_partitions(ui, ex, partition_state, &mut render_state, export_state.rgb)
     });
     
     // Partition list
@@ -690,6 +688,9 @@ pub struct PartitionState {
     sorted_indices: Vec<usize>,
     partition_members: FxHashMap<ScreenCoord, usize>,
     selected: Option<usize>,
+    level_bounds: Bounds,
+    largest_partition_bounds: Bounds,
+    largest_partition_n_screens: usize,
     algorithm: PartitionAlgorithm,
     max_width: i32,
     max_height: i32,
@@ -709,6 +710,33 @@ pub struct PartitionState {
 }
 
 impl PartitionState {
+    fn update_from_partitions(&mut self, partitions: &[Partition]) {
+        self.partition_members.clear();
+        for (i, positions) in partitions.iter().enumerate() {
+            for pos in positions {
+                self.partition_members.insert(*pos, i);
+            }
+        }
+
+        sort_partitions(
+            partitions,
+            &mut self.sorted_indices,
+            self.sort_column_index,
+            self.sort_descending);
+        self.selected = self.sorted_indices.first().cloned();
+
+        let largest_partition = partitions.iter()
+            .max_by_key(|p| p.bounds().width() * p.bounds().height());
+        self.largest_partition_bounds = largest_partition.map(|p| p.bounds().clone())
+            .unwrap_or_default();
+        self.largest_partition_n_screens = largest_partition.map(|p| p.positions().len())
+            .unwrap_or_default();
+        self.level_bounds = {
+            let bounds_iter = partitions.iter().map(|p| p.bounds());
+            Bounds::from_iter(bounds_iter)
+        };
+    }
+    
     pub fn from_islands(partitioner: IslandsPartitioner, partitions: &[Partition]) -> Self {
         let mut state = Self {
             algorithm: PartitionAlgorithm::Islands,
@@ -720,13 +748,7 @@ impl PartitionState {
             grid_fallback: partitioner.fallback_to_grid,
             ..Default::default()
         };
-        update_partition_members(&mut state.partition_members, partitions);
-        sort_partitions(
-            partitions,
-            &mut state.sorted_indices,
-            state.sort_column_index,
-            state.sort_descending);
-        state.selected = state.sorted_indices.first().cloned();
+        state.update_from_partitions(partitions);
         
         state
     }
@@ -743,13 +765,7 @@ impl PartitionState {
             force: partitioner.force,
             ..Default::default()
         };
-        update_partition_members(&mut state.partition_members, partitions);
-        sort_partitions(
-            partitions,
-            &mut state.sorted_indices,
-            state.sort_column_index,
-            state.sort_descending);
-        state.selected = state.sorted_indices.first().cloned();
+        state.update_from_partitions(partitions);
         
         state
     }
@@ -761,6 +777,9 @@ impl Default for PartitionState {
             sorted_indices: Vec::new(),
             partition_members: FxHashMap::default(),
             selected: None,
+            level_bounds: Bounds::default(),
+            largest_partition_bounds: Bounds::default(),
+            largest_partition_n_screens: 0,
             algorithm: PartitionAlgorithm::Islands,
             max_width: 120,
             max_height: 300,
@@ -787,16 +806,13 @@ enum PartitionAlgorithm {
     Grid,
 }
 
-fn update_partition_members(members: &mut FxHashMap<ScreenCoord, usize>, partitions: &[Partition]) {
-    members.clear();
-    for (i, positions) in partitions.iter().enumerate() {
-        for pos in positions {
-            members.insert(*pos, i);
-        }
-    }
-}
-
-fn build_window_partitions(ui: &Ui, _ex: &mut Extras, partition_state: &mut PartitionState, render_state: &mut RenderState) {
+fn build_window_partitions(
+    ui: &Ui,
+    _ex: &mut Extras,
+    partition_state: &mut PartitionState,
+    render_state: &mut RenderState,
+    rgb: bool
+) {
     let _token = ui.widget_group_begin();
     
     let button_height = ui.text_line_height() * 2.0;
@@ -824,13 +840,63 @@ fn build_window_partitions(ui: &Ui, _ex: &mut Extras, partition_state: &mut Part
             }
         };
         sort_partitions_spatially(&mut render_state.partitions);
-        update_partition_members(&mut partition_state.partition_members, &render_state.partitions);
-        sort_partitions(
-            &render_state.partitions,
-            &mut partition_state.sorted_indices,
-            partition_state.sort_column_index,
-            partition_state.sort_descending);
-        partition_state.selected = partition_state.sorted_indices.first().cloned();
+        partition_state.update_from_partitions(&render_state.partitions);
+    }
+    
+    {
+        let color_disabled = ui.style_color(StyleColor::TextDisabled);
+        let subtle_text = |text: &str| {
+            let _token = ui.push_style_color(StyleColor::Text, color_disabled);
+            ui.text(text);
+        };
+        
+        // Save the x positions of the labels for alignment
+        // The entire level is always at least as large as the largest partition, so we don't need to
+        // calculate the positions ahead of time as long as we display the level state first
+        let mut size_x = 0.0;
+        let mut mem_x = 0.0;
+        let mut display_bounds_metrics = |bounds: &Bounds, n_screens: usize, use_saved_pos: bool| {
+            let _group = ui.begin_group();
+            
+            subtle_text("Screens: ");
+            ui.same_line_with_spacing(0.0, 0.0);
+            ui.text(format!("{}", n_screens));
+            
+            ui.same_line();
+            if use_saved_pos {
+                ui.set_cursor_pos_x(size_x);
+            }
+            else {
+                size_x = ui.cursor_pos_x();
+            }
+            subtle_text("Size: ");
+            ui.same_line_with_spacing(0.0, 0.0);
+            ui.text(format!("{}x{}", bounds.width(), bounds.height()));
+            
+            ui.same_line();
+            if use_saved_pos {
+                ui.set_cursor_pos_x(mem_x);
+            }
+            else {
+                mem_x = ui.cursor_pos_x();
+            }
+            subtle_text("Memory: ");
+            ui.same_line_with_spacing(0.0, 0.0);
+            let memory_usage = if rgb { bounds.size_bytes_rgb() } else { bounds.size_bytes_rgba() };
+            ui.text(bytes_to_string(memory_usage as usize, 1));
+        };
+        
+        ui.widget_group_label("Entire level");
+        display_bounds_metrics(
+            &partition_state.level_bounds,
+            render_state.screen_map.len(),
+            false);
+        
+        ui.widget_group_label("Largest partition");
+        display_bounds_metrics(
+            &partition_state.largest_partition_bounds,
+            partition_state.largest_partition_n_screens,
+            true);
     }
     
     let mut algo_index = partition_state.algorithm as usize;
@@ -1844,7 +1910,7 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
             else {
                 let partition_info = name_pattern::PartitionInfo {
                     index: partition_index,
-                    bounds: partition.bounds(),
+                    bounds: partition.bounds().clone(),
                 };
                 partition_name_pattern.make_string(&level_info, Some(partition_info))
                     .replace(INVALID_PATH_CHARS, "_")

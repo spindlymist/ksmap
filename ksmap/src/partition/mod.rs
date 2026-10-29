@@ -26,10 +26,10 @@ pub fn merge_nested_partitions(partitions: &mut Vec<Partition>) {
     // For each partition, consider each partition that comes after it in the list
     let mut i = 0;
     'outer: while i < partitions.len() {
-        let current = partitions[i].bounds();
+        let current = partitions[i].bounds().clone();
         let mut j = i + 1;
         while j < partitions.len() {
-            let other = partitions[j].bounds();
+            let other = partitions[j].bounds().clone();
             // If we fully contain the other partition, remove it from the list
             if current.contains(&other) {
                 let removed = partitions.swap_remove(j);
@@ -84,8 +84,8 @@ impl Partition {
         &self.positions
     }
     
-    pub fn bounds(&self) -> Bounds {
-        self.bounds.clone()
+    pub fn bounds(&self) -> &Bounds {
+        &self.bounds
     }
 
     pub fn len(&self) -> usize {
