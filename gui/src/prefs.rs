@@ -14,6 +14,8 @@ pub struct Preferences {
     pub show_screen_size: bool,
     #[serde(default)]
     pub generate_mipmaps: bool,
+    #[serde(default)]
+    pub start_maximized: bool,
 }
 
 impl Default for Preferences {
@@ -24,6 +26,7 @@ impl Default for Preferences {
             draw_gridlines: true,
             show_screen_size: false,
             generate_mipmaps: false,
+            start_maximized: false,
         }
     }
 }

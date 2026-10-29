@@ -42,7 +42,10 @@ const APP_NAME: &'static str = "ksmap";
 
 fn main() -> Result<()> {
     env_logger::init();
-    let platform = platform_init(APP_NAME, (1740, 980))?;
+    
+    let mut app = init_app();
+    
+    let platform = platform_init(APP_NAME, (1740, 980), app.prefs.start_maximized)?;
     let renderer = renderer_init(&platform.window, platform.window.size())?;
     let mut imgui = imgui_init(platform, renderer);
     
@@ -66,9 +69,9 @@ fn main() -> Result<()> {
         style.set_color(StyleColor::WindowBg, [r, g, b, 1.0]);
     }
     
-    let mut app = init_app();
-    
     run(imgui, |ui, mut ex| {
+        app.prefs.start_maximized = ex.window.is_maximized();
+        
         match &mut app.screen {
             Screen::StartupError(state) => startup_error::build_ui(ui, &mut ex, state, &mut app.prefs),
             Screen::LevelList(state) => match level_list::build_ui(ui, &mut ex, state, &mut app.prefs) {
