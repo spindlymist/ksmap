@@ -640,7 +640,7 @@ fn create_dockspace_layout(ui: &Ui) -> DockLayout {
     let menu_bar_height = ui.text_line_height() + 2.0 * frame_padding_y;
     let tab_bar_height = ui.text_line_height() + 2.0 * frame_padding_y + style.window_border_size();
     let half_separator = 0.5 * style.docking_separator_size();
-    let sidebar_width = 720.0 + half_separator;
+    let sidebar_width = 700.0 + half_separator;
     let preview_inner_height = 240.0 + 2.0 * window_padding_y;
     let preview_total_height = preview_inner_height + tab_bar_height + half_separator;
     let export_inner_height =
@@ -1024,19 +1024,17 @@ const PARTITION_TABLE_COL_X_MIN     : usize = 0;
 const PARTITION_TABLE_COL_Y_MIN     : usize = 1;
 const PARTITION_TABLE_COL_X_MAX     : usize = 2;
 const PARTITION_TABLE_COL_Y_MAX     : usize = 3;
-const PARTITION_TABLE_COL_WIDTH     : usize = 4;
-const PARTITION_TABLE_COL_HEIGHT    : usize = 5;
-const PARTITION_TABLE_COL_WIDTH_PX  : usize = 6;
-const PARTITION_TABLE_COL_HEIGHT_PX : usize = 7;
-const PARTITION_TABLE_COL_MEMORY    : usize = 8;
-const PARTITION_TABLE_N_COLUMNS     : usize = 9;
+const PARTITION_TABLE_COL_N_SCREENS : usize = 4;
+const PARTITION_TABLE_COL_WIDTH_PX  : usize = 5;
+const PARTITION_TABLE_COL_HEIGHT_PX : usize = 6;
+const PARTITION_TABLE_COL_MEMORY    : usize = 7;
+const PARTITION_TABLE_N_COLUMNS     : usize = 8;
 const PARTITION_TABLE_COL_LABELS: [&'static str; PARTITION_TABLE_N_COLUMNS] = [
-    "Xmin",
-    "Ymin",
-    "Xmax",
-    "Ymax",
-    "Width",
-    "Height",
+    "X min",
+    "Y min",
+    "X max",
+    "Y max",
+    "# screens",
     "Width (px)",
     "Height (px)",
     "Memory",
@@ -1128,7 +1126,7 @@ fn build_partition_table(
         
         // Sorting
         if partition_state.set_sort_column {
-            ui.table_set_column_sort_direction(8, SortDirection::Descending, false);
+            ui.table_set_column_sort_direction(PARTITION_TABLE_COL_MEMORY, SortDirection::Descending, false);
             partition_state.set_sort_column = false;
         }
         if let Some(mut specs) = ui.table_get_sort_specs()
@@ -1155,6 +1153,7 @@ fn build_partition_table(
             let x_max = bounds.x_max();
             let y_min = bounds.y_min();
             let y_max = bounds.y_max();
+            let n_screens = partition.positions().len();
             let width = x_max - x_min + 1;
             let height = y_max - y_min + 1;
             let width_px = width * 600;
@@ -1201,9 +1200,7 @@ fn build_partition_table(
             ui.table_next_column();
             ui.text_aligned_right(y_max.to_string());
             ui.table_next_column();
-            ui.text_aligned_right(width.to_string());
-            ui.table_next_column();
-            ui.text_aligned_right(height.to_string());
+            ui.text_aligned_right(n_screens.to_string());
             ui.table_next_column();
             ui.text_aligned_right(width_px.to_string());
             ui.table_next_column();
@@ -1255,10 +1252,13 @@ fn sort_partitions(
         PARTITION_TABLE_COL_Y_MAX => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().y_max(), p.bounds().x_max())
         }),
-        PARTITION_TABLE_COL_WIDTH | PARTITION_TABLE_COL_WIDTH_PX => do_sort!(sorted_indices, partitions, descending, p, {
+        PARTITION_TABLE_COL_N_SCREENS => do_sort!(sorted_indices, partitions, descending, p, {
+            p.positions().len()
+        }),
+        PARTITION_TABLE_COL_WIDTH_PX => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().width(), p.bounds().height())
         }),
-        PARTITION_TABLE_COL_HEIGHT | PARTITION_TABLE_COL_HEIGHT_PX => do_sort!(sorted_indices, partitions, descending, p, {
+        PARTITION_TABLE_COL_HEIGHT_PX => do_sort!(sorted_indices, partitions, descending, p, {
             (p.bounds().height(), p.bounds().width())
         }),
         PARTITION_TABLE_COL_MEMORY => do_sort!(sorted_indices, partitions, descending, p, {
