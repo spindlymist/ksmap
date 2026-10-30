@@ -56,12 +56,8 @@ pub struct State {
     can_return_to_level_list: bool,
     layout: Option<DockLayout>,
     reset_layout: bool,
-    render_thread: Option<JoinHandle<()>>,
-    render_rx: Option<mpsc::Receiver<RenderMessage>>,
     render_state_lock: RenderStateLock,
-    render_progress: RenderProgress,
-    render_cancel: Arc<AtomicBool>,
-    render_error: Option<String>,
+    thread_state: RenderThreadState,
     export_state: ExportState,
     map_state: MapState,
     partition_state: PartitionState,
@@ -85,16 +81,12 @@ impl State {
             layout: None,
             reset_layout: false,
             render_state_lock: Arc::new(RwLock::new(render_state)),
-            render_rx: None,
-            render_progress: RenderProgress::default(),
-            render_cancel: Arc::new(AtomicBool::new(false)),
-            render_error: None,
+            thread_state: RenderThreadState::default(),
             map_state: MapState::default(),
             partition_state,
             drawing_state: DrawingState::default(),
             preview_state: PreviewState::default(),
             export_state: ExportState::new(level_dir),
-            render_thread: None,
             generate_mipmaps: false,
             screens_per_batch: 0,
             requested_center: None,
@@ -126,14 +118,16 @@ const DRAG_SPEED_FAST  : f32 = 0.150;
 
 pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Preferences) -> Option<Task> {
     // Show progress window when rendering
-    if state.render_thread.is_some() || state.render_error.is_some() {
+    if state.thread_state.thread_handle.is_some()
+        || state.thread_state.error.is_some()
+    {
         let (width, height) = ex.window.size();
         ui.window("Main")
             .position([0.0, 0.0], Condition::Always)
             .size([width as f32, height as f32], Condition::Always)
             .flags(WindowFlags::NO_TITLE_BAR | WindowFlags::NO_MOVE | WindowFlags::NO_RESIZE)
         .build(|| {
-            build_window_progress(ui, ex, state);
+            build_window_progress(ui, ex, &mut state.thread_state);
         });
         return None;
     }
@@ -142,12 +136,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         can_return_to_level_list,
         layout,
         reset_layout,
-        render_thread,
-        render_rx,
         render_state_lock,
-        render_progress,
-        render_cancel,
-        render_error: _render_error,
+        thread_state,
         export_state,
         map_state,
         partition_state,
@@ -416,18 +406,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     }
     
     // Export
-    ui.window("Export").build(|| {
-        build_window_export(ui,
-            ex,
-            export_state,
-            &mut render_state,
-            render_thread,
-            render_rx,
-            render_state_lock,
-            render_progress,
-            render_cancel,
-            prefs)
-    });
+    let start_render = ui.window("Export").build(|| {
+        build_window_export(ui, ex, export_state)
+    }).unwrap_or_default();
     
     // Partition options
     ui.window("Partition Options").build(|| {
@@ -611,6 +592,49 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
             let coord_string = format!("x{}y{}", pos.0, pos.1);
             let _ = ex.clipboard.set_clipboard_text(&coord_string);
         }
+    }
+    
+    // Fire up the render thread!
+    if start_render {
+        let output_paths = get_output_paths_for_partitions(
+            &render_state.partitions,
+            export_state,
+            &render_state.ini);
+        
+        // Create the thread
+        let (tx, rx) = mpsc::channel();
+        let thread_handle = {
+            let render_state_for_thread = Arc::clone(render_state_lock);
+            let render_cancel_for_thread = Arc::clone(&thread_state.cancel);
+            let export_state_for_thread = export_state.clone();
+            std::thread::spawn(|| {
+                do_the_render(
+                    render_state_for_thread,
+                    export_state_for_thread,
+                    output_paths,
+                    tx,
+                    render_cancel_for_thread)
+            })
+        };
+        
+        // Initialize thread state
+        thread_state.rx.replace(rx);
+        thread_state.thread_handle.replace(thread_handle);
+        thread_state.cancel.store(false, atomic::Ordering::Relaxed);
+        thread_state.tasks.clear();
+        thread_state.screens_done = 0;
+        thread_state.screens_total = 0;
+        
+        for partition in &render_state.partitions {
+            thread_state.tasks.push(RenderTask {
+                status: RenderTaskStatus::NotStarted,
+                label: partition.bounds().to_string(),
+                n_screens: partition.len(),
+            });
+            thread_state.screens_total += partition.len();
+        }
+        
+        prefs.output_dir.replace(export_state.output_dir.clone());
     }
     
     if *can_return_to_level_list && show_level_list {
@@ -1685,45 +1709,39 @@ impl ExportState {
     }
 }
 
+struct RenderThreadState {
+    thread_handle: Option<JoinHandle<()>>,
+    rx: Option<mpsc::Receiver<RenderMessage>>,
+    cancel: Arc<AtomicBool>,
+    error: Option<String>,
+    tasks: Vec<RenderTask>,
+    screens_done: usize,
+    screens_total: usize,
+}
+
+impl Default for RenderThreadState {
+    fn default() -> Self {
+        Self {
+            rx: None,
+            cancel: Arc::new(AtomicBool::new(false)),
+            error: None,
+            thread_handle: None,
+            tasks: Vec::new(),
+            screens_done: 0,
+            screens_total: 0,
+        }
+    }
+}
+
 fn build_window_export(
     ui: &Ui,
     _ex: &mut Extras,
-    export_state: &mut ExportState,
-    render_state: &mut RenderState,
-    render_thread: &mut Option<JoinHandle<()>>,
-    render_rx: &mut Option<mpsc::Receiver<RenderMessage>>,
-    render_state_lock: &RenderStateLock,
-    render_progress: &mut RenderProgress,
-    render_cancel: &mut Arc<AtomicBool>,
-    prefs: &mut Preferences,
-) {
+    export_state: &mut ExportState
+) -> bool {
     let _token = ui.widget_group_begin();
     
     let button_height = ui.text_line_height() * 2.0;
-    if ui.button_with_size("Export", [-1.0, button_height]) {
-        let (tx, rx) = mpsc::channel();
-        let render_state_for_thread = Arc::clone(render_state_lock);
-        let render_cancel_for_thread = Arc::clone(render_cancel);
-        let export_state_for_thread = export_state.clone();
-        let handle = std::thread::spawn(|| {
-            do_the_render(render_state_for_thread, export_state_for_thread, tx, render_cancel_for_thread)
-        });
-        render_rx.replace(rx);
-        render_thread.replace(handle);
-        render_cancel.store(false, atomic::Ordering::Relaxed);
-        render_progress.tasks.clear();
-        render_progress.screens_done = 0;
-        render_progress.screens_total = 0;
-        for partition in &render_state.partitions {
-            render_progress.tasks.push(RenderTask {
-                status: RenderTaskStatus::NotStarted,
-                label: partition.bounds().to_string(),
-                n_screens: partition.len(),
-            });
-            render_progress.screens_total += partition.len();
-        }
-        prefs.output_dir.replace(export_state.output_dir.clone());
-    }
+    let start_render = ui.button_with_size("Export", [-1.0, button_height]);
     
     {
         ui.widget_group_label("Output directory");
@@ -1814,6 +1832,49 @@ fn build_window_export(
     ui.color_edit4_config("Background color", &mut export_state.background_color)
         .flags(bg_color_flags)
         .build();
+    
+    start_render
+}
+
+fn get_output_paths_for_partitions(partitions: &[Partition], export_state: &ExportState, ini: &Ini) -> Vec<PathBuf> {
+    const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+    
+    let level_info = name_pattern::LevelInfo::new(ini, &export_state.level_dir);
+    let partition_name_pattern = NamePattern::parse(&export_state.partition_spec);
+    let subdir_name_pattern = NamePattern::parse(&export_state.subdir_spec);
+    let subdir_name = subdir_name_pattern.make_string(&level_info, None)
+        .replace(INVALID_PATH_CHARS, "_");
+    
+    let is_single_partition = partitions.len() < 2;
+    let output_dir =
+        if export_state.no_subdir || (is_single_partition && export_state.no_subdir_for_single) {
+            export_state.output_dir.clone()
+        }
+        else {
+            export_state.output_dir.join(&subdir_name)
+        };
+    
+    let mut paths = Vec::with_capacity(partitions.len());
+    
+    for (partition_index, partition) in partitions.iter().enumerate() {
+        let file_name =
+            if is_single_partition && export_state.use_subdir_name_for_single {
+                subdir_name.clone()
+            }
+            else {
+                let partition_info = name_pattern::PartitionInfo {
+                    index: partition_index,
+                    bounds: partition.bounds().clone(),
+                };
+                partition_name_pattern.make_string(&level_info, Some(partition_info))
+                    .replace(INVALID_PATH_CHARS, "_")
+            };
+        let output_path = output_dir.join(file_name)
+            .with_added_extension("png");
+        paths.push(output_path);
+    }
+    
+    paths
 }
 
 pub struct RenderState {
@@ -1854,13 +1915,6 @@ impl std::fmt::Display for RenderTaskStatus {
     }
 }
 
-#[derive(Default)]
-struct RenderProgress {
-    tasks: Vec<RenderTask>,
-    screens_done: usize,
-    screens_total: usize,
-}
-
 enum RenderMessage {
     PartitionUpdate(usize, RenderTaskStatus),
     Done,
@@ -1868,9 +1922,13 @@ enum RenderMessage {
     Error(String),
 }
 
-fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, tx: mpsc::Sender<RenderMessage>, cancel: Arc<AtomicBool>) {
-    const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
-    
+fn do_the_render(
+    render_state_lock: RenderStateLock,
+    export_state: ExportState,
+    output_paths: Vec<PathBuf>,
+    tx: mpsc::Sender<RenderMessage>,
+    cancel: Arc<AtomicBool>
+) {
     let Ok(render_state) = render_state_lock.read() else { return };    
     let draw_context = DrawContext {
         seed: render_state.seed,
@@ -1882,24 +1940,14 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
         options: render_state.draw_options.clone(),
     };
     
-    let level_info = name_pattern::LevelInfo::new(&render_state.ini, &export_state.level_dir);
-    let partition_name_pattern = NamePattern::parse(&export_state.partition_spec);
-    let subdir_name_pattern = NamePattern::parse(&export_state.subdir_spec);
-    let subdir_name = subdir_name_pattern.make_string(&level_info, None)
-        .replace(INVALID_PATH_CHARS, "_");
-    
-    let is_single_partition = render_state.partitions.len() < 2;
-    let output_dir =
-        if export_state.no_subdir || (is_single_partition && export_state.no_subdir_for_single) {
-            export_state.output_dir.clone()
+    // Currently, it's assumed that all output paths are in the same directory
+    if let Some(output_dir) = output_paths.first()
+        .and_then(|path| path.parent())
+    {
+        if let Err(err) = std::fs::create_dir_all(&output_dir) {
+            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            return;
         }
-        else {
-            export_state.output_dir.join(&subdir_name)
-        };
-    
-    if let Err(err) = std::fs::create_dir_all(&output_dir) {
-        let _ = tx.send(RenderMessage::Error(err.to_string()));
-        return;
     }
     
     fn channel_to_u8(f: f32) -> u8 {
@@ -1915,20 +1963,7 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
             return;
         }
         
-        let file_name =
-            if is_single_partition && export_state.use_subdir_name_for_single {
-                subdir_name.clone()
-            }
-            else {
-                let partition_info = name_pattern::PartitionInfo {
-                    index: partition_index,
-                    bounds: partition.bounds().clone(),
-                };
-                partition_name_pattern.make_string(&level_info, Some(partition_info))
-                    .replace(INVALID_PATH_CHARS, "_")
-            };
-        let output_path = output_dir.join(file_name).with_added_extension("png");
-        
+        let output_path = &output_paths[partition_index];
         let success = if export_state.rgb {
             draw_and_export_rgb(
                 &tx,
@@ -1936,7 +1971,7 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
                 partition_index,
                 partition,
                 draw_context,
-                &output_path,
+                output_path,
                 export_state.use_multithreaded_encoder,
                 export_state.compression_level,
                 background_color_rgb
@@ -1949,7 +1984,7 @@ fn do_the_render(render_state_lock: RenderStateLock, export_state: ExportState, 
                 partition_index,
                 partition,
                 draw_context,
-                &output_path,
+                output_path,
                 export_state.use_multithreaded_encoder,
                 export_state.compression_level,
                 background_color
@@ -2051,33 +2086,33 @@ fn draw_and_export_rgb(
     true
 }
 
-fn build_window_progress(ui: &Ui, _ex: &mut Extras, state: &mut State) {
-    if let Some(rx) = state.render_rx.as_mut() {
+fn build_window_progress(ui: &Ui, _ex: &mut Extras, state: &mut RenderThreadState) {
+    if let Some(rx) = state.rx.as_mut() {
         loop {
             match rx.try_recv() {
                 Ok(RenderMessage::PartitionUpdate(i, progress)) => {
-                    state.render_progress.tasks[i].status = progress;
+                    state.tasks[i].status = progress;
                     if progress == RenderTaskStatus::Done {
-                        state.render_progress.screens_done += state.render_progress.tasks[i].n_screens;
+                        state.screens_done += state.tasks[i].n_screens;
                     }
                 }
                 Ok(RenderMessage::Error(error_message)) => {
-                    state.render_thread.take();
-                    state.render_rx.take();
-                    state.render_error = Some(error_message);
+                    state.thread_handle.take();
+                    state.rx.take();
+                    state.error = Some(error_message);
                     break;
                 }
                 Ok(RenderMessage::Done) | Ok(RenderMessage::Aborted) => {
-                    state.render_thread.take();
-                    state.render_rx.take();
+                    state.thread_handle.take();
+                    state.rx.take();
                     break;
                 }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
-                    state.render_thread.take();
-                    state.render_rx.take();
+                    state.thread_handle.take();
+                    state.rx.take();
                     let error_message = String::from("The render thread panicked :(");
-                    state.render_error = Some(error_message);
+                    state.error = Some(error_message);
                     break;
                 }
             }
@@ -2089,20 +2124,20 @@ fn build_window_progress(ui: &Ui, _ex: &mut Extras, state: &mut State) {
         let avail_width = ui.content_region_avail_width();
         avail_width * (10.0 / 12.0) - item_spacing_x
     };
-    let percent_done = state.render_progress.screens_done as f32 / state.render_progress.screens_total as f32;
+    let percent_done = state.screens_done as f32 / state.screens_total as f32;
     ui.progress_bar(percent_done)
         .size([progress_bar_width, 0.0])
         .build();
     
     ui.same_line();
     if ui.button_with_size("Cancel", [-1.0, 0.0]) {
-        state.render_cancel.store(true, atomic::Ordering::Relaxed);
-        if state.render_thread.is_none() {
-            state.render_error.take(); // The error is what's keeping the progress screen open
+        state.cancel.store(true, atomic::Ordering::Relaxed);
+        if state.thread_handle.is_none() {
+            state.error.take(); // The error is what's keeping the progress screen open
         }
     }
     
-    if let Some(error_message) = &state.render_error {
+    if let Some(error_message) = &state.error {
         ui.text_wrapped(format!("Render failed. Reason: {error_message}"));
         return;
     }
@@ -2111,7 +2146,7 @@ fn build_window_progress(ui: &Ui, _ex: &mut Extras, state: &mut State) {
         .size([-1.0, -1.0])
     .build(ui, || {
         let avail_width = ui.content_region_avail_width();
-        for task in &state.render_progress.tasks {
+        for task in &state.tasks {
             if task.status == RenderTaskStatus::Done { continue }
             
             let label_width = ui.calc_text_width(&task.label);
