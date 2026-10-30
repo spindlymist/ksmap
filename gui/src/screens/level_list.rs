@@ -1,7 +1,18 @@
-use std::{fs, path::{Path, PathBuf}};
+use std::fs;
+use std::path::{Path, PathBuf};
 
-use imgui_app::{Extras, dear_imgui_rs::{Key, MouseButton, SelectableFlags, StyleColor}};
-use imgui_app::dear_imgui_rs::{Condition, Ui, TableFlags, TableSizingPolicy, WindowFlags};
+use imgui_app::Extras;
+use imgui_app::dear_imgui_rs::{
+    Condition,
+    Key,
+    MouseButton,
+    SelectableFlags,
+    StyleColor,
+    TableFlags,
+    TableSizingPolicy,
+    Ui,
+    WindowFlags,
+};
 
 use crate::prefs::Preferences;
 

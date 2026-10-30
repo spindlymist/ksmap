@@ -13,7 +13,8 @@ mod format_bytes;
 mod tooltips;
 mod prefs;
 
-use std::{fs, path::{Path, PathBuf}};
+use std::fs;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Result, Context};
 use imgui_app::{imgui_init, platform_init, renderer_init, run};

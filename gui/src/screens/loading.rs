@@ -1,28 +1,22 @@
-use std::{
-    path::PathBuf,
-    sync::{Arc, mpsc},
-    thread::{self, JoinHandle}
-};
+use std::path::PathBuf;
+use std::sync::{Arc, mpsc};
+use std::thread::{self, JoinHandle};
 
 use anyhow::anyhow;
-use imgui_app::Extras ;
+use imgui_app::Extras;
 use imgui_app::dear_imgui_rs::{Condition, Ui, WindowFlags};
-use ksmap::{
-    analysis::list_assets,
-    definitions,
-    drawing::DrawOptions,
-    graphics::Graphics,
-    partition::{GridPartitioner, IslandsPartitioner, Partitioner, sort_partitions_spatially},
-    screen_map::ScreenMap,
-    seed::MapSeed,
-    synchronization::{SyncOptions, WorldSync},
-};
+use ksmap::analysis::list_assets;
+use ksmap::definitions;
+use ksmap::drawing::DrawOptions;
+use ksmap::graphics::Graphics;
+use ksmap::partition::{GridPartitioner, IslandsPartitioner, Partitioner, sort_partitions_spatially};
+use ksmap::screen_map::ScreenMap;
+use ksmap::seed::MapSeed;
+use ksmap::synchronization::{SyncOptions, WorldSync};
 use libks::{map_bin, world_ini};
 
-use crate::{
-    prefs::Preferences,
-    screens::level_map::{PartitionState, RenderState}
-};
+use crate::prefs::Preferences;
+use crate::screens::level_map::{PartitionState, RenderState};
 
 pub struct State {
     can_return_to_level_list: bool,

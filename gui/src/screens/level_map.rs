@@ -1,11 +1,9 @@
-use std::{
-    cmp,
-    path::{Path, PathBuf},
-    sync::{Arc, RwLock},
-    sync::atomic::{self, AtomicBool},
-    sync::mpsc::{self, TryRecvError},
-    thread::JoinHandle,
-};
+use std::cmp;
+use std::path::{Path, PathBuf};
+use std::sync::{Arc, RwLock};
+use std::sync::atomic::{self, AtomicBool};
+use std::sync::mpsc::{self, TryRecvError};
+use std::thread::JoinHandle;
 
 use image::RgbaImage;
 use rustc_hash::FxHashMap;

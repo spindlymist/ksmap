@@ -1,6 +1,7 @@
 use rustc_hash::FxHashMap;
 use imgui_app::dear_imgui_rs::{MouseButton, TextureId, Ui};
-use ksmap::{screen_map::ScreenMap, partition::Partition};
+use ksmap::screen_map::ScreenMap;
+use ksmap::partition::Partition;
 use libks::ScreenCoord;
 
 pub struct MapState {
