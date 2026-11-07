@@ -4,6 +4,7 @@ use std::sync::{Arc, RwLock};
 use std::sync::atomic::{self, AtomicBool};
 use std::sync::mpsc::{self, TryRecvError};
 use std::thread::JoinHandle;
+use std::time::Instant;
 
 use image::RgbaImage;
 use rustc_hash::FxHashMap;
@@ -116,9 +117,7 @@ const DRAG_SPEED_FAST  : f32 = 0.150;
 
 pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Preferences) -> Option<Task> {
     // Show progress window when rendering
-    if state.thread_state.thread_handle.is_some()
-        || state.thread_state.error.is_some()
-    {
+    if state.thread_state.status != RenderThreadStatus::None {
         let (width, height) = ex.window.size();
         ui.window("Main")
             .position([0.0, 0.0], Condition::Always)
@@ -594,10 +593,38 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     
     // Fire up the render thread!
     if start_render {
-        let output_paths = get_output_paths_for_partitions(
+        let (output_dir, output_paths) = get_output_paths_for_partitions(
             &render_state.partitions,
             export_state,
             &render_state.ini);
+        
+        // Initialize thread state
+        reset_thread_state(thread_state);
+        thread_state.output_dir = output_dir.clone();
+        thread_state.status = RenderThreadStatus::Rendering;
+        
+        let mut n_screens_total = 0;
+        for (i, partition) in render_state.partitions.iter().enumerate() {
+            let filename = output_paths[i].file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("<unknown>")
+                .to_owned();
+            let n_screens = partition.len();
+            thread_state.tasks.push(RenderTask {
+                status: RenderTaskStatus::NotStarted,
+                label: filename,
+                n_screens,
+                ..Default::default()
+            });
+            n_screens_total += n_screens;
+        }
+        
+        let mut n_screens_cumulative = 0;
+        for task in &thread_state.tasks {
+            n_screens_cumulative += task.n_screens;
+            let step = n_screens_cumulative as f32 / n_screens_total as f32;
+            thread_state.progress_steps.push(step);
+        }
         
         // Create the thread
         let (tx, rx) = mpsc::channel();
@@ -609,28 +636,14 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
                 do_the_render(
                     render_state_for_thread,
                     export_state_for_thread,
+                    output_dir,
                     output_paths,
                     tx,
                     render_cancel_for_thread)
             })
         };
-        
-        // Initialize thread state
         thread_state.rx.replace(rx);
         thread_state.thread_handle.replace(thread_handle);
-        thread_state.cancel.store(false, atomic::Ordering::Relaxed);
-        thread_state.tasks.clear();
-        thread_state.screens_done = 0;
-        thread_state.screens_total = 0;
-        
-        for partition in &render_state.partitions {
-            thread_state.tasks.push(RenderTask {
-                status: RenderTaskStatus::NotStarted,
-                label: partition.bounds().to_string(),
-                n_screens: partition.len(),
-            });
-            thread_state.screens_total += partition.len();
-        }
         
         prefs.output_dir.replace(export_state.output_dir.clone());
     }
@@ -1708,27 +1721,62 @@ impl ExportState {
 }
 
 struct RenderThreadState {
+    status: RenderThreadStatus,
     thread_handle: Option<JoinHandle<()>>,
     rx: Option<mpsc::Receiver<RenderMessage>>,
     cancel: Arc<AtomicBool>,
-    error: Option<String>,
+    error_message: String,
     tasks: Vec<RenderTask>,
-    screens_done: usize,
-    screens_total: usize,
+    progress_steps: Vec<f32>,
+    progress_current_step: usize,
+    total_secs: f32,
+    n_errors: usize,
+    prev_scroll_y_max: f32,
+    output_dir: PathBuf,
 }
 
 impl Default for RenderThreadState {
     fn default() -> Self {
         Self {
+            status: RenderThreadStatus::None,
             rx: None,
             cancel: Arc::new(AtomicBool::new(false)),
-            error: None,
+            error_message: String::new(),
             thread_handle: None,
             tasks: Vec::new(),
-            screens_done: 0,
-            screens_total: 0,
+            progress_steps: Vec::new(),
+            progress_current_step: 0,
+            total_secs: 0.0,
+            n_errors: 0,
+            prev_scroll_y_max: 0.0,
+            output_dir: PathBuf::new(),
         }
     }
+}
+
+fn reset_thread_state(state: &mut RenderThreadState) {
+    state.status = RenderThreadStatus::None;
+    state.thread_handle = None;
+    state.rx = None;
+    state.cancel.store(false, atomic::Ordering::Relaxed);
+    state.error_message.clear();
+    state.tasks.clear();
+    state.progress_steps.clear();
+    state.progress_current_step = 0;
+    state.total_secs = 0.0;
+    state.n_errors = 0;
+    state.prev_scroll_y_max = 0.0;
+    state.output_dir.clear();
+}
+
+#[derive(PartialEq, Eq)]
+enum RenderThreadStatus {
+    None,
+    Rendering,
+    Finished,
+    Failed,
+    Aborting,
+    Aborted,
 }
 
 fn build_window_export(
@@ -1834,7 +1882,11 @@ fn build_window_export(
     start_render
 }
 
-fn get_output_paths_for_partitions(partitions: &[Partition], export_state: &ExportState, ini: &Ini) -> Vec<PathBuf> {
+fn get_output_paths_for_partitions(
+    partitions: &[Partition],
+    export_state: &ExportState,
+    ini: &Ini
+) -> (PathBuf, Vec<PathBuf>) {
     const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
     
     let level_info = name_pattern::LevelInfo::new(ini, &export_state.level_dir);
@@ -1872,7 +1924,7 @@ fn get_output_paths_for_partitions(partitions: &[Partition], export_state: &Expo
         paths.push(output_path);
     }
     
-    paths
+    (output_dir, paths)
 }
 
 pub struct RenderState {
@@ -1888,17 +1940,24 @@ pub struct RenderState {
 }
 pub type RenderStateLock = Arc<RwLock<RenderState>>;
 
+#[derive(Default)]
 struct RenderTask {
     status: RenderTaskStatus,
     label: String,
     n_screens: usize,
+    render_secs: f32,
+    export_secs: f32,
+    total_secs: f32,
+    error_message: String,
 }
 
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq, Default)]
 enum RenderTaskStatus {
+    #[default]
     NotStarted,
     Rendering,
     Exporting,
+    Failed,
     Done
 }
 
@@ -1908,14 +1967,32 @@ impl std::fmt::Display for RenderTaskStatus {
             RenderTaskStatus::NotStarted => write!(f, "Not Started"),
             RenderTaskStatus::Rendering => write!(f, "Rendering"),
             RenderTaskStatus::Exporting => write!(f, "Exporting"),
+            RenderTaskStatus::Failed => write!(f, "Failed"),
             RenderTaskStatus::Done => write!(f, "Done"),
         }
     }
 }
 
 enum RenderMessage {
-    PartitionUpdate(usize, RenderTaskStatus),
-    Done,
+    PartitionRendering {
+        id: usize
+    },
+    PartitionExporting {
+        id: usize,
+        render_secs: f32,
+    },
+    PartitionFailed {
+        id: usize,
+        error_message: String,
+    },
+    PartitionFinished {
+        id: usize,
+        export_secs: f32,
+        total_secs: f32,
+    },
+    Done {
+        total_secs: f32,
+    },
     Aborted,
     Error(String),
 }
@@ -1923,11 +2000,18 @@ enum RenderMessage {
 fn do_the_render(
     render_state_lock: RenderStateLock,
     export_state: ExportState,
+    output_dir: PathBuf,
     output_paths: Vec<PathBuf>,
     tx: mpsc::Sender<RenderMessage>,
     cancel: Arc<AtomicBool>
-) {
-    let Ok(render_state) = render_state_lock.read() else { return };    
+) { 
+    let overall_start_time = Instant::now();
+    let Ok(render_state) = render_state_lock.read() else {
+        let error_message = "The lock on the render state was poisoned.".to_owned();
+        tx.send(RenderMessage::Error(error_message)).unwrap();
+        return;
+    };
+    
     let draw_context = DrawContext {
         seed: render_state.seed,
         screens: &render_state.screen_map,
@@ -1939,11 +2023,9 @@ fn do_the_render(
     };
     
     // Currently, it's assumed that all output paths are in the same directory
-    if let Some(output_dir) = output_paths.first()
-        .and_then(|path| path.parent())
-    {
+    if let Some(output_dir) = output_dir.parent() {
         if let Err(err) = std::fs::create_dir_all(&output_dir) {
-            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            tx.send(RenderMessage::Error(err.to_string())).unwrap();
             return;
         }
     }
@@ -1955,14 +2037,9 @@ fn do_the_render(
     let background_color = [channel_to_u8(r), channel_to_u8(g), channel_to_u8(b), channel_to_u8(a)];
     let background_color_rgb = [background_color[0], background_color[1], background_color[2]];
     
-    for (partition_index, partition) in render_state.partitions.iter().enumerate() {
-        if cancel.load(atomic::Ordering::Relaxed) {
-            let _ = tx.send(RenderMessage::Aborted);
-            return;
-        }
-        
+    for (partition_index, partition) in render_state.partitions.iter().enumerate() {        
         let output_path = &output_paths[partition_index];
-        let success = if export_state.rgb {
+        let canceled = if export_state.rgb {
             draw_and_export_rgb(
                 &tx,
                 &cancel,
@@ -1988,21 +2065,31 @@ fn do_the_render(
                 background_color
             )
         };
-        if !success {
+        if canceled {
             return;
         }
-        
-        let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Done));
     }
 
-    let _ = tx.send(RenderMessage::Done);
+    let overall_total_duration = Instant::now() - overall_start_time;
+    tx.send(RenderMessage::Done {
+        total_secs: overall_total_duration.as_secs_f32()
+    }).unwrap();
+}
+
+macro_rules! check_cancel {
+    ($cancel:ident, $tx:ident) => {
+        if $cancel.load(std::sync::atomic::Ordering::Relaxed) {
+            $tx.send(RenderMessage::Aborted).unwrap();
+            return true;
+        }
+    }
 }
 
 #[inline]
 fn draw_and_export(
     tx: &mpsc::Sender<RenderMessage>,
     cancel: &Arc<AtomicBool>,
-    partition_index: usize,
+    partition_id: usize,
     partition: &Partition,
     draw_context: DrawContext,
     output_path: &Path,
@@ -2010,42 +2097,61 @@ fn draw_and_export(
     compression_level: u8,
     background_color: [u8; 4]
 ) -> bool {
-    let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Rendering));
+    check_cancel!(cancel, tx);
+    let start = Instant::now();
+    tx.send(RenderMessage::PartitionRendering { id: partition_id }).unwrap();
+    
+    let render_start = Instant::now();
     let canvas = match drawing::draw_partition(draw_context, partition, Some(background_color)) {
         Ok(canvas) => canvas,
         Err(err) => {
-            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            tx.send(RenderMessage::PartitionFailed {
+                id: partition_id,
+                error_message: err.to_string()
+            }).unwrap();
             return false;
         }
     };
+    let render_duration = Instant::now() - render_start;
     
-    if cancel.load(atomic::Ordering::Relaxed) {
-        let _ = tx.send(RenderMessage::Aborted);
+    check_cancel!(cancel, tx);
+    tx.send(RenderMessage::PartitionExporting {
+        id: partition_id,
+        render_secs: render_duration.as_secs_f32()
+    }).unwrap();
+    
+    let export_start = Instant::now();
+    let result =
+        if use_multithreaded_encoder {
+            drawing::export_canvas_multithreaded(canvas, &output_path, compression_level)
+        }
+        else {
+            drawing::export_canvas(canvas, &output_path, compression_level)
+        };
+    if let Err(err) = result {
+        tx.send(RenderMessage::PartitionFailed {
+            id: partition_id,
+            error_message: err.to_string()
+        }).unwrap();
         return false;
     }
+    let export_duration = Instant::now() - export_start;
     
-    let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Exporting));
-    if use_multithreaded_encoder {
-        if let Err(err) = drawing::export_canvas_multithreaded(canvas, &output_path, compression_level) {
-            let _ = tx.send(RenderMessage::Error(err.to_string()));
-            return false;
-        }
-    }
-    else {
-        if let Err(err) = drawing::export_canvas(canvas, &output_path, compression_level) {
-            let _ = tx.send(RenderMessage::Error(err.to_string()));
-            return false;
-        }
-    }
+    let total_duration = Instant::now() - start;
+    tx.send(RenderMessage::PartitionFinished {
+        id: partition_id,
+        export_secs: export_duration.as_secs_f32(),
+        total_secs: total_duration.as_secs_f32()
+    }).unwrap();
     
-    true
+    false
 }
 
 #[inline]
 fn draw_and_export_rgb(
     tx: &mpsc::Sender<RenderMessage>,
     cancel: &Arc<AtomicBool>,
-    partition_index: usize,
+    partition_id: usize,
     partition: &Partition,
     draw_context: DrawContext,
     output_path: &Path,
@@ -2053,116 +2159,398 @@ fn draw_and_export_rgb(
     compression_level: u8,
     background_color: [u8; 3]
 ) -> bool {
-    let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Rendering));
+    check_cancel!(cancel, tx);
+    let start = Instant::now();
+    tx.send(RenderMessage::PartitionRendering { id: partition_id }).unwrap();
+    
+    let render_start = Instant::now();
     let canvas = match drawing::draw_partition_rgb(draw_context, partition, Some(background_color)) {
         Ok(canvas) => canvas,
         Err(err) => {
-            let _ = tx.send(RenderMessage::Error(err.to_string()));
+            tx.send(RenderMessage::PartitionFailed {
+                id: partition_id,
+                error_message: err.to_string()
+            }).unwrap();
             return false;
         }
     };
+    let render_duration = Instant::now() - render_start;
     
-    if cancel.load(atomic::Ordering::Relaxed) {
-        let _ = tx.send(RenderMessage::Aborted);
+    check_cancel!(cancel, tx);
+    tx.send(RenderMessage::PartitionExporting {
+        id: partition_id,
+        render_secs: render_duration.as_secs_f32()
+    }).unwrap();
+    
+    let export_start = Instant::now();
+    let result =
+        if use_multithreaded_encoder {
+            drawing::export_canvas_multithreaded(canvas, &output_path, compression_level)
+        }
+        else {
+            drawing::export_canvas(canvas, &output_path, compression_level)
+        };
+    if let Err(err) = result {
+        tx.send(RenderMessage::PartitionFailed {
+            id: partition_id,
+            error_message: err.to_string()
+        }).unwrap();
         return false;
     }
+    let export_duration = Instant::now() - export_start;
     
-    let _ = tx.send(RenderMessage::PartitionUpdate(partition_index, RenderTaskStatus::Exporting));
-    if use_multithreaded_encoder {
-        if let Err(err) = drawing::export_canvas_multithreaded(canvas, &output_path, compression_level) {
-            let _ = tx.send(RenderMessage::Error(err.to_string()));
-            return false;
-        }
-    }
-    else {
-        if let Err(err) = drawing::export_canvas(canvas, &output_path, compression_level) {
-            let _ = tx.send(RenderMessage::Error(err.to_string()));
-            return false;
-        }
-    }
+    let total_duration = Instant::now() - start;
+    tx.send(RenderMessage::PartitionFinished {
+        id: partition_id,
+        export_secs: export_duration.as_secs_f32(),
+        total_secs: total_duration.as_secs_f32()
+    }).unwrap();
     
-    true
+    false
 }
 
-fn build_window_progress(ui: &Ui, _ex: &mut Extras, state: &mut RenderThreadState) {
+fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState) {
+    // Process messages from thread
     if let Some(rx) = state.rx.as_mut() {
         loop {
             match rx.try_recv() {
-                Ok(RenderMessage::PartitionUpdate(i, progress)) => {
-                    state.tasks[i].status = progress;
-                    if progress == RenderTaskStatus::Done {
-                        state.screens_done += state.tasks[i].n_screens;
-                    }
+                Ok(RenderMessage::PartitionRendering { id }) => {
+                    let task = &mut state.tasks[id];
+                    task.status = RenderTaskStatus::Rendering;
                 }
-                Ok(RenderMessage::Error(error_message)) => {
+                Ok(RenderMessage::PartitionExporting { id, render_secs }) => {
+                    let task = &mut state.tasks[id];
+                    task.status = RenderTaskStatus::Exporting;
+                    task.render_secs = render_secs;
+                }
+                Ok(RenderMessage::PartitionFinished { id, export_secs, total_secs }) => {
+                    let task = &mut state.tasks[id];
+                    task.status = RenderTaskStatus::Done;
+                    task.export_secs = export_secs;
+                    task.total_secs = total_secs;
+                    state.progress_current_step += 1;
+                }
+                Ok(RenderMessage::PartitionFailed { id, error_message }) => {
+                    let task = &mut state.tasks[id];
+                    task.status = RenderTaskStatus::Failed;
+                    task.error_message = error_message;
+                    state.n_errors += 1;
+                    state.progress_current_step += 1;
+                }
+                Ok(RenderMessage::Done { total_secs }) => {
                     state.thread_handle.take();
                     state.rx.take();
-                    state.error = Some(error_message);
+                    state.status = RenderThreadStatus::Finished;
+                    state.total_secs = total_secs;
                     break;
                 }
-                Ok(RenderMessage::Done) | Ok(RenderMessage::Aborted) => {
+                Ok(RenderMessage::Aborted) => {
+                    state.status = RenderThreadStatus::Aborted;
                     state.thread_handle.take();
                     state.rx.take();
+                    break;
+                }
+                Ok(RenderMessage::Error(error_message)) => {
+                    state.status = RenderThreadStatus::Failed;
+                    state.thread_handle.take();
+                    state.rx.take();
+                    state.error_message = error_message;
                     break;
                 }
                 Err(TryRecvError::Empty) => break,
                 Err(TryRecvError::Disconnected) => {
+                    state.status = RenderThreadStatus::Failed;
                     state.thread_handle.take();
                     state.rx.take();
                     let error_message = String::from("The render thread panicked :(");
-                    state.error = Some(error_message);
+                    state.error_message = error_message;
                     break;
                 }
             }
         }
     }
-
-    let item_spacing_x = unsafe { ui.style().item_spacing()[0] };
-    let progress_bar_width = {
-        let avail_width = ui.content_region_avail_width();
-        avail_width * (10.0 / 12.0) - item_spacing_x
+    
+    // Status line
+    {
+        let _token = ui.push_font_with_size(None, 32.0);
+        ui.new_line();
+        match state.status {
+            RenderThreadStatus::None => {
+                ui.new_line();
+            }
+            RenderThreadStatus::Rendering => {
+                let current_task = state.tasks.iter().find(|task| {
+                    task.status == RenderTaskStatus::Rendering
+                    || task.status == RenderTaskStatus::Exporting
+                });
+                if let Some(task) = current_task {
+                    ui.text_aligned_center(format!("{} {}", task.status, task.label));
+                }
+                else {
+                    ui.new_line();
+                }
+            }
+            RenderThreadStatus::Finished => {
+                ui.text_aligned_center(format!("Finished in {:.1}s with {} errors.",
+                    state.total_secs,
+                    state.n_errors));
+            }
+            RenderThreadStatus::Failed => {
+                ui.text_aligned_center("Render failed (reason below).");
+                let _token = ui.push_font_with_size(None, 19.0);
+                ui.text_wrapped(&state.error_message);
+            }
+            RenderThreadStatus::Aborting => {
+                ui.text_aligned_center("Canceling render, please wait...");
+            }
+            RenderThreadStatus::Aborted => {
+                ui.text_aligned_center("Render canceled.");
+            }
+        }
+        ui.new_line();
+    }
+    
+    // Layout calculations
+    let [item_spacing_x, item_spacing_y] = unsafe { ui.style().item_spacing() };
+    let button_width = (ui.content_region_avail_width() * 0.125)
+        .max(ui.calc_button_width("Show Output Directory"));
+    let button_height = 2.0 * ui.text_line_height();
+    let [table_width_queued, table_width_finished] = {
+        let width_total = ui.content_region_avail_width();
+        let width_usable = width_total - item_spacing_x;
+        let table_width_queued = (width_usable / 3.0).round();
+        let table_width_finished = width_usable - table_width_queued;
+        [table_width_queued, table_width_finished]
     };
-    let percent_done = state.screens_done as f32 / state.screens_total as f32;
-    ui.progress_bar(percent_done)
-        .size([progress_bar_width, 0.0])
-        .build();
+    let table_height = -(button_height + item_spacing_y);
+    let col_width_filename = {
+        let _token = ui.push_font(ex.fonts.mono);
+        let mut label_width_max = 0.0f32;
+        for task in &state.tasks {
+            let label_width = ui.calc_text_width(&task.label);
+            label_width_max = label_width_max.max(label_width);
+        }
+        
+        (ui.text_line_height() * 2.0 / 3.0).round() // square
+            + item_spacing_x
+            + label_width_max
+            + unsafe { 2.0 * ui.style().cell_padding()[0] }
+    };
+    
+    // Queued tasks
+    {
+        let _token = ui.begin_group();
+        
+        {
+            let _token = ui.push_font_with_size(None, 24.0);
+            ui.text("Queued");
+        }
+        
+        let _token = ui.push_style_color(StyleColor::ChildBg, ui.style_color(StyleColor::PopupBg));
+        ui.table("##QueuedTasks")
+            .flags(TableFlags::SCROLL_Y | TableFlags::PAD_OUTER_X)
+            .sizing_policy(imgui_app::dear_imgui_rs::TableSizingPolicy::FixedFit)
+            .outer_size([table_width_queued, table_height])
+            .freeze(0, 1)
+            .column("Filename").width(-1.0).done()
+        .build(|ui| {
+            ui.table_headers_row();
+            let _token = ui.push_font(ex.fonts.mono);
+            let queued_tasks = state.tasks.iter()
+                .enumerate()
+                .filter(|(_, task)| task.status == RenderTaskStatus::NotStarted);
+            for (i, task) in queued_tasks {
+                ui.table_next_row();
+                ui.table_next_column();
+                just_a_square(ui, MAP_COLORS[i % MAP_COLORS.len()], true, true);
+                ui.same_line();
+                let _token = ui.begin_disabled();
+                ui.text(&task.label);
+            }
+        });
+    }
+    
+    // Finished tasks
+    ui.same_line();
+    {
+        let _token = ui.begin_group();
+        
+        {
+            let _token = ui.push_font_with_size(None, 24.0);
+            ui.text("Finished");
+        }
+        
+        let _token = ui.push_style_color(StyleColor::ChildBg, ui.style_color(StyleColor::PopupBg));
+        ui.table("##FinishedTasks")
+            .flags(TableFlags::SCROLL_Y | TableFlags::PAD_OUTER_X)
+            .sizing_policy(imgui_app::dear_imgui_rs::TableSizingPolicy::FixedFit)
+            .outer_size([table_width_finished, table_height])
+            .freeze(0, 1)
+            .column("Filename").width(col_width_filename).done()
+            .column("Render").done()
+            .column("Export").done()
+            .column("Total").done()
+            .column("Error").width(-1.0).done()
+        .build(|ui| {
+            ui.table_headers_row();
+            let _token = ui.push_font(ex.fonts.mono);
+            let finished_and_failed_tasks = state.tasks.iter()
+                .enumerate()
+                .filter(|(_, task)| {
+                    task.status == RenderTaskStatus::Done
+                    || task.status == RenderTaskStatus::Failed
+                });
+            for (i, task) in finished_and_failed_tasks {
+                ui.table_next_row();
+                ui.table_next_column();
+                
+                just_a_square(ui, MAP_COLORS[i % MAP_COLORS.len()], true, true);
+                ui.same_line();
+                
+                if task.status == RenderTaskStatus::Done {
+                    {
+                        let _token = ui.push_style_color(StyleColor::Text, [0.400, 0.733, 0.416, 1.0]);
+                        ui.text(&task.label);
+                    }
+                    ui.table_next_column();
+                    ui.text(format!("{:.1}s", task.render_secs));
+                    ui.table_next_column();
+                    ui.text(format!("{:.1}s", task.export_secs));
+                    ui.table_next_column();
+                    ui.text(format!("{:.1}s", task.total_secs));
+                }
+                else {
+                    {
+                        let _token = ui.push_style_color(StyleColor::Text, [0.937, 0.326, 0.314, 1.0]);
+                        ui.text(&task.label);
+                    }
+                    ui.table_next_column();
+                    ui.text("-");
+                    ui.table_next_column();
+                    ui.text("-");
+                    ui.table_next_column();
+                    ui.text("-");
+                    ui.table_next_column();
+                    let max_width = ui.content_region_avail_width();
+                    ui.text(&task.error_message);
+                    if ui.item_rect_size()[0] > max_width
+                        && ui.is_item_hovered()
+                    {
+                        ui.tooltip_text(&task.error_message);
+                    }
+                }
+            }
+            
+            if ui.scroll_y() == state.prev_scroll_y_max {
+                ui.set_scroll_here_y(1.0);
+            }
+            state.prev_scroll_y_max = ui.scroll_max_y();
+        });
+    }
+    
+    // Progress bar
+    let progress_bar_width = {
+        ui.content_region_avail_width() - 2.0 * (button_width + item_spacing_x)
+    };
+    stepped_progress_bar(ui, [progress_bar_width, button_height], &state.progress_steps, state.progress_current_step);
+    
+    // Buttons
+    ui.same_line();
+    if ui.button_with_size("Show Output Directory", [button_width, button_height]) {
+        show_dir_in_file_explorer(&state.output_dir);
+    }
     
     ui.same_line();
-    if ui.button_with_size("Cancel", [-1.0, 0.0]) {
-        state.cancel.store(true, atomic::Ordering::Relaxed);
-        if state.thread_handle.is_none() {
-            state.error.take(); // The error is what's keeping the progress screen open
+    match state.status {
+        RenderThreadStatus::Rendering => {
+            if ui.button_with_size("Cancel", [button_width, button_height]) {
+                state.cancel.store(true, atomic::Ordering::Relaxed);
+                state.status = RenderThreadStatus::Aborting;
+            }
+        }
+        RenderThreadStatus::Aborting => {
+            let _token = ui.begin_disabled();
+            ui.button_with_size("Cancel", [button_width, button_height]);
+        }
+        _ => {
+            if ui.button_with_size("OK", [button_width, button_height]) {
+                state.status = RenderThreadStatus::None;
+            }
         }
     }
+}
+
+fn stepped_progress_bar(
+    ui: &Ui,
+    size: [f32; 2],
+    steps: &[f32],
+    current_step: usize
+) {
+    let [width, height] = size;
+    let color_bg = ui.style_color(StyleColor::FrameBg);
+    let color_finished = ui.style_color(StyleColor::PlotHistogram);
+    let color_in_progress = [color_finished[0], color_finished[1], color_finished[2], 0.25];
+    let line_color = color_in_progress;
+    let rounding = unsafe { ui.style().frame_rounding() };
     
-    if let Some(error_message) = &state.error {
-        ui.text_wrapped(format!("Render failed. Reason: {error_message}"));
-        return;
+    let draw_list = ui.get_window_draw_list();
+    let [x_start, y_start] = ui.cursor_screen_pos();
+    let [x_end, y_end] = [x_start + width, y_start + height];
+    let top_left = [x_start, y_start];
+    let bottom_right = [x_end, y_end];
+    
+    let finished_pct =
+        if current_step == 0 { 0.0 }
+        else if current_step >= steps.len() { 1.0 }
+        else { steps[current_step - 1] };
+    
+    if finished_pct < 1.0 {
+        // Background
+        draw_list.add_rect(top_left, bottom_right, color_bg)
+            .rounding(rounding)
+            .filled(true)
+            .build();
+        
+        // In progress
+        let in_progress_pct = steps[current_step];
+        let in_progress_width = (in_progress_pct * width).round();
+        let in_progress_bottom_right = [x_start + in_progress_width, y_end];
+        draw_list.add_rect(top_left, in_progress_bottom_right, color_in_progress)
+            .rounding(rounding)
+            .filled(true)
+            .build();
     }
     
-    ui.child_window("Render Progress")
-        .size([-1.0, -1.0])
-    .build(ui, || {
-        let avail_width = ui.content_region_avail_width();
-        for task in &state.tasks {
-            if task.status == RenderTaskStatus::Done { continue }
-            
-            let label_width = ui.calc_text_width(&task.label);
-            let label_x = f32::round((avail_width - item_spacing_x) * 0.5) - label_width;
-            ui.set_cursor_pos_x(label_x);
-            ui.text(&task.label);
-            
-            let color = match task.status {
-                RenderTaskStatus::NotStarted => [0.5, 0.5, 0.5, 1.0],
-                RenderTaskStatus::Rendering => ui.style_color(StyleColor::PlotHistogram),
-                RenderTaskStatus::Exporting => ui.style_color(StyleColor::PlotHistogram),
-                RenderTaskStatus::Done => [0.5, 1.0, 0.5, 1.0],
-            };
-            let _token = ui.push_style_color(StyleColor::Text, color);
-            ui.same_line();
-            ui.text(task.status.to_string());
+    // Finished
+    if finished_pct > 0.0 {
+        let finished_width = (finished_pct * width).round();
+        let finished_bottom_right = [x_start + finished_width, y_end];
+        draw_list.add_rect(top_left, finished_bottom_right, color_finished)
+            .rounding(rounding)
+            .filled(true)
+            .build();
+    }
+    
+    let mut step_width_prev = 0.0;
+    for step in steps.iter().skip(current_step + 1) {
+        let step_width = (step * width).round();
+        if step_width == 0.0
+            || step_width == step_width_prev
+            || step_width == width
+        {
+            continue;
         }
-    });
+        step_width_prev = step_width;
+        draw_list.add_line_v(x_start + step_width, y_start, y_end, line_color, 1.0);
+    }
+    
+    let label = format!("{:.1}%", finished_pct * 100.0);
+    let [label_width, label_height] = ui.calc_text_size(&label);
+    let label_x = (x_start + (width - label_width) / 2.0).round();
+    let label_y = (y_start + (height - label_height) / 2.0).round();
+    draw_list.add_text([label_x, label_y], ui.style_color(StyleColor::Text), &label);
+    
+    ui.dummy(size);
 }
 
 fn show_dir_in_file_explorer<P: AsRef<Path>>(path: P) {
