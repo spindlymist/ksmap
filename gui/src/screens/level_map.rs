@@ -2034,11 +2034,9 @@ fn do_the_render(
     };
     
     // Currently, it's assumed that all output paths are in the same directory
-    if let Some(output_dir) = output_dir.parent() {
-        if let Err(err) = std::fs::create_dir_all(&output_dir) {
-            tx.send(RenderMessage::Error(err.to_string())).unwrap();
-            return;
-        }
+    if let Err(err) = std::fs::create_dir_all(&output_dir) {
+        tx.send(RenderMessage::Error(err.to_string())).unwrap();
+        return;
     }
     
     fn channel_to_u8(f: f32) -> u8 {
