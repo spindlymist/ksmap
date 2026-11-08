@@ -99,6 +99,7 @@ impl State {
             state.map_state.opts.aspect_ratio = 2.5;
         }
         state.map_state.opts.draw_gridlines = prefs.draw_gridlines;
+        state.map_state.opts.show_screen_coords = prefs.show_screen_coords;
         state.map_state.opts.show_zoom_level = prefs.show_screen_size;
         state.generate_mipmaps = prefs.generate_mipmaps;
         
@@ -224,13 +225,16 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
             ui.menu_item_toggle("Draw gridlines", None::<&str>, &mut map_state.opts.draw_gridlines, true);
             prefs.draw_gridlines = map_state.opts.draw_gridlines;
             
+            ui.menu_item_toggle("Show screen coords", None::<&str>, &mut map_state.opts.show_screen_coords, true);
+            prefs.show_screen_coords = map_state.opts.show_screen_coords;
+            
             ui.menu_item_toggle("Show screen size", None::<&str>, &mut map_state.opts.show_zoom_level, true);
             prefs.show_screen_size = map_state.opts.show_zoom_level;
             
+            ui.separator();
             let mut use_textures = map_state.opts.use_textures;
             ui.menu_item_toggle("Draw screens on map", None::<&str>, &mut use_textures, true);
-            if ui.is_item_edited()
-            {
+            if ui.is_item_edited() {
                 if !use_textures {
                     map_state.opts.use_textures = false;
                 }

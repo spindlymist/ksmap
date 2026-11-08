@@ -6,27 +6,37 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Preferences {
     pub output_dir: Option<PathBuf>,
-    #[serde(default)]
+    #[serde(default = "default_use_true_aspect_ratio")]
     pub use_true_aspect_ratio: bool,
-    #[serde(default)]
+    #[serde(default = "default_draw_gridlines")]
     pub draw_gridlines: bool,
-    #[serde(default)]
+    #[serde(default = "default_show_screen_coords")]
+    pub show_screen_coords: bool,
+    #[serde(default = "default_show_screen_size")]
     pub show_screen_size: bool,
-    #[serde(default)]
+    #[serde(default = "default_generate_mipmaps")]
     pub generate_mipmaps: bool,
-    #[serde(default)]
+    #[serde(default = "default_start_maximized")]
     pub start_maximized: bool,
 }
+
+const fn default_use_true_aspect_ratio() -> bool { false }
+const fn default_draw_gridlines() -> bool { true }
+const fn default_show_screen_coords() -> bool { true }
+const fn default_show_screen_size() -> bool { false }
+const fn default_generate_mipmaps() -> bool { false }
+const fn default_start_maximized() -> bool { false }
 
 impl Default for Preferences {
     fn default() -> Self {
         Self {
             output_dir: None,
-            use_true_aspect_ratio: false,
-            draw_gridlines: true,
-            show_screen_size: false,
-            generate_mipmaps: false,
-            start_maximized: false,
+            use_true_aspect_ratio: default_use_true_aspect_ratio(),
+            draw_gridlines: default_draw_gridlines(),
+            show_screen_coords: default_show_screen_coords(),
+            show_screen_size: default_show_screen_size(),
+            generate_mipmaps: default_generate_mipmaps(),
+            start_maximized: default_start_maximized(),
         }
     }
 }

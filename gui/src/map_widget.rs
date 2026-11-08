@@ -36,6 +36,7 @@ pub struct MapOptions {
     pub aspect_ratio: f32,
     pub draw_gridlines: bool,
     pub use_textures: bool,
+    pub show_screen_coords: bool,
     pub show_zoom_level: bool,
 }
 
@@ -46,6 +47,7 @@ impl Default for MapOptions {
             aspect_ratio: 1.0,
             draw_gridlines: true,
             use_textures: false,
+            show_screen_coords: true,
             show_zoom_level: false,
         }
     }
@@ -349,8 +351,10 @@ pub fn build_map(
     if let Some(pos) = hovered_cell {
         draw_indicator(pos, HOVER_INDICATOR_COLOR);
     }
-    if let Some(pos) = &hovered_screen_pos {
-        draw_coord_string(*pos);
+    if map_state.opts.show_screen_coords
+        && let Some(pos) = hovered_screen_pos.or(map_state.selected_screen)
+    {
+        draw_coord_string(pos);
     }
     if map_state.opts.show_zoom_level {
         let zoom_string =
