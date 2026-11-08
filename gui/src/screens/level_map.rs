@@ -183,10 +183,14 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     let mut open_popup_controls = false;
     let mut open_popup_map_textures = false;
     let mut enable_map_textures = false;
+    let mut start_render = false;
     
     // Main menu
     if let Some(_menu_bar) = ui.begin_main_menu_bar() {
         if let Some(_file_menu) = ui.begin_menu("File") {
+            if ui.menu_item_with_shortcut("Render map", "Ctrl+R") {
+                start_render = true;
+            }
             if ui.menu_item_with_shortcut("Show output directory", "Ctrl+O") {
                 show_output_directory = true;
             }
@@ -403,7 +407,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     }
     
     // Export
-    let start_render = ui.window("Export").build(|| {
+    start_render |= ui.window("Export").build(|| {
         build_window_export(ui, ex, export_state)
     }).unwrap_or_default();
     
@@ -553,6 +557,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     }
     if ctrl && ui.is_key_pressed(Key::O) {
         show_output_directory = true;
+    }
+    if ctrl && ui.is_key_pressed(Key::R) {
+        start_render = true;
     }
     
     // Hotkeys that shouldn't trigger when a widget has focus
@@ -1787,7 +1794,7 @@ fn build_window_export(
     let _token = ui.widget_group_begin();
     
     let button_height = ui.text_line_height() * 2.0;
-    let start_render = ui.button_with_size("Export", [-1.0, button_height]);
+    let start_render = ui.button_with_size("Render map", [-1.0, button_height]);
     
     {
         ui.widget_group_label("Output directory");
