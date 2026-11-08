@@ -412,7 +412,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     
     // Export
     start_render |= ui.window("Export").build(|| {
-        build_window_export(ui, ex, export_state)
+        build_window_export(ui, ex, export_state, prefs)
     }).unwrap_or_default();
     
     // Partition options
@@ -655,8 +655,6 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         };
         thread_state.rx.replace(rx);
         thread_state.thread_handle.replace(thread_handle);
-        
-        prefs.output_dir.replace(export_state.output_dir.clone());
     }
     
     if *can_return_to_level_list && show_level_list {
@@ -1793,7 +1791,8 @@ enum RenderThreadStatus {
 fn build_window_export(
     ui: &Ui,
     _ex: &mut Extras,
-    export_state: &mut ExportState
+    export_state: &mut ExportState,
+    prefs: &mut Preferences,
 ) -> bool {
     let _token = ui.widget_group_begin();
     
@@ -1812,8 +1811,8 @@ fn build_window_export(
         if ui.input_text("##OutputDir", &mut path_buffer)
             .build()
         {
-            export_state.output_dir.clear();
-            export_state.output_dir.push(path_buffer);
+            export_state.output_dir = path_buffer.into();
+            prefs.output_dir.replace(export_state.output_dir.clone());
         }
         
         ui.same_line_with_spacing(0.0, inner_spacing_x);
@@ -1823,6 +1822,7 @@ fn build_window_export(
                 .pick_folder()
             {
                 export_state.output_dir = path;
+                prefs.output_dir.replace(export_state.output_dir.clone());
             }
         }
     }
