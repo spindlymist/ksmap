@@ -12,6 +12,7 @@ mod name_pattern;
 mod format_bytes;
 mod tooltips;
 mod prefs;
+mod widgets;
 
 use std::fs;
 use std::path::{Path, PathBuf};
