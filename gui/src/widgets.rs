@@ -1,3 +1,5 @@
+use crate::ui_extensions::UiExt;
+
 use imgui_app::dear_imgui_rs::{StyleColor, Ui};
 
 pub fn just_a_square(ui: &Ui, color: [f32; 4], filled: bool, rounded: bool) {
@@ -103,4 +105,33 @@ pub fn stepped_progress_bar(
     draw_list.add_text([label_x, label_y], ui.style_color(StyleColor::Text), &label);
     
     ui.dummy(size);
+}
+
+pub fn simple_scrollable_list_with_max_size<S>(ui: &Ui, window_name: &str, strings: &[S], max_size: [f32; 2])
+where
+    S: AsRef<str>
+{
+    let item_spacing_y = unsafe { ui.style().item_spacing()[1] };
+    let height_desired =
+        (ui.text_line_height() + item_spacing_y) * (strings.len() as f32)
+        - item_spacing_y;
+    let height = height_desired.clamp(0.0, max_size[1]);
+    let needs_scroll_bar = height < height_desired;
+    
+    let mut width_desired = strings.iter()
+        .map(|s| ui.calc_text_width(s))
+        .fold(0.0, f32::max);
+    if needs_scroll_bar {
+        width_desired += unsafe { ui.style().scrollbar_size() };
+    }
+    let width_max = max_size[0].max(ui.content_region_avail_width());
+    let width = width_desired.clamp(0.0, width_max);
+    
+    ui.child_window(window_name)
+        .size([width, height])
+    .build(ui, || {
+        for s in strings {
+            ui.text(s);
+        }
+    });
 }

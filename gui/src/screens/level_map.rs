@@ -8,7 +8,7 @@ use std::thread::JoinHandle;
 use std::time::Instant;
 
 use image::RgbaImage;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use imgui_app::{Extras, Fonts, Textures};
 use imgui_app::dear_imgui_rs::{
     ColorEditFlags,
@@ -51,7 +51,7 @@ use crate::tooltips::{set_tooltips_enabled, toggle_tooltips, tooltip, tooltips_a
 use crate::ui_extensions::UiExt;
 use crate::format_bytes::*;
 use crate::prefs::Preferences;
-use crate::widgets::{just_a_square, stepped_progress_bar};
+use crate::widgets::{just_a_square, stepped_progress_bar, simple_scrollable_list_with_max_size};
 
 pub struct State {
     can_return_to_level_list: bool,
@@ -615,9 +615,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         
         match find_path_conflicts(prerender_state) {
             Ok(_) => {
-                if prerender_state.nonunique_filenames.is_empty()
-                    && prerender_state.conflicts.is_empty()
-                {
+                if determine_prerender_status(prerender_state) == PrerenderStatus::None {
                     start_render_for_real = true;
                 }
                 else {
@@ -2538,23 +2536,43 @@ struct PrerenderState {
     output_dir: PathBuf,
     output_paths: Vec<PathBuf>,
     nonunique_filenames: Vec<String>,
-    conflicts: Vec<PathConflict>,
+    conflict_indices: Vec<usize>,
+    conflict_filenames: Vec<String>,
     error_message: Option<String>,
     allow_overwrite: bool,
 }
 
-struct PathConflict {
-    index: usize,
-    filename: String,
+#[derive(PartialEq, Eq)]
+enum PrerenderStatus {
+    None,
+    ShowError,
+    ShowNonuniqueFilenames,
+    ShowConflicts,
 }
 
 fn reset_prerender_state(state: &mut PrerenderState) {
     state.output_dir.clear();
     state.output_paths.clear();
     state.nonunique_filenames.clear();
-    state.conflicts.clear();
+    state.conflict_indices.clear();
+    state.conflict_filenames.clear();
     state.error_message = None;
     state.allow_overwrite = false;
+}
+
+fn determine_prerender_status(state: &PrerenderState) -> PrerenderStatus {
+    if state.error_message.is_some() {
+        PrerenderStatus::ShowError
+    }
+    else if !state.nonunique_filenames.is_empty() {
+        PrerenderStatus::ShowNonuniqueFilenames
+    }
+    else if !state.conflict_filenames.is_empty() {
+        PrerenderStatus::ShowConflicts
+    }
+    else {
+        PrerenderStatus::None
+    }
 }
 
 fn find_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Error> {
@@ -2565,26 +2583,31 @@ fn find_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Error>
             .to_string()
     }
     
-    let mut paths_seen = FxHashMap::<&Path, usize>::default();
-    state.nonunique_filenames.clear();
-    state.conflicts.clear();
+    let mut paths_seen = FxHashSet::<&Path>::default();
+    let mut nonunique_paths = FxHashSet::<&Path>::default();
+    let mut conflict_paths = FxHashSet::<&Path>::default();
     
     for (i, path) in state.output_paths.iter().enumerate() {
-        let n = paths_seen.entry(path).or_insert(0);
-        *n += 1;
-        if *n == 2 {
-            let filename = get_filename_owned(path);
-            state.nonunique_filenames.push(filename);
+        if !paths_seen.insert(path) {
+            nonunique_paths.insert(path);
         }
-        
         if !state.allow_overwrite && path.try_exists()? {
-            let filename = get_filename_owned(path);
-            state.conflicts.push(PathConflict {
-                index: i,
-                filename,
-            });
+            conflict_paths.insert(path);
+            state.conflict_indices.push(i);
         }
     }
+    
+    let nonunique_filenames_iter = nonunique_paths.into_iter()
+        .map(get_filename_owned);
+    state.nonunique_filenames.clear();
+    state.nonunique_filenames.extend(nonunique_filenames_iter);
+    state.nonunique_filenames.sort_unstable();
+    
+    let conflict_filenames_iter = conflict_paths.into_iter()
+        .map(get_filename_owned);
+    state.conflict_filenames.clear();
+    state.conflict_filenames.extend(conflict_filenames_iter);
+    state.conflict_filenames.sort_unstable();
     
     Ok(())
 }
@@ -2635,105 +2658,102 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
     
     let mut want_continue = false;
     let mut want_cancel = false;
+    
+    match determine_prerender_status(state) {
+        PrerenderStatus::ShowError => {
+            ui.text("An error occurred while checking for path conflicts:");
+            
+            ui.new_line();
+            let error_message = state.error_message.as_ref()
+                .map(String::as_str)
+                .unwrap_or_default();
+            ui.text(error_message);
+            
+            ui.new_line();
+            if ui.button("OK") || ui.is_key_pressed(Key::Escape) {
+                want_cancel = true;
+            }
+        }
+        PrerenderStatus::ShowNonuniqueFilenames => {
+            ui.text(format!("{} filename(s) are shared by multiple partitions:", state.nonunique_filenames.len()));
+            ui.new_line();
+            
+            {
+                let _token = ui.push_font(ex.fonts.mono);
+                let max_size = [
+                    ui.main_viewport().size()[0] / 2.0,
+                    ui.main_viewport().size()[1] / 2.0
+                ];
+                simple_scrollable_list_with_max_size(ui, "NonuniqueFilenames", &state.nonunique_filenames, max_size);
+            }
+            
+            ui.new_line();
+            if ui.button("Continue") {
+                state.nonunique_filenames.clear();
+                want_continue = true;
+            }
+            
+            ui.same_line();
+            if ui.button("Cancel") || ui.is_key_pressed(Key::Escape) {
+                want_cancel = true;
+            }
+        }
+        PrerenderStatus::ShowConflicts => {
+            ui.text(format!("{} file(s) will be overwritten:", state.conflict_filenames.len()));
+            ui.new_line();
+            
+            {
+                let _token = ui.push_font(ex.fonts.mono);
+                let max_size = [
+                    ui.main_viewport().size()[0] / 2.0,
+                    ui.main_viewport().size()[1] / 2.0
+                ];
+                simple_scrollable_list_with_max_size(ui, "Conflicts", &state.conflict_filenames, max_size);
+            }
+            
+            ui.new_line();
+            if ui.button("Overwrite") {
+                state.conflict_indices.clear();
+                state.conflict_filenames.clear();
+                state.allow_overwrite = true;
+                want_continue = true;
+            }
+            
+            ui.same_line();
+            if ui.button("Append counter") {
+                for index in &state.conflict_indices {
+                    let path = &mut state.output_paths[*index];
+                    match resolve_path_conflict_with_counter(path.clone()) {
+                        Ok(new_path) => *path = new_path,
+                        Err(err) => {
+                            state.error_message = Some(err.to_string());
+                            return false;
+                        }
+                    };
+                }
+                state.conflict_indices.clear();
+                state.conflict_filenames.clear();
+                state.allow_overwrite = false;
+                want_continue = true;
+            }
+            
+            ui.same_line();
+            if ui.button("Cancel") || ui.is_key_pressed(Key::Escape) {
+                want_cancel = true;
+            }
+        }
+        PrerenderStatus::None => {
+            want_cancel = true;
+        }
+    };
+    
     let mut should_start_render = false;
-    
-    if let Some(error_message) = &state.error_message {
-        ui.text("An error occurred while checking for path conflicts:");
-        
-        ui.new_line();
-        ui.text(error_message);
-        
-        ui.new_line();
-        if ui.button("OK") {
-            want_cancel = true;
-        }
-    }
-    else if !state.nonunique_filenames.is_empty() {
-        ui.text(format!("{} filename(s) are shared by multiple partitions:", state.nonunique_filenames.len()));
-        ui.new_line();
-        
-        let item_spacing_y = unsafe { ui.style().item_spacing()[1] };
-        let window_height_max = ui.main_viewport().size()[1] / 2.0;
-        let window_height =
-            (ui.text_line_height() + item_spacing_y) * (state.nonunique_filenames.len() as f32)
-            - item_spacing_y;
-        ui.child_window("NonuniqueFilenames")
-            .size([-1.0, window_height.clamp(0.0, window_height_max)])
-        .build(ui, || {
-            let _token = ui.push_font(ex.fonts.mono);
-            for filename in &state.nonunique_filenames {
-                ui.text(filename);
-            }
-        });
-        
-        ui.new_line();
-        if ui.button("Continue") {
-            state.nonunique_filenames.clear();
-            want_continue = true;
-        }
-        
-        ui.same_line();
-        if ui.button("Cancel") {
-            want_cancel = true;
-        }
-    }
-    else if !state.conflicts.is_empty() {
-        ui.text(format!("{} file(s) will be overwritten:", state.conflicts.len()));
-        ui.new_line();
-    
-        let item_spacing_y = unsafe { ui.style().item_spacing()[1] };
-        let window_height_max = ui.main_viewport().size()[1] / 2.0;
-        let window_height =
-            (ui.text_line_height() + item_spacing_y) * (state.conflicts.len() as f32)
-            - item_spacing_y;
-        ui.child_window("Conflicts")
-            .size([-1.0, window_height.clamp(0.0, window_height_max)])
-        .build(ui, || {
-            let _token = ui.push_font(ex.fonts.mono);
-            for conflict in &state.conflicts {
-                ui.text(&conflict.filename);
-            }
-        });
-        
-        ui.new_line();
-        if ui.button("Overwrite") {
-            state.conflicts.clear();
-            state.allow_overwrite = true;
-            want_continue = true;
-        }
-        
-        ui.same_line();
-        if ui.button("Append counter") {
-            for conflict in &state.conflicts {
-                let path = &mut state.output_paths[conflict.index];
-                match resolve_path_conflict_with_counter(path.clone()) {
-                    Ok(new_path) => *path = new_path,
-                    Err(err) => {
-                        state.error_message = Some(err.to_string());
-                        return false;
-                    }
-                };
-            }
-            state.conflicts.clear();
-            state.allow_overwrite = false;
-            want_continue = true;
-        }
-        
-        ui.same_line();
-        if ui.button("Cancel") {
-            want_cancel = true;
-        }
-    }
-    else {
-        want_cancel = true;
-    }
-    
     if want_cancel {
+        reset_prerender_state(state);
         ui.close_current_popup();
     }
     else if want_continue
-        && state.nonunique_filenames.is_empty()
-        && state.conflicts.is_empty()
+        && determine_prerender_status(state) == PrerenderStatus::None
     {
         ui.close_current_popup();
         should_start_render = true;
