@@ -2477,7 +2477,7 @@ fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState
         
         let _token = ui.push_style_color(StyleColor::ChildBg, ui.style_color(StyleColor::PopupBg));
         ui.table("##FinishedTasks")
-            .flags(TableFlags::SCROLL_Y | TableFlags::PAD_OUTER_X)
+            .flags(TableFlags::SCROLL_X | TableFlags::SCROLL_Y | TableFlags::PAD_OUTER_X)
             .sizing_policy(imgui_app::dear_imgui_rs::TableSizingPolicy::FixedFit)
             .outer_size([table_width_finished, table_height])
             .freeze(0, 1)
@@ -2526,13 +2526,7 @@ fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState
                     ui.table_next_column();
                     ui.text("-");
                     ui.table_next_column();
-                    let max_width = ui.content_region_avail_width();
                     ui.text(&task.error_message);
-                    if ui.item_rect_size()[0] > max_width
-                        && ui.is_item_hovered()
-                    {
-                        ui.tooltip_text(&task.error_message);
-                    }
                 }
             }
             
@@ -2570,7 +2564,9 @@ fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState
             ui.button_with_size("Cancel", [button_width, button_height]);
         }
         _ => {
-            if ui.button_with_size("OK", [button_width, button_height]) {
+            if ui.button_with_size("OK", [button_width, button_height])
+                || ui.is_key_pressed(Key::Escape)
+            {
                 state.status = RenderThreadStatus::None;
             }
         }
