@@ -628,7 +628,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         
         match find_path_conflicts(prerender_state) {
             Ok(_) => {
-                if determine_prerender_status(prerender_state) == PrerenderStatus::None {
+                if determine_prerender_status(prerender_state) == PrerenderStatus::Ok {
                     start_render_for_real = true;
                 }
                 else {
@@ -2586,7 +2586,7 @@ struct PrerenderState {
 
 #[derive(PartialEq, Eq)]
 enum PrerenderStatus {
-    None,
+    Ok,
     ShowError,
     ShowNonuniqueFilenames,
     ShowConflicts,
@@ -2613,7 +2613,7 @@ fn determine_prerender_status(state: &PrerenderState) -> PrerenderStatus {
         PrerenderStatus::ShowConflicts
     }
     else {
-        PrerenderStatus::None
+        PrerenderStatus::Ok
     }
 }
 
@@ -2717,7 +2717,8 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             }
         }
         PrerenderStatus::ShowNonuniqueFilenames => {
-            ui.text(format!("{} filename(s) are shared by multiple partitions:", state.nonunique_filenames.len()));
+            ui.text(format!("{} filename(s) are shared by multiple partitions.\n\
+                Please ensure that every filename is unique.", state.nonunique_filenames.len()));
             ui.new_line();
             
             {
@@ -2730,13 +2731,7 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             }
             
             ui.new_line();
-            if ui.button("Continue") {
-                state.nonunique_filenames.clear();
-                want_continue = true;
-            }
-            
-            ui.same_line();
-            if ui.button("Cancel") || ui.is_key_pressed(Key::Escape) {
+            if ui.button("OK") || ui.is_key_pressed(Key::Escape) {
                 want_cancel = true;
             }
         }
@@ -2773,6 +2768,7 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
                         }
                     };
                 }
+                
                 state.conflict_indices.clear();
                 state.conflict_filenames.clear();
                 state.allow_overwrite = false;
@@ -2784,18 +2780,18 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
                 want_cancel = true;
             }
         }
-        PrerenderStatus::None => {
+        PrerenderStatus::Ok => {
             want_cancel = true;
         }
     };
     
     let mut should_start_render = false;
     if want_cancel {
-        reset_prerender_state(state);
         ui.close_current_popup();
+        reset_prerender_state(state);
     }
     else if want_continue
-        && determine_prerender_status(state) == PrerenderStatus::None
+        && determine_prerender_status(state) == PrerenderStatus::Ok
     {
         ui.close_current_popup();
         should_start_render = true;
