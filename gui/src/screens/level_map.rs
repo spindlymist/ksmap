@@ -2712,7 +2712,10 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             ui.text(error_message);
             
             ui.new_line();
-            if ui.button("OK") || ui.is_key_pressed(Key::Escape) {
+            let button_width = ui.calc_text_width("OK") * 4.0;
+            if ui.button_with_size("OK", [button_width, 0.0])
+                || ui.is_key_pressed(Key::Escape)
+            {
                 want_cancel = true;
             }
         }
@@ -2731,7 +2734,10 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             }
             
             ui.new_line();
-            if ui.button("OK") || ui.is_key_pressed(Key::Escape) {
+            let button_width = ui.calc_text_width("OK") * 4.0;
+            if ui.button_with_size("OK", [button_width, 0.0])
+                || ui.is_key_pressed(Key::Escape)
+            {
                 want_cancel = true;
             }
         }
