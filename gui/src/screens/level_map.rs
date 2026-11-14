@@ -30,6 +30,7 @@ use imgui_app::dear_imgui_rs::{
     TableColumnUserData,
     TableColumnWidth,
     TableFlags,
+    TableSizingPolicy,
     TextureId,
     Ui,
     WindowFlags,
@@ -37,7 +38,7 @@ use imgui_app::dear_imgui_rs::{
 };
 use ksmap::definitions::ObjectDefs;
 use ksmap::drawing::{self, alpha_to_trans, BlendAlgorithm, DrawContext, DrawOptions, TintStrategy};
-use ksmap::graphics::Graphics;
+use ksmap::graphics::{Graphics, LoadImageWarning};
 use ksmap::partition::{Bounds, GridPartitioner, IslandsPartitioner, Partition, Partitioner, sort_partitions_spatially};
 use ksmap::screen_map::ScreenMap;
 use ksmap::seed::MapSeed;
@@ -68,6 +69,7 @@ pub struct State {
     generate_mipmaps: bool,
     screens_per_batch: usize,
     requested_center: Option<(i64, i64)>,
+    warnings: Vec<LoadImageWarning>,
 }
 
 impl State {
@@ -75,6 +77,7 @@ impl State {
         level_dir: PathBuf,
         render_state: RenderState,
         partition_state: PartitionState,
+        warnings: Vec<LoadImageWarning>,
         can_return_to_level_list: bool,
         prefs: &Preferences,
     ) -> Self {
@@ -93,6 +96,7 @@ impl State {
             generate_mipmaps: false,
             screens_per_batch: 0,
             requested_center: None,
+            warnings,
         };
         
         // Apply preferences
@@ -150,6 +154,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         generate_mipmaps,
         screens_per_batch,
         requested_center,
+        warnings
     } = state;
     
     // Initialize dockspace
@@ -437,6 +442,14 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
             );
             requested_center.replace(partition_center);
         }
+    }
+    
+    // Warnings
+    if !warnings.is_empty() {
+        let window_name = format!("Warnings ({})###Warnings", warnings.len());
+        ui.window(window_name).build(|| {
+            build_window_warnings(ui, ex, warnings);
+        });
     }
     
     // Drawing options
@@ -735,6 +748,7 @@ fn create_dockspace_layout(ui: &Ui) -> DockLayout {
     let key_export = WindowKey::new("Export", "Export").unwrap();
     let key_partition_opts = WindowKey::new("Partition Options", "Partition Options").unwrap();
     let key_drawing_opts = WindowKey::new("Drawing Options", "Drawing Options").unwrap();
+    let key_warnings = WindowKey::new("Warnings", "Warnings").unwrap();
     let key_preview = WindowKey::new("Preview", "Preview").unwrap();
     let key_partitions = WindowKey::new("Partitions", "Partitions").unwrap();
     
@@ -749,7 +763,7 @@ fn create_dockspace_layout(ui: &Ui) -> DockLayout {
                 DockSplit::Up,
                 export_percent_height,
                 DockLayout::tabs(&[key_export, key_partition_opts, key_drawing_opts]),
-                DockLayout::tabs(&[key_partitions]),
+                DockLayout::tabs(&[key_partitions, key_warnings]),
             ),
         ),
         DockLayout::tabs(&[key_map])
@@ -1350,6 +1364,38 @@ fn sort_partitions(
         }),
         _ => {}
     }
+}
+
+fn build_window_warnings(ui: &Ui, _ex: &mut Extras, warnings: &[LoadImageWarning]) {
+     ui.table("WarningsTable")
+        .outer_size([-1.0, -1.0])
+        .flags(TableFlags::BORDERS | TableFlags::SCROLL_X | TableFlags::SCROLL_Y)
+        .sizing_policy(TableSizingPolicy::FixedFit)
+        .freeze(0, 1)
+        .column("Filename").done()
+        .column("Warning").done()
+    .build(|ui| {
+        ui.table_headers_row();
+        for warning in warnings {
+            let (filename, message) = match warning {
+                LoadImageWarning::FailedToDecode { source, path } => {(
+                    path.file_name().unwrap_or_default().to_string_lossy(),
+                    source.to_string()
+                )}
+                LoadImageWarning::UnsupportedIndexedBitDepth { path, bit_depth } => {(
+                    path.file_name().unwrap_or_default().to_string_lossy(),
+                    format!("Indexed image with unsupported bit depth {bit_depth}")
+                )}
+            };
+            
+            ui.table_next_row();
+            ui.table_next_column();
+            ui.text(filename);
+            
+            ui.table_next_column();
+            ui.text(&message);
+        }
+    });
 }
 
 struct PreviewState {

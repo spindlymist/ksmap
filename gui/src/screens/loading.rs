@@ -8,7 +8,7 @@ use imgui_app::dear_imgui_rs::{Condition, Ui, WindowFlags};
 use ksmap::analysis::list_assets;
 use ksmap::definitions;
 use ksmap::drawing::DrawOptions;
-use ksmap::graphics::Graphics;
+use ksmap::graphics::{Graphics, LoadImageWarning};
 use ksmap::partition::{GridPartitioner, IslandsPartitioner, Partitioner, sort_partitions_spatially};
 use ksmap::screen_map::ScreenMap;
 use ksmap::seed::MapSeed;
@@ -22,7 +22,7 @@ pub struct State {
     can_return_to_level_list: bool,
     level_dir: PathBuf,
     status: &'static str,
-    thread: Option<JoinHandle<anyhow::Result<(RenderState, PartitionState)>>>,
+    thread: Option<JoinHandle<anyhow::Result<(RenderState, PartitionState, Vec<LoadImageWarning>)>>>,
     rx: mpsc::Receiver<LoadMessage>,
     error: Option<anyhow::Error>,
 }
@@ -33,6 +33,7 @@ pub enum Task {
         level_dir: PathBuf,
         render_state: RenderState,
         partition_state: PartitionState,
+        warnings: Vec<LoadImageWarning>,
     }
 }
 
@@ -89,11 +90,12 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, _prefs: &mut Prefer
     {
         let thread = state.thread.take().unwrap();
         match thread.join() {
-            Ok(Ok((render_state, partition_state))) => {
+            Ok(Ok((render_state, partition_state, warnings))) => {
                 task = Some(Task::ShowLevelMap {
                     level_dir: state.level_dir.clone(),
                     render_state,
                     partition_state,
+                    warnings,
                 });
             }
             Ok(Err(err)) => {
@@ -135,7 +137,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, _prefs: &mut Prefer
     task
 }
 
-fn init_render_state(tx: mpsc::Sender<LoadMessage>, ks_dir: PathBuf, level_dir: PathBuf) -> anyhow::Result<(RenderState, PartitionState)> {
+fn init_render_state(tx: mpsc::Sender<LoadMessage>, ks_dir: PathBuf, level_dir: PathBuf) -> anyhow::Result<(RenderState, PartitionState, Vec<LoadImageWarning>)> {
     let _ = tx.send(LoadMessage::LoadingMap);
     let screens = map_bin::parse_map_file(level_dir.join("Map.bin"))?;
     let screen_map = ScreenMap::new(screens);
@@ -230,7 +232,7 @@ fn init_render_state(tx: mpsc::Sender<LoadMessage>, ks_dir: PathBuf, level_dir: 
     };
     
     let _ = tx.send(LoadMessage::Done);
-    Ok((render_state, partition_state))
+    Ok((render_state, partition_state, warnings))
 }
 
 fn error_display(ui: &Ui, err: &anyhow::Error) {
