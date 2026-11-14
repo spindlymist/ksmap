@@ -1,4 +1,5 @@
 use std::cmp;
+use std::ffi::{OsStr, OsString};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, RwLock};
 use std::sync::atomic::{self, AtomicBool};
@@ -58,6 +59,7 @@ pub struct State {
     reset_layout: bool,
     render_state_lock: RenderStateLock,
     thread_state: RenderThreadState,
+    prerender_state: PrerenderState,
     export_state: ExportState,
     map_state: MapState,
     partition_state: PartitionState,
@@ -82,6 +84,7 @@ impl State {
             reset_layout: false,
             render_state_lock: Arc::new(RwLock::new(render_state)),
             thread_state: RenderThreadState::default(),
+            prerender_state: PrerenderState::default(),
             map_state: MapState::default(),
             partition_state,
             drawing_state: DrawingState::default(),
@@ -96,6 +99,7 @@ impl State {
         if let Some(output_dir) = &prefs.output_dir {
             state.export_state.output_dir = output_dir.clone();
         }
+        state.export_state.allow_overwrite = prefs.allow_overwrite;
         if prefs.use_true_aspect_ratio {
             state.map_state.opts.aspect_ratio = 2.5;
         }
@@ -137,6 +141,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         reset_layout,
         render_state_lock,
         thread_state,
+        prerender_state,
         export_state,
         map_state,
         partition_state,
@@ -185,13 +190,13 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     let mut open_popup_controls = false;
     let mut open_popup_map_textures = false;
     let mut enable_map_textures = false;
-    let mut start_render = false;
+    let mut try_start_render = false;
     
     // Main menu
     if let Some(_menu_bar) = ui.begin_main_menu_bar() {
         if let Some(_file_menu) = ui.begin_menu("File") {
             if ui.menu_item_with_shortcut("Render map", "Ctrl+R") {
-                start_render = true;
+                try_start_render = true;
             }
             if ui.menu_item_with_shortcut("Show output directory", "Ctrl+O") {
                 show_output_directory = true;
@@ -289,10 +294,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     if open_popup_controls {
         ui.open_popup("Controls");
     }
-    {
-        let [viewport_width, viewport_height] = ui.main_viewport().size();
-        ui.set_next_window_pos([viewport_width * 0.5, viewport_height * 0.5], Condition::Always, [0.5, 0.5]);
-    }
+    ui.center_next_window();
     if let Some(_token) = ui.begin_modal_popup_config("Controls")
         .flags(WindowFlags::ALWAYS_AUTO_RESIZE | WindowFlags::NO_MOVE | WindowFlags::NO_RESIZE)
         .begin()
@@ -334,13 +336,10 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     
     // Textures popup
     if open_popup_map_textures {
-        ui.open_popup("Warning##MapTextures");
+        ui.open_popup("###MapTextures");
     }
-    {
-        let [viewport_width, viewport_height] = ui.main_viewport().size();
-        ui.set_next_window_pos([viewport_width * 0.5, viewport_height * 0.5], Condition::Always, [0.5, 0.5]);
-    }
-    if let Some(_token) = ui.begin_modal_popup_config("Warning##MapTextures")
+    ui.center_next_window();
+    if let Some(_token) = ui.begin_modal_popup_config("Warning###MapTextures")
         .flags(WindowFlags::ALWAYS_AUTO_RESIZE | WindowFlags::NO_MOVE | WindowFlags::NO_RESIZE)
         .begin()
     {
@@ -412,7 +411,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     }
     
     // Export
-    start_render |= ui.window("Export").build(|| {
+    try_start_render |= ui.window("Export").build(|| {
         build_window_export(ui, ex, export_state, prefs)
     }).unwrap_or_default();
     
@@ -564,7 +563,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         show_output_directory = true;
     }
     if ctrl && ui.is_key_pressed(Key::R) {
-        start_render = true;
+        try_start_render = true;
     }
     
     // Hotkeys that shouldn't trigger when a widget has focus
@@ -603,12 +602,40 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         }
     }
     
-    // Fire up the render thread!
-    if start_render {
-        let (output_dir, output_paths) = get_output_paths_for_partitions(
+    // Fire up the render thread (maybe)!
+    let mut start_render_for_real = false;
+    if try_start_render {
+        reset_prerender_state(prerender_state);
+        prerender_state.output_dir = get_output_paths_for_partitions(
+            &mut prerender_state.output_paths,
             &render_state.partitions,
             export_state,
             &render_state.ini);
+        prerender_state.allow_overwrite = export_state.allow_overwrite;
+        
+        match find_path_conflicts(prerender_state) {
+            Ok(_) => {
+                if prerender_state.nonunique_filenames.is_empty()
+                    && prerender_state.conflicts.is_empty()
+                {
+                    start_render_for_real = true;
+                }
+                else {
+                    ui.open_popup("###Conflicts");
+                }
+            }
+            Err(err) => {
+                prerender_state.error_message = Some(err.to_string());
+                ui.open_popup("###Conflicts");
+            }
+        }
+    }
+    
+    start_render_for_real |= build_popup_conflicts(ui, ex, prerender_state);
+    
+    if start_render_for_real {
+        let output_dir = std::mem::replace(&mut prerender_state.output_dir, PathBuf::new());
+        let output_paths = std::mem::replace(&mut prerender_state.output_paths, Vec::new());
         
         // Initialize thread state
         reset_thread_state(thread_state);
@@ -644,12 +671,14 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
             let render_state_for_thread = Arc::clone(render_state_lock);
             let render_cancel_for_thread = Arc::clone(&thread_state.cancel);
             let export_state_for_thread = export_state.clone();
-            std::thread::spawn(|| {
+            let allow_overwrite = prerender_state.allow_overwrite;
+            std::thread::spawn(move || {
                 do_the_render(
                     render_state_for_thread,
                     export_state_for_thread,
                     output_dir,
                     output_paths,
+                    allow_overwrite,
                     tx,
                     render_cancel_for_thread)
             })
@@ -690,7 +719,7 @@ fn create_dockspace_layout(ui: &Ui) -> DockLayout {
     let preview_total_height = preview_inner_height + tab_bar_height + half_separator;
     let export_inner_height =
         (ui.text_line_height() * 2.0 + item_spacing_y) // Button
-        + (ui.text_line_height() + 2.0 * frame_padding_y + item_spacing_y) * 10.0 // Options
+        + (ui.text_line_height() + 2.0 * frame_padding_y + item_spacing_y) * 11.0 // Options
         + 2.0 * window_padding_y; // Padding
     let export_total_height = export_inner_height + tab_bar_height + half_separator;
 
@@ -1706,6 +1735,7 @@ struct ExportState {
     no_subdir: bool,
     no_subdir_for_single: bool,
     use_subdir_name_for_single: bool,
+    allow_overwrite: bool,
     use_multithreaded_encoder: bool,
     compression_level: u8,
     rgb: bool,
@@ -1722,6 +1752,7 @@ impl ExportState {
             no_subdir: false,
             no_subdir_for_single: true,
             use_subdir_name_for_single: true,
+            allow_overwrite: false,
             use_multithreaded_encoder: true,
             compression_level: 9,
             rgb: false,
@@ -1871,6 +1902,10 @@ fn build_window_export(
     tooltip(ui, "When enabled, if there is only one partition, it will be named according to the subdirectory name \
         setting instead of the partition name setting.");
     
+    ui.checkbox("Overwrite without asking", &mut export_state.allow_overwrite);
+    tooltip(ui, "When enabled, existing files will be overwritten without asking for confirmation.");
+    prefs.allow_overwrite = export_state.allow_overwrite;    
+    
     ui.widget_group_label("Compression level");
     ui.slider("##CompressionLevel", 1, 9, &mut export_state.compression_level);
     tooltip(ui, "Desired compression level from 1 (fastest, worst compression) to 9 (slowest, best compression).");
@@ -1895,10 +1930,11 @@ fn build_window_export(
 }
 
 fn get_output_paths_for_partitions(
+    paths: &mut Vec<PathBuf>,
     partitions: &[Partition],
     export_state: &ExportState,
     ini: &Ini
-) -> (PathBuf, Vec<PathBuf>) {
+) -> PathBuf {
     const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
     
     let level_info = name_pattern::LevelInfo::new(ini, &export_state.level_dir);
@@ -1916,7 +1952,7 @@ fn get_output_paths_for_partitions(
             export_state.output_dir.join(&subdir_name)
         };
     
-    let mut paths = Vec::with_capacity(partitions.len());
+    paths.reserve(partitions.len().saturating_sub(paths.capacity()));
     
     for (partition_index, partition) in partitions.iter().enumerate() {
         let file_name =
@@ -1936,7 +1972,7 @@ fn get_output_paths_for_partitions(
         paths.push(output_path);
     }
     
-    (output_dir, paths)
+    output_dir
 }
 
 pub struct RenderState {
@@ -2014,6 +2050,7 @@ fn do_the_render(
     export_state: ExportState,
     output_dir: PathBuf,
     output_paths: Vec<PathBuf>,
+    allow_overwrite: bool,
     tx: mpsc::Sender<RenderMessage>,
     cancel: Arc<AtomicBool>
 ) { 
@@ -2057,6 +2094,7 @@ fn do_the_render(
                 partition,
                 draw_context,
                 output_path,
+                allow_overwrite,
                 export_state.use_multithreaded_encoder,
                 export_state.compression_level,
                 background_color_rgb
@@ -2070,6 +2108,7 @@ fn do_the_render(
                 partition,
                 draw_context,
                 output_path,
+                allow_overwrite,
                 export_state.use_multithreaded_encoder,
                 export_state.compression_level,
                 background_color
@@ -2103,6 +2142,7 @@ fn draw_and_export(
     partition: &Partition,
     draw_context: DrawContext,
     output_path: &Path,
+    allow_overwrite: bool,
     use_multithreaded_encoder: bool,
     compression_level: u8,
     background_color: [u8; 4]
@@ -2133,10 +2173,10 @@ fn draw_and_export(
     let export_start = Instant::now();
     let result =
         if use_multithreaded_encoder {
-            drawing::export_canvas_multithreaded(canvas, &output_path, compression_level)
+            drawing::export_canvas_multithreaded(canvas, &output_path, compression_level, allow_overwrite)
         }
         else {
-            drawing::export_canvas(canvas, &output_path, compression_level)
+            drawing::export_canvas(canvas, &output_path, compression_level, allow_overwrite)
         };
     if let Err(err) = result {
         tx.send(RenderMessage::PartitionFailed {
@@ -2165,6 +2205,7 @@ fn draw_and_export_rgb(
     partition: &Partition,
     draw_context: DrawContext,
     output_path: &Path,
+    allow_overwrite: bool,
     use_multithreaded_encoder: bool,
     compression_level: u8,
     background_color: [u8; 3]
@@ -2195,10 +2236,10 @@ fn draw_and_export_rgb(
     let export_start = Instant::now();
     let result =
         if use_multithreaded_encoder {
-            drawing::export_canvas_multithreaded(canvas, &output_path, compression_level)
+            drawing::export_canvas_multithreaded(canvas, &output_path, compression_level, allow_overwrite)
         }
         else {
-            drawing::export_canvas(canvas, &output_path, compression_level)
+            drawing::export_canvas(canvas, &output_path, compression_level, allow_overwrite)
         };
     if let Err(err) = result {
         tx.send(RenderMessage::PartitionFailed {
@@ -2488,6 +2529,215 @@ fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState
             }
         }
     }
+}
+
+#[derive(Default)]
+struct PrerenderState {
+    output_dir: PathBuf,
+    output_paths: Vec<PathBuf>,
+    nonunique_filenames: Vec<String>,
+    conflicts: Vec<PathConflict>,
+    error_message: Option<String>,
+    allow_overwrite: bool,
+}
+
+struct PathConflict {
+    index: usize,
+    filename: String,
+}
+
+fn reset_prerender_state(state: &mut PrerenderState) {
+    state.output_dir.clear();
+    state.output_paths.clear();
+    state.nonunique_filenames.clear();
+    state.conflicts.clear();
+    state.error_message = None;
+    state.allow_overwrite = false;
+}
+
+fn find_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Error> {
+    fn get_filename_owned(path: &Path) -> String {
+        path.file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string()
+    }
+    
+    let mut paths_seen = FxHashMap::<&Path, usize>::default();
+    state.nonunique_filenames.clear();
+    state.conflicts.clear();
+    
+    for (i, path) in state.output_paths.iter().enumerate() {
+        let n = paths_seen.entry(path).or_insert(0);
+        *n += 1;
+        if *n == 2 {
+            let filename = get_filename_owned(path);
+            state.nonunique_filenames.push(filename);
+        }
+        
+        if !state.allow_overwrite && path.try_exists()? {
+            let filename = get_filename_owned(path);
+            state.conflicts.push(PathConflict {
+                index: i,
+                filename,
+            });
+        }
+    }
+    
+    Ok(())
+}
+
+fn resolve_path_conflict_with_counter(path: PathBuf) -> Result<PathBuf, std::io::Error> {
+    fn split_file_stem_and_extension(file_name: &OsStr) -> (&OsStr, Option<&OsStr>) {   
+        let file_name: &Path = file_name.as_ref();
+        let file_stem = file_name.file_stem().unwrap_or("".as_ref());
+        let file_ext = file_name.extension();
+        (file_stem, file_ext)
+    }
+    
+    fn make_file_name_with_counter(buf: &mut OsString, stem: &OsStr, ext: Option<&OsStr>, counter: usize) {
+        use std::fmt::Write;
+        buf.clear();
+        buf.push(stem);
+        let _ = write!(buf, " ({counter})");
+        if let Some(ext) = ext {
+            buf.push(".");
+            buf.push(ext);
+        }
+    }
+    
+    if !path.try_exists()? { return Ok(path) }
+    let Some(file_name) = path.file_name() else { return Ok(path) };
+
+    let mut counter = 1;
+    let (stem, ext) = split_file_stem_and_extension(file_name);
+    let mut new_file_name = OsString::with_capacity(file_name.len() + 4);
+    make_file_name_with_counter(&mut new_file_name, stem, ext, counter);
+    let mut new_path = path.with_file_name(&new_file_name);
+            
+    while new_path.try_exists()? {
+        counter += 1;
+        make_file_name_with_counter(&mut new_file_name, stem, ext, counter);
+        new_path.set_file_name(&new_file_name);
+    }
+    
+    Ok(new_path)
+}
+
+fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -> bool {
+    ui.center_next_window();
+    let Some(_token) = ui.begin_modal_popup_config("Warning###Conflicts")
+        .flags(WindowFlags::ALWAYS_AUTO_RESIZE | WindowFlags::NO_MOVE | WindowFlags::NO_RESIZE)
+        .begin()
+        else { return false };
+    
+    let mut want_continue = false;
+    let mut want_cancel = false;
+    let mut should_start_render = false;
+    
+    if let Some(error_message) = &state.error_message {
+        ui.text("An error occurred while checking for path conflicts:");
+        
+        ui.new_line();
+        ui.text(error_message);
+        
+        ui.new_line();
+        if ui.button("OK") {
+            want_cancel = true;
+        }
+    }
+    else if !state.nonunique_filenames.is_empty() {
+        ui.text(format!("{} filename(s) are shared by multiple partitions:", state.nonunique_filenames.len()));
+        ui.new_line();
+        
+        let item_spacing_y = unsafe { ui.style().item_spacing()[1] };
+        let window_height_max = ui.main_viewport().size()[1] / 2.0;
+        let window_height =
+            (ui.text_line_height() + item_spacing_y) * (state.nonunique_filenames.len() as f32)
+            - item_spacing_y;
+        ui.child_window("NonuniqueFilenames")
+            .size([-1.0, window_height.clamp(0.0, window_height_max)])
+        .build(ui, || {
+            let _token = ui.push_font(ex.fonts.mono);
+            for filename in &state.nonunique_filenames {
+                ui.text(filename);
+            }
+        });
+        
+        ui.new_line();
+        if ui.button("Continue") {
+            state.nonunique_filenames.clear();
+            want_continue = true;
+        }
+        
+        ui.same_line();
+        if ui.button("Cancel") {
+            want_cancel = true;
+        }
+    }
+    else if !state.conflicts.is_empty() {
+        ui.text(format!("{} file(s) will be overwritten:", state.conflicts.len()));
+        ui.new_line();
+    
+        let item_spacing_y = unsafe { ui.style().item_spacing()[1] };
+        let window_height_max = ui.main_viewport().size()[1] / 2.0;
+        let window_height =
+            (ui.text_line_height() + item_spacing_y) * (state.conflicts.len() as f32)
+            - item_spacing_y;
+        ui.child_window("Conflicts")
+            .size([-1.0, window_height.clamp(0.0, window_height_max)])
+        .build(ui, || {
+            let _token = ui.push_font(ex.fonts.mono);
+            for conflict in &state.conflicts {
+                ui.text(&conflict.filename);
+            }
+        });
+        
+        ui.new_line();
+        if ui.button("Overwrite") {
+            state.conflicts.clear();
+            state.allow_overwrite = true;
+            want_continue = true;
+        }
+        
+        ui.same_line();
+        if ui.button("Append counter") {
+            for conflict in &state.conflicts {
+                let path = &mut state.output_paths[conflict.index];
+                match resolve_path_conflict_with_counter(path.clone()) {
+                    Ok(new_path) => *path = new_path,
+                    Err(err) => {
+                        state.error_message = Some(err.to_string());
+                        return false;
+                    }
+                };
+            }
+            state.conflicts.clear();
+            state.allow_overwrite = false;
+            want_continue = true;
+        }
+        
+        ui.same_line();
+        if ui.button("Cancel") {
+            want_cancel = true;
+        }
+    }
+    else {
+        want_cancel = true;
+    }
+    
+    if want_cancel {
+        ui.close_current_popup();
+    }
+    else if want_continue
+        && state.nonunique_filenames.is_empty()
+        && state.conflicts.is_empty()
+    {
+        ui.close_current_popup();
+        should_start_render = true;
+    }
+    
+    should_start_render
 }
 
 fn show_dir_in_file_explorer<P: AsRef<Path>>(path: P) {

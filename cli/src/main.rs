@@ -197,11 +197,11 @@ fn draw_and_export(
     
     time_it!("    Exporting", {
         if single_threaded_encoder {
-            drawing::export_canvas(canvas, output_path, compression)
+            drawing::export_canvas(canvas, output_path, compression, true)
                 .inspect_err(|_| println!(" [failed]"))?
         }
         else {
-            drawing::export_canvas_multithreaded(canvas, output_path, compression)
+            drawing::export_canvas_multithreaded(canvas, output_path, compression, true)
                 .inspect_err(|_| println!(" [failed]"))?
         }
     });
@@ -224,11 +224,11 @@ fn draw_and_export_rgb(
     
     time_it!("    Exporting", {
         if single_threaded_encoder {
-            drawing::export_canvas(canvas, output_path, compression)
+            drawing::export_canvas(canvas, output_path, compression, true)
                 .inspect_err(|_| println!(" [failed]"))?
         }
         else {
-            drawing::export_canvas_multithreaded(canvas, output_path, compression)
+            drawing::export_canvas_multithreaded(canvas, output_path, compression, true)
                 .inspect_err(|_| println!(" [failed]"))?
         }
     });

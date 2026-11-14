@@ -18,6 +18,7 @@ pub trait UiExt {
     fn set_next_window_pos(&self, pos: impl Into<[f32; 2]>, condition: Condition, pivot: impl Into<[f32; 2]>);
     fn set_next_window_size(&self, size: impl Into<[f32; 2]>, condition: Condition);
     fn set_next_window_content_size(&self, size: impl Into<[f32; 2]>);
+    fn center_next_window(&self);
 }
 
 impl UiExt for Ui {
@@ -124,5 +125,13 @@ impl UiExt for Ui {
             let size = ImVec2_c::from(size.into());
             imgui_app::dear_imgui_rs::sys::igSetNextWindowContentSize(size);
         }
+    }
+    
+    fn center_next_window(&self) {
+        let [viewport_width, viewport_height] = self.main_viewport().size();
+        self.set_next_window_pos(
+            [viewport_width * 0.5, viewport_height * 0.5],
+            Condition::Always,
+            [0.5, 0.5]);
     }
 }

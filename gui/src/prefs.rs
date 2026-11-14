@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize)]
 pub struct Preferences {
     pub output_dir: Option<PathBuf>,
+    #[serde(default = "default_allow_overwrite")]
+    pub allow_overwrite: bool,
     #[serde(default = "default_use_true_aspect_ratio")]
     pub use_true_aspect_ratio: bool,
     #[serde(default = "default_draw_gridlines")]
@@ -20,6 +22,7 @@ pub struct Preferences {
     pub start_maximized: bool,
 }
 
+const fn default_allow_overwrite() -> bool { false }
 const fn default_use_true_aspect_ratio() -> bool { false }
 const fn default_draw_gridlines() -> bool { true }
 const fn default_show_screen_coords() -> bool { true }
@@ -31,6 +34,7 @@ impl Default for Preferences {
     fn default() -> Self {
         Self {
             output_dir: None,
+            allow_overwrite: default_allow_overwrite(),
             use_true_aspect_ratio: default_use_true_aspect_ratio(),
             draw_gridlines: default_draw_gridlines(),
             show_screen_coords: default_show_screen_coords(),

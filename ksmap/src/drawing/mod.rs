@@ -1,4 +1,4 @@
-use std::{fs, marker::PhantomData, ops::RangeInclusive, path::Path};
+use std::{fs::File, marker::PhantomData, ops::RangeInclusive, path::Path};
 
 use anyhow::{anyhow, Result};
 use image::{GenericImage, ImageEncoder, RgbImage, RgbaImage, codecs::png::PngEncoder, imageops};
@@ -195,16 +195,23 @@ fn make_canvas<P: KsmapPixel>(bounds: &Bounds, background: P) -> Result<OutputIm
     }
 }
 
-pub fn export_canvas<P>(canvas: OutputImage<P>, path: &Path, compression_level: u8) -> Result<()>
+pub fn export_canvas<P>(
+    canvas: OutputImage<P>,
+    path: &Path,
+    compression_level: u8,
+    allow_overwrite: bool
+) -> Result<()>
 where
     P: KsmapPixel,
     OutputImage<P>: KsmapImage
 {
-    let file = fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(path)?;
+    let file =
+        if allow_overwrite {
+            File::create(path)?
+        }
+        else {
+            File::create_new(path)?
+        };
 
     let encoder = PngEncoder::new_with_quality(
         file,
@@ -221,16 +228,23 @@ where
     Ok(())
 }
 
-pub fn export_canvas_multithreaded<P>(canvas: OutputImage<P>, path: &Path, compression_level: u8) -> Result<()>
+pub fn export_canvas_multithreaded<P>(
+    canvas: OutputImage<P>,
+    path: &Path,
+    compression_level: u8,
+    allow_overwrite: bool
+) -> Result<()>
 where
     P: KsmapPixel,
     OutputImage<P>: KsmapImage
 {
-    let file = fs::OpenOptions::new()
-        .create(true)
-        .write(true)
-        .truncate(true)
-        .open(path)?;
+    let file =
+        if allow_overwrite {
+            File::create(path)?
+        }
+        else {
+            File::create_new(path)?
+        };
     let writer = std::io::BufWriter::new(file);
     
     let width = canvas.width();
