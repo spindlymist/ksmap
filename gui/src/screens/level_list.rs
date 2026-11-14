@@ -100,13 +100,11 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, _prefs: &mut Prefer
         else if ui.is_key_pressed(Key::PageDown) {
             nudge_selection = calc_rows_per_page(ui);
         }
-        if !ui.is_any_item_focused() && !ui.is_any_item_active() {
-            if ui.is_key_pressed(Key::Home) {
-                nudge_selection = isize::MIN;
-            }
-            else if ui.is_key_pressed(Key::End) {
-                nudge_selection = isize::MAX;
-            }
+        else if ui.is_key_pressed(Key::Home) {
+            nudge_selection = isize::MIN;
+        }
+        else if ui.is_key_pressed(Key::End) {
+            nudge_selection = isize::MAX;
         }
         
         if nudge_selection != 0 {
