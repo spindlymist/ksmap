@@ -2514,7 +2514,9 @@ fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState
     ui.same_line();
     match state.status {
         RenderThreadStatus::Rendering => {
-            if ui.button_with_size("Cancel", [button_width, button_height]) {
+            if ui.button_with_size("Cancel", [button_width, button_height])
+                || ui.is_key_pressed(Key::Escape)
+            {
                 state.cancel.store(true, atomic::Ordering::Relaxed);
                 state.status = RenderThreadStatus::Aborting;
             }
