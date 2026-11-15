@@ -21,6 +21,7 @@ use imgui_app::dear_imgui_rs::{
     InputTextFlags,
     Key,
     MouseButton,
+    PopupQueryFlags,
     SelectableFlags,
     SortDirection,
     StyleColor,
@@ -561,28 +562,30 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         }).flatten();
     }
     
-    // Hotkeys that should always trigger
-    let ctrl = ui.io().key_ctrl();
-    if ui.is_key_pressed(Key::F1) {
-        toggle_tooltips();
-    }
-    if ui.is_key_pressed(Key::F2) {
-        show_level_list = true;
-    }
-    if ctrl && ui.is_key_pressed(Key::F) {
-        show_level_directory = true;
-    }
-    if ctrl && ui.is_key_pressed(Key::O) {
-        show_output_directory = true;
-    }
-    if ctrl && ui.is_key_pressed(Key::R) {
-        try_start_render = true;
-    }
-    
-    // Hotkeys that shouldn't trigger when a widget has focus
-    if !ui.is_any_item_focused() && !ui.is_any_item_active() {
-        if ctrl && ui.is_key_pressed(Key::C) {
-            copy_screen_pos = true;
+    if !ui.is_popup_open_with_flags("", PopupQueryFlags::ANY_POPUP) {
+        // Hotkeys that should always trigger
+        let ctrl = ui.io().key_ctrl();
+        if ui.is_key_pressed(Key::F1) {
+            toggle_tooltips();
+        }
+        if ui.is_key_pressed(Key::F2) {
+            show_level_list = true;
+        }
+        if ctrl && ui.is_key_pressed(Key::F) {
+            show_level_directory = true;
+        }
+        if ctrl && ui.is_key_pressed(Key::O) {
+            show_output_directory = true;
+        }
+        if ctrl && ui.is_key_pressed(Key::R) {
+            try_start_render = true;
+        }
+        
+        // Hotkeys that shouldn't trigger when a widget has focus
+        if !ui.is_any_item_focused() && !ui.is_any_item_active() {
+            if ctrl && ui.is_key_pressed(Key::C) {
+                copy_screen_pos = true;
+            }
         }
     }
     
