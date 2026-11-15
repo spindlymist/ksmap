@@ -60,7 +60,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, _prefs: &mut Prefer
             hint_color[3] *= 0.25;
             let _token = ui.push_style_color(StyleColor::TextDisabled, hint_color);
             
-            if state.get_focus {
+            if state.get_focus || ui.is_key_pressed(Key::Slash) {
                 ui.set_keyboard_focus_here();
                 state.get_focus = false;
             }
