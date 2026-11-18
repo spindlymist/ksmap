@@ -2723,7 +2723,10 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             }
         }
         PrerenderStatus::ShowNonuniqueFilenames => {
-            ui.text(format!("{} filename(s) are shared by multiple partitions.\n\
+            let is_plural = state.nonunique_filenames.len() != 1;
+            let noun = if is_plural { "filenames" } else { "filename" };
+            let verb = if is_plural { "are" } else { "is" };
+            ui.text(format!("{} {noun} {verb} shared by multiple partitions.\n\
                 Please ensure that every filename is unique.", state.nonunique_filenames.len()));
             ui.new_line();
             
@@ -2745,7 +2748,9 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             }
         }
         PrerenderStatus::ShowConflicts => {
-            ui.text(format!("{} file(s) will be overwritten:", state.conflict_filenames.len()));
+            let is_plural = state.nonunique_filenames.len() != 1;
+            let noun = if is_plural { "files" } else { "file" };
+            ui.text(format!("{} {noun} will be overwritten:", state.conflict_filenames.len()));
             ui.new_line();
             
             {
