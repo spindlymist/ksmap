@@ -69,6 +69,8 @@ fn main() -> Result<()> {
         
         let [r, g, b, _] = style.color(StyleColor::WindowBg);
         style.set_color(StyleColor::WindowBg, [r, g, b, 1.0]);
+        
+        style.set_color(StyleColor::PlotHistogram, [0.761, 0.627, 0.180, 1.000]);
     }
     
     run(imgui, |ui, mut ex| {

@@ -43,7 +43,7 @@ pub fn stepped_progress_bar(
     let [width, height] = size;
     let color_bg = ui.style_color(StyleColor::FrameBg);
     let color_finished = ui.style_color(StyleColor::PlotHistogram);
-    let color_in_progress = [color_finished[0], color_finished[1], color_finished[2], 0.25];
+    let color_in_progress = [color_finished[0], color_finished[1], color_finished[2], color_finished[3] * 0.25];
     let line_color = color_in_progress;
     let rounding = unsafe { ui.style().frame_rounding() };
     
