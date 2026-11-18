@@ -2816,8 +2816,27 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
 
 fn show_dir_in_file_explorer<P: AsRef<Path>>(path: P) {
     let Ok(abs_path) = std::path::absolute(path) else { return };
-    let _ = std::process::Command::new("explorer.exe")
-        .arg("/root,")
-        .arg(abs_path)
-        .output();
+    
+    #[cfg(target_os = "windows")]
+    {
+        let _ = std::process::Command::new("explorer.exe")
+            .arg("/root,")
+            .arg(abs_path)
+            .output();
+    }
+    
+    #[cfg(target_os = "macos")]
+    {
+        let _ = std::process::Command::new("open")
+            .arg("-R")
+            .arg(abs_path)
+            .output();
+    }
+    
+    #[cfg(target_os = "linux")]
+    {
+        let _ = std::process::Command::new("xdg-open")
+            .arg(abs_path)
+            .output();
+    }
 }
