@@ -1370,7 +1370,7 @@ fn sort_partitions(
 }
 
 fn build_window_warnings(ui: &Ui, _ex: &mut Extras, warnings: &[LoadImageWarning]) {
-     ui.table("WarningsTable")
+    ui.table("WarningsTable")
         .outer_size([-1.0, -1.0])
         .flags(TableFlags::BORDERS | TableFlags::SCROLL_X | TableFlags::SCROLL_Y)
         .sizing_policy(TableSizingPolicy::FixedFit)
