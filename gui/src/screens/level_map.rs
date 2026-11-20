@@ -61,7 +61,7 @@ pub struct State {
     reset_layout: bool,
     render_state_lock: RenderStateLock,
     thread_state: RenderThreadState,
-    prerender_state: PrerenderState,
+    prerender_state: Option<PrerenderState>,
     export_state: ExportState,
     map_state: MapState,
     partition_state: PartitionState,
@@ -88,7 +88,7 @@ impl State {
             reset_layout: false,
             render_state_lock: Arc::new(RwLock::new(render_state)),
             thread_state: RenderThreadState::default(),
-            prerender_state: PrerenderState::default(),
+            prerender_state: None,
             map_state: MapState::default(),
             partition_state,
             drawing_state: DrawingState::default(),
@@ -146,7 +146,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         reset_layout,
         render_state_lock,
         thread_state,
-        prerender_state,
+        prerender_state: prerender_state_opt,
         export_state,
         map_state,
         partition_state,
@@ -619,11 +619,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     }
     
     // Fire up the render thread (maybe)!
-    let mut start_render_for_real = false;
     if try_start_render {
-        reset_prerender_state(prerender_state);
-        prerender_state.output_dir = get_output_paths_for_partitions(
-            &mut prerender_state.output_paths,
+        let prerender_state = prerender_state_opt.insert(PrerenderState::default());
+        prerender_state.output_info = get_output_paths_for_partitions(
             &render_state.partitions,
             export_state,
             &render_state.ini);
@@ -631,10 +629,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         
         match find_path_conflicts(prerender_state) {
             Ok(_) => {
-                if determine_prerender_status(prerender_state) == PrerenderStatus::Ok {
-                    start_render_for_real = true;
-                }
-                else {
+                if determine_prerender_status(Some(prerender_state)) != PrerenderStatus::StartRender {
                     ui.open_popup("###Conflicts");
                 }
             }
@@ -645,11 +640,12 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         }
     }
     
-    start_render_for_real |= build_popup_conflicts(ui, ex, prerender_state);
+    build_popup_conflicts(ui, ex, prerender_state_opt);
     
-    if start_render_for_real {
-        let output_dir = std::mem::replace(&mut prerender_state.output_dir, PathBuf::new());
-        let output_paths = std::mem::replace(&mut prerender_state.output_paths, Vec::new());
+    if determine_prerender_status(prerender_state_opt.as_ref()) == PrerenderStatus::StartRender {
+        let prerender_state = prerender_state_opt.take().unwrap();
+        let output_dir = prerender_state.output_info.dir;
+        let output_filenames = prerender_state.output_info.filenames;
         
         // Initialize thread state
         reset_thread_state(thread_state);
@@ -658,14 +654,11 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         
         let mut n_screens_total = 0;
         for (i, partition) in render_state.partitions.iter().enumerate() {
-            let filename = output_paths[i].file_name()
-                .and_then(|s| s.to_str())
-                .unwrap_or("<unknown>")
-                .to_owned();
+            let label = output_filenames[i].clone();
             let n_screens = partition.len();
             thread_state.tasks.push(RenderTask {
                 status: RenderTaskStatus::NotStarted,
-                label: filename,
+                label,
                 n_screens,
                 ..Default::default()
             });
@@ -691,7 +684,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
                     render_state_for_thread,
                     export_state_for_thread,
                     output_dir,
-                    output_paths,
+                    output_filenames,
                     allow_overwrite,
                     tx,
                     render_cancel_for_thread)
@@ -1976,12 +1969,18 @@ fn build_window_export(
     start_render
 }
 
+#[derive(Default)]
+struct OutputInfo {
+    dir: PathBuf,
+    filenames: Vec<String>,
+    dont_create_subdir: bool,
+}
+
 fn get_output_paths_for_partitions(
-    paths: &mut Vec<PathBuf>,
     partitions: &[Partition],
     export_state: &ExportState,
     ini: &Ini
-) -> PathBuf {
+) -> OutputInfo {
     const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
     
     let level_info = name_pattern::LevelInfo::new(ini, &export_state.level_dir);
@@ -1991,18 +1990,21 @@ fn get_output_paths_for_partitions(
         .replace(INVALID_PATH_CHARS, "_");
     
     let is_single_partition = partitions.len() < 2;
-    let output_dir =
-        if export_state.no_subdir || (is_single_partition && export_state.no_subdir_for_single) {
+    let dont_create_subdir =
+        export_state.no_subdir
+        || (is_single_partition && export_state.no_subdir_for_single);
+    let dir =
+        if dont_create_subdir {
             export_state.output_dir.clone()
         }
         else {
             export_state.output_dir.join(&subdir_name)
         };
     
-    paths.reserve(partitions.len().saturating_sub(paths.capacity()));
+    let mut filenames = Vec::with_capacity(partitions.len());
     
     for (partition_index, partition) in partitions.iter().enumerate() {
-        let file_name =
+        let mut filename =
             if is_single_partition && export_state.use_subdir_name_for_single {
                 subdir_name.clone()
             }
@@ -2014,12 +2016,15 @@ fn get_output_paths_for_partitions(
                 partition_name_pattern.make_string(&level_info, Some(partition_info))
                     .replace(INVALID_PATH_CHARS, "_")
             };
-        let output_path = output_dir.join(file_name)
-            .with_added_extension("png");
-        paths.push(output_path);
+        filename.push_str(".png");
+        filenames.push(filename);
     }
     
-    output_dir
+    OutputInfo {
+        dir,
+        filenames,
+        dont_create_subdir,
+    }
 }
 
 pub struct RenderState {
@@ -2096,7 +2101,7 @@ fn do_the_render(
     render_state_lock: RenderStateLock,
     export_state: ExportState,
     output_dir: PathBuf,
-    output_paths: Vec<PathBuf>,
+    output_filenames: Vec<String>,
     allow_overwrite: bool,
     tx: mpsc::Sender<RenderMessage>,
     cancel: Arc<AtomicBool>
@@ -2118,7 +2123,6 @@ fn do_the_render(
         options: render_state.draw_options.clone(),
     };
     
-    // Currently, it's assumed that all output paths are in the same directory
     if let Err(err) = std::fs::create_dir_all(&output_dir) {
         tx.send(RenderMessage::Error(err.to_string())).unwrap();
         return;
@@ -2132,7 +2136,7 @@ fn do_the_render(
     let background_color_rgb = [background_color[0], background_color[1], background_color[2]];
     
     for (partition_index, partition) in render_state.partitions.iter().enumerate() {        
-        let output_path = &output_paths[partition_index];
+        let output_path = output_dir.join(&output_filenames[partition_index]);
         let canceled = if export_state.rgb {
             draw_and_export_rgb(
                 &tx,
@@ -2140,7 +2144,7 @@ fn do_the_render(
                 partition_index,
                 partition,
                 draw_context,
-                output_path,
+                &output_path,
                 allow_overwrite,
                 export_state.use_multithreaded_encoder,
                 export_state.compression_level,
@@ -2154,7 +2158,7 @@ fn do_the_render(
                 partition_index,
                 partition,
                 draw_context,
-                output_path,
+                &output_path,
                 allow_overwrite,
                 export_state.use_multithreaded_encoder,
                 export_state.compression_level,
@@ -2578,8 +2582,7 @@ fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState
 
 #[derive(Default)]
 struct PrerenderState {
-    output_dir: PathBuf,
-    output_paths: Vec<PathBuf>,
+    output_info: OutputInfo,
     nonunique_filenames: Vec<String>,
     conflict_indices: Vec<usize>,
     conflict_filenames: Vec<String>,
@@ -2589,23 +2592,15 @@ struct PrerenderState {
 
 #[derive(PartialEq, Eq)]
 enum PrerenderStatus {
-    Ok,
+    None,
     ShowError,
     ShowNonuniqueFilenames,
     ShowConflicts,
+    StartRender,
 }
 
-fn reset_prerender_state(state: &mut PrerenderState) {
-    state.output_dir.clear();
-    state.output_paths.clear();
-    state.nonunique_filenames.clear();
-    state.conflict_indices.clear();
-    state.conflict_filenames.clear();
-    state.error_message = None;
-    state.allow_overwrite = false;
-}
-
-fn determine_prerender_status(state: &PrerenderState) -> PrerenderStatus {
+fn determine_prerender_status(state: Option<&PrerenderState>) -> PrerenderStatus {
+    let Some(state) = state else { return PrerenderStatus::None };
     if state.error_message.is_some() {
         PrerenderStatus::ShowError
     }
@@ -2616,40 +2611,35 @@ fn determine_prerender_status(state: &PrerenderState) -> PrerenderStatus {
         PrerenderStatus::ShowConflicts
     }
     else {
-        PrerenderStatus::Ok
+        PrerenderStatus::StartRender
     }
 }
 
 fn find_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Error> {
-    fn get_filename_owned(path: &Path) -> String {
-        path.file_name()
-            .unwrap_or_default()
-            .to_string_lossy()
-            .to_string()
-    }
+    let mut filenames_seen = FxHashSet::<&str>::default();
+    let mut nonunique_filenames = FxHashSet::<&str>::default();
+    let mut conflict_filenames = FxHashSet::<&str>::default();
     
-    let mut paths_seen = FxHashSet::<&Path>::default();
-    let mut nonunique_paths = FxHashSet::<&Path>::default();
-    let mut conflict_paths = FxHashSet::<&Path>::default();
-    
-    for (i, path) in state.output_paths.iter().enumerate() {
-        if !paths_seen.insert(path) {
-            nonunique_paths.insert(path);
+    for (i, filename) in state.output_info.filenames.iter().enumerate() {
+        if !filenames_seen.insert(filename) {
+            nonunique_filenames.insert(filename);
         }
-        if !state.allow_overwrite && path.try_exists()? {
-            conflict_paths.insert(path);
+        if !state.allow_overwrite
+            && state.output_info.dir.join(filename).try_exists()?
+        {
+            conflict_filenames.insert(filename);
             state.conflict_indices.push(i);
         }
     }
     
-    let nonunique_filenames_iter = nonunique_paths.into_iter()
-        .map(get_filename_owned);
+    let nonunique_filenames_iter = nonunique_filenames.into_iter()
+        .map(str::to_owned);
     state.nonunique_filenames.clear();
     state.nonunique_filenames.extend(nonunique_filenames_iter);
     state.nonunique_filenames.sort_unstable();
     
-    let conflict_filenames_iter = conflict_paths.into_iter()
-        .map(get_filename_owned);
+    let conflict_filenames_iter = conflict_filenames.into_iter()
+        .map(str::to_owned);
     state.conflict_filenames.clear();
     state.conflict_filenames.extend(conflict_filenames_iter);
     state.conflict_filenames.sort_unstable();
@@ -2657,7 +2647,7 @@ fn find_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Error>
     Ok(())
 }
 
-fn resolve_path_conflict_with_counter(path: PathBuf) -> Result<PathBuf, std::io::Error> {
+fn resolve_path_conflict_with_counter(path: impl AsRef<Path>) -> Result<OsString, std::io::Error> {
     fn split_file_stem_and_extension(file_name: &OsStr) -> (&OsStr, Option<&OsStr>) {   
         let file_name: &Path = file_name.as_ref();
         let file_stem = file_name.file_stem().unwrap_or("".as_ref());
@@ -2676,36 +2666,38 @@ fn resolve_path_conflict_with_counter(path: PathBuf) -> Result<PathBuf, std::io:
         }
     }
     
-    if !path.try_exists()? { return Ok(path) }
-    let Some(file_name) = path.file_name() else { return Ok(path) };
-
+    let path = path.as_ref();
+    let Some(file_name) = path.file_name() else { return Ok(OsString::new()) };
+    if !path.try_exists()? { return Ok(file_name.to_owned()) }
+    
     let mut counter = 1;
     let (stem, ext) = split_file_stem_and_extension(file_name);
     let mut new_file_name = OsString::with_capacity(file_name.len() + 4);
     make_file_name_with_counter(&mut new_file_name, stem, ext, counter);
     let mut new_path = path.with_file_name(&new_file_name);
-            
+    
     while new_path.try_exists()? {
         counter += 1;
         make_file_name_with_counter(&mut new_file_name, stem, ext, counter);
         new_path.set_file_name(&new_file_name);
     }
     
-    Ok(new_path)
+    Ok(new_file_name)
 }
 
-fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -> bool {
+fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut Option<PrerenderState>) {
     ui.center_next_window();
     let Some(_token) = ui.begin_modal_popup_config("Warning###Conflicts")
         .flags(WindowFlags::ALWAYS_AUTO_RESIZE | WindowFlags::NO_MOVE | WindowFlags::NO_RESIZE)
         .begin()
-        else { return false };
+        else { return };
     
     let mut want_continue = false;
     let mut want_cancel = false;
     
-    match determine_prerender_status(state) {
+    match determine_prerender_status(state.as_ref()) {
         PrerenderStatus::ShowError => {
+            let state = state.as_mut().unwrap();
             ui.text("An error occurred while checking for path conflicts:");
             
             ui.new_line();
@@ -2723,6 +2715,7 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             }
         }
         PrerenderStatus::ShowNonuniqueFilenames => {
+            let state = state.as_mut().unwrap();
             let is_plural = state.nonunique_filenames.len() != 1;
             let noun = if is_plural { "filenames" } else { "filename" };
             let verb = if is_plural { "are" } else { "is" };
@@ -2748,6 +2741,7 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             }
         }
         PrerenderStatus::ShowConflicts => {
+            let state = state.as_mut().unwrap();
             let is_plural = state.nonunique_filenames.len() != 1;
             let noun = if is_plural { "files" } else { "file" };
             ui.text(format!("{} {noun} will be overwritten:", state.conflict_filenames.len()));
@@ -2772,13 +2766,29 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
             
             ui.same_line();
             if ui.button("Append counter") {
-                for index in &state.conflict_indices {
-                    let path = &mut state.output_paths[*index];
-                    match resolve_path_conflict_with_counter(path.clone()) {
-                        Ok(new_path) => *path = new_path,
+                if state.output_info.dont_create_subdir {
+                    for index in &state.conflict_indices {
+                        let filename = &mut state.output_info.filenames[*index];
+                        let path = state.output_info.dir.join(&*filename);
+                        match resolve_path_conflict_with_counter(&path) {
+                            Ok(new_filename) => {
+                                *filename = new_filename.to_str().unwrap().to_owned();
+                            }
+                            Err(err) => {
+                                state.error_message = Some(err.to_string());
+                                return;
+                            }
+                        };
+                    }
+                }
+                else {
+                    match resolve_path_conflict_with_counter(&state.output_info.dir) {
+                        Ok(new_filename) => {
+                            state.output_info.dir.set_file_name(new_filename);
+                        }
                         Err(err) => {
                             state.error_message = Some(err.to_string());
-                            return false;
+                            return;
                         }
                     };
                 }
@@ -2794,24 +2804,21 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut PrerenderState) -
                 want_cancel = true;
             }
         }
-        PrerenderStatus::Ok => {
+        PrerenderStatus::StartRender => {}
+        PrerenderStatus::None => {
             want_cancel = true;
         }
     };
     
-    let mut should_start_render = false;
     if want_cancel {
         ui.close_current_popup();
-        reset_prerender_state(state);
+        state.take();
     }
     else if want_continue
-        && determine_prerender_status(state) == PrerenderStatus::Ok
+        && determine_prerender_status(state.as_ref()) == PrerenderStatus::StartRender
     {
         ui.close_current_popup();
-        should_start_render = true;
     }
-    
-    should_start_render
 }
 
 fn show_dir_in_file_explorer<P: AsRef<Path>>(path: P) {
