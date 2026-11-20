@@ -627,16 +627,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
             &render_state.ini);
         prerender_state.allow_overwrite = export_state.allow_overwrite;
         
-        match find_path_conflicts(prerender_state) {
-            Ok(_) => {
-                if determine_prerender_status(Some(prerender_state)) != PrerenderStatus::StartRender {
-                    ui.open_popup("###Conflicts");
-                }
-            }
-            Err(err) => {
-                prerender_state.error_message = Some(err.to_string());
-                ui.open_popup("###Conflicts");
-            }
+        if let Err(err) = find_path_conflicts(prerender_state) {
+            prerender_state.error_message = Some(err.to_string());
         }
     }
     
@@ -1969,64 +1961,6 @@ fn build_window_export(
     start_render
 }
 
-#[derive(Default)]
-struct OutputInfo {
-    dir: PathBuf,
-    filenames: Vec<String>,
-    dont_create_subdir: bool,
-}
-
-fn get_output_paths_for_partitions(
-    partitions: &[Partition],
-    export_state: &ExportState,
-    ini: &Ini
-) -> OutputInfo {
-    const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
-    
-    let level_info = name_pattern::LevelInfo::new(ini, &export_state.level_dir);
-    let partition_name_pattern = NamePattern::parse(&export_state.partition_spec);
-    let subdir_name_pattern = NamePattern::parse(&export_state.subdir_spec);
-    let subdir_name = subdir_name_pattern.make_string(&level_info, None)
-        .replace(INVALID_PATH_CHARS, "_");
-    
-    let is_single_partition = partitions.len() < 2;
-    let dont_create_subdir =
-        export_state.no_subdir
-        || (is_single_partition && export_state.no_subdir_for_single);
-    let dir =
-        if dont_create_subdir {
-            export_state.output_dir.clone()
-        }
-        else {
-            export_state.output_dir.join(&subdir_name)
-        };
-    
-    let mut filenames = Vec::with_capacity(partitions.len());
-    
-    for (partition_index, partition) in partitions.iter().enumerate() {
-        let mut filename =
-            if is_single_partition && export_state.use_subdir_name_for_single {
-                subdir_name.clone()
-            }
-            else {
-                let partition_info = name_pattern::PartitionInfo {
-                    index: partition_index,
-                    bounds: partition.bounds().clone(),
-                };
-                partition_name_pattern.make_string(&level_info, Some(partition_info))
-                    .replace(INVALID_PATH_CHARS, "_")
-            };
-        filename.push_str(".png");
-        filenames.push(filename);
-    }
-    
-    OutputInfo {
-        dir,
-        filenames,
-        dont_create_subdir,
-    }
-}
-
 pub struct RenderState {
     pub ini: Ini,
     pub object_defs: Arc<ObjectDefs>,
@@ -2615,6 +2549,64 @@ fn determine_prerender_status(state: Option<&PrerenderState>) -> PrerenderStatus
     }
 }
 
+#[derive(Default)]
+struct OutputInfo {
+    dir: PathBuf,
+    filenames: Vec<String>,
+    dont_create_subdir: bool,
+}
+
+fn get_output_paths_for_partitions(
+    partitions: &[Partition],
+    export_state: &ExportState,
+    ini: &Ini
+) -> OutputInfo {
+    const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
+    
+    let level_info = name_pattern::LevelInfo::new(ini, &export_state.level_dir);
+    let partition_name_pattern = NamePattern::parse(&export_state.partition_spec);
+    let subdir_name_pattern = NamePattern::parse(&export_state.subdir_spec);
+    let subdir_name = subdir_name_pattern.make_string(&level_info, None)
+        .replace(INVALID_PATH_CHARS, "_");
+    
+    let is_single_partition = partitions.len() < 2;
+    let dont_create_subdir =
+        export_state.no_subdir
+        || (is_single_partition && export_state.no_subdir_for_single);
+    let dir =
+        if dont_create_subdir {
+            export_state.output_dir.clone()
+        }
+        else {
+            export_state.output_dir.join(&subdir_name)
+        };
+    
+    let mut filenames = Vec::with_capacity(partitions.len());
+    
+    for (partition_index, partition) in partitions.iter().enumerate() {
+        let mut filename =
+            if is_single_partition && export_state.use_subdir_name_for_single {
+                subdir_name.clone()
+            }
+            else {
+                let partition_info = name_pattern::PartitionInfo {
+                    index: partition_index,
+                    bounds: partition.bounds().clone(),
+                };
+                partition_name_pattern.make_string(&level_info, Some(partition_info))
+                    .replace(INVALID_PATH_CHARS, "_")
+            };
+        filename.push_str(".png");
+        filenames.push(filename);
+    }
+    
+    OutputInfo {
+        dir,
+        filenames,
+        dont_create_subdir,
+    }
+}
+
 fn find_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Error> {
     let mut filenames_seen = FxHashSet::<&str>::default();
     let mut nonunique_filenames = FxHashSet::<&str>::default();
@@ -2685,17 +2677,44 @@ fn resolve_path_conflict_with_counter(path: impl AsRef<Path>) -> Result<OsString
     Ok(new_file_name)
 }
 
+fn resolve_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Error> {
+    if state.output_info.dont_create_subdir {
+        for index in &state.conflict_indices {
+            let filename = &mut state.output_info.filenames[*index];
+            let path = state.output_info.dir.join(&*filename);
+            let new_filename = resolve_path_conflict_with_counter(&path)?;
+            filename.clear();
+            filename.push_str(new_filename.to_str().unwrap());
+        }
+    }
+    else {
+        let new_filename = resolve_path_conflict_with_counter(&state.output_info.dir)?;
+        state.output_info.dir.set_file_name(new_filename);
+    }
+    
+    Ok(())
+}
+
 fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut Option<PrerenderState>) {
+    let status_before = determine_prerender_status(state.as_ref());
+    match status_before {
+        PrerenderStatus::ShowError | PrerenderStatus::ShowConflicts | PrerenderStatus::ShowNonuniqueFilenames => {
+            if !ui.is_popup_open("###Conflicts") {
+                ui.open_popup("###Conflicts");
+            }
+        }
+        _ => {}
+    };
+    
     ui.center_next_window();
     let Some(_token) = ui.begin_modal_popup_config("Warning###Conflicts")
         .flags(WindowFlags::ALWAYS_AUTO_RESIZE | WindowFlags::NO_MOVE | WindowFlags::NO_RESIZE)
         .begin()
         else { return };
     
-    let mut want_continue = false;
     let mut want_cancel = false;
     
-    match determine_prerender_status(state.as_ref()) {
+    match status_before {
         PrerenderStatus::ShowError => {
             let state = state.as_mut().unwrap();
             ui.text("An error occurred while checking for path conflicts:");
@@ -2761,42 +2780,20 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut Option<PrerenderS
                 state.conflict_indices.clear();
                 state.conflict_filenames.clear();
                 state.allow_overwrite = true;
-                want_continue = true;
             }
             
             ui.same_line();
             if ui.button("Append counter") {
-                if state.output_info.dont_create_subdir {
-                    for index in &state.conflict_indices {
-                        let filename = &mut state.output_info.filenames[*index];
-                        let path = state.output_info.dir.join(&*filename);
-                        match resolve_path_conflict_with_counter(&path) {
-                            Ok(new_filename) => {
-                                *filename = new_filename.to_str().unwrap().to_owned();
-                            }
-                            Err(err) => {
-                                state.error_message = Some(err.to_string());
-                                return;
-                            }
-                        };
+                match resolve_path_conflicts(state) {
+                    Ok(_) => {
+                        state.conflict_indices.clear();
+                        state.conflict_filenames.clear();
+                        state.allow_overwrite = false;
+                    }
+                    Err(err) => {
+                        state.error_message = Some(err.to_string());
                     }
                 }
-                else {
-                    match resolve_path_conflict_with_counter(&state.output_info.dir) {
-                        Ok(new_filename) => {
-                            state.output_info.dir.set_file_name(new_filename);
-                        }
-                        Err(err) => {
-                            state.error_message = Some(err.to_string());
-                            return;
-                        }
-                    };
-                }
-                
-                state.conflict_indices.clear();
-                state.conflict_filenames.clear();
-                state.allow_overwrite = false;
-                want_continue = true;
             }
             
             ui.same_line();
@@ -2804,21 +2801,20 @@ fn build_popup_conflicts(ui: &Ui, ex: &mut Extras, state: &mut Option<PrerenderS
                 want_cancel = true;
             }
         }
-        PrerenderStatus::StartRender => {}
-        PrerenderStatus::None => {
-            want_cancel = true;
-        }
+        _ => {}
     };
     
     if want_cancel {
-        ui.close_current_popup();
         state.take();
     }
-    else if want_continue
-        && determine_prerender_status(state.as_ref()) == PrerenderStatus::StartRender
-    {
-        ui.close_current_popup();
-    }
+    
+    let status_after = determine_prerender_status(state.as_ref());
+    match status_after {
+        PrerenderStatus::None | PrerenderStatus::StartRender => {
+           ui.close_current_popup();
+        }
+        _ => {}
+    };
 }
 
 fn show_dir_in_file_explorer<P: AsRef<Path>>(path: P) {
