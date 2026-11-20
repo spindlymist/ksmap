@@ -204,7 +204,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
             if ui.menu_item_with_shortcut("Render map", "Ctrl+R") {
                 try_start_render = true;
             }
-            if ui.menu_item_with_shortcut("Show output directory", "Ctrl+O") {
+            if ui.menu_item_with_shortcut("Show output directory", "Ctrl+D") {
                 show_output_directory = true;
             }
             if ui.menu_item_with_shortcut("Show level directory", "Ctrl+F") {
@@ -574,7 +574,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         if ctrl && ui.is_key_pressed(Key::F) {
             show_level_directory = true;
         }
-        if ctrl && ui.is_key_pressed(Key::O) {
+        if ctrl && ui.is_key_pressed(Key::D) {
             show_output_directory = true;
         }
         if ctrl && ui.is_key_pressed(Key::R) {
@@ -2349,7 +2349,7 @@ fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState
     // Layout calculations
     let [item_spacing_x, item_spacing_y] = unsafe { ui.style().item_spacing() };
     let button_width = (ui.content_region_avail_width() * 0.125)
-        .max(ui.calc_button_width("Show Output Directory"));
+        .max(ui.calc_button_width("Show output directory"));
     let button_height = 2.0 * ui.text_line_height();
     let [table_width_queued, table_width_finished] = {
         let width_total = ui.content_region_avail_width();
@@ -2486,7 +2486,9 @@ fn build_window_progress(ui: &Ui, ex: &mut Extras, state: &mut RenderThreadState
     
     // Buttons
     ui.same_line();
-    if ui.button_with_size("Show Output Directory", [button_width, button_height]) {
+    if ui.button_with_size("Show output directory", [button_width, button_height])
+        || (ui.io().key_ctrl() && ui.is_key_pressed(Key::D))
+    {
         show_dir_in_file_explorer(&state.output_dir);
     }
     
