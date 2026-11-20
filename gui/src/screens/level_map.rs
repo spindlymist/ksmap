@@ -2641,7 +2641,7 @@ fn find_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Error>
     Ok(())
 }
 
-fn resolve_path_conflict_with_counter(path: impl AsRef<Path>) -> Result<OsString, std::io::Error> {
+fn resolve_path_conflict_with_counter(path: impl AsRef<Path>, is_dir: bool) -> Result<OsString, std::io::Error> {
     fn split_file_stem_and_extension(file_name: &OsStr) -> (&OsStr, Option<&OsStr>) {   
         let file_name: &Path = file_name.as_ref();
         let file_stem = file_name.file_stem().unwrap_or("".as_ref());
@@ -2665,7 +2665,9 @@ fn resolve_path_conflict_with_counter(path: impl AsRef<Path>) -> Result<OsString
     if !path.try_exists()? { return Ok(file_name.to_owned()) }
     
     let mut counter = 1;
-    let (stem, ext) = split_file_stem_and_extension(file_name);
+    let (stem, ext) =
+        if is_dir { (file_name, None) }
+        else { split_file_stem_and_extension(file_name) };
     let mut new_file_name = OsString::with_capacity(file_name.len() + 4);
     make_file_name_with_counter(&mut new_file_name, stem, ext, counter);
     let mut new_path = path.with_file_name(&new_file_name);
@@ -2684,13 +2686,13 @@ fn resolve_path_conflicts(state: &mut PrerenderState) -> Result<(), std::io::Err
         for index in &state.conflict_indices {
             let filename = &mut state.output_info.filenames[*index];
             let path = state.output_info.dir.join(&*filename);
-            let new_filename = resolve_path_conflict_with_counter(&path)?;
+            let new_filename = resolve_path_conflict_with_counter(&path, false)?;
             filename.clear();
             filename.push_str(new_filename.to_str().unwrap());
         }
     }
     else {
-        let new_filename = resolve_path_conflict_with_counter(&state.output_info.dir)?;
+        let new_filename = resolve_path_conflict_with_counter(&state.output_info.dir, true)?;
         state.output_info.dir.set_file_name(new_filename);
     }
     
