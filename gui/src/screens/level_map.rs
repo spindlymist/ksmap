@@ -262,8 +262,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
                 let _token = ui.begin_disabled_with_cond(!map_state.opts.use_textures);
                 if ui.menu_item("Refresh screen cache") {
                     for (_, texture_id) in map_state.screen_textures.drain() {
-                        ex.textures.destroy_texture(texture_id);
+                        ex.textures.destroy_texture_now(texture_id);
                     }
+                    ex.textures.wait_for_pending_operations();
                     draw_all_screens_and_create_textures(
                         &mut render_state,
                         &mut ex.textures,
@@ -1548,12 +1549,12 @@ fn draw_all_screens_and_create_textures(
         lookup.insert(screen.position, texture_id);
 
         if (i + 1) % screens_per_batch == 0 {
-            textures.upload_new_textures_and_wait();
+            textures.wait_for_pending_operations();
         }
     }
     
     if render_state.screen_map.len() % screens_per_batch > 0 {
-        textures.upload_new_textures_and_wait();
+        textures.wait_for_pending_operations();
     }
 }
 
