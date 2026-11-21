@@ -288,8 +288,14 @@ fn blend_xor<B: Blend>(bg: &mut Rgb<u8>, mut fg: Rgba<u8>) {
     B::blend_over(bg, fg);
 }
 
-/// Adapted from image crate
-/// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
+// =============================================================================
+// The rest of this file is adapted from the image crate.
+//
+// URL:     https://crates.io/crates/image
+// License: MIT OR Apache-2.0
+// =============================================================================
+
+// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
 pub fn overlay<B, I, J>(bottom: &mut I, top: &J, x: i64, y: i64)
 where
     B: Blend,
@@ -314,8 +320,7 @@ where
     }
 }
 
-/// Adapted from image crate
-/// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
+// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L219
 pub fn overlay_ex<B, I, J>(bottom: &mut I, top: &J, x: i64, y: i64, blend_mode: BlendMode, opacity: u8)
 where
     B: Blend,
@@ -350,8 +355,7 @@ struct OverlayBounds {
     y_range: u32,   
 }
 
-/// Adapted from image crate
-/// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L170
+// Source: https://github.com/image-rs/image/blob/285496d4fab063645dc4ffafd7ccfa3e06c35052/src/imageops/mod.rs#L170
 fn overlay_bounds_ext(
     (bottom_width, bottom_height): (u32, u32),
     (top_width, top_height): (u32, u32),

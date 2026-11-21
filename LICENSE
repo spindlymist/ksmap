@@ -1,0 +1,27 @@
+Most of this repository is offered under the 0BSD license (full text below)
+with the following exceptions:
+
+- Parts of `ksmap/src/drawing/blend_modes.rs` and all of
+  `ksmap/src/graphics/png_decoder.rs` are adapted from the image crate
+  (https://crates.io/crates/image). In accordance with that crate's licenses,
+  these portions of the source code are offered under the MIT or Apache-2.0
+  license.
+- No license is granted for the files in the `Knytt Stories` directory and its
+  children.
+- No license is granted for the images in the `test_seeds` directory and its
+  children.
+- No license is granted for the images in the `ksmap_data/templates` directory
+  that are distributed with releases of ksmap.
+
+BSD Zero Clause License
+
+Permission to use, copy, modify, and/or distribute this software for any
+purpose with or without fee is hereby granted.
+
+THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES WITH
+REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY SPECIAL, DIRECT,
+INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR
+OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+PERFORMANCE OF THIS SOFTWARE.

@@ -1,7 +1,10 @@
-/// 
-/// Adapted from image crate
-/// https://github.com/image-rs/image/blob/1cb80afbc816e6ca16c5ed2af5974907d43ac98b/src/codecs/png.rs 
-///
+// =============================================================================
+// This file is adapted from the image crate.
+//
+// URL:     https://crates.io/crates/image
+// License: MIT OR Apache-2.0
+// Source:  https://github.com/image-rs/image/blob/1cb80afbc816e6ca16c5ed2af5974907d43ac98b/src/codecs/png.rs
+// =============================================================================
 
 use std::io::{BufRead, Seek};
 
