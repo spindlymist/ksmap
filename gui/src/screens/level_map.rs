@@ -591,7 +591,7 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     if show_output_directory {
         let mut did_show = false;
         if !export_state.no_subdir {
-            let level_info = name_pattern::LevelInfo::new(&render_state.ini, &export_state.level_dir);
+            let level_info = name_pattern::LevelInfo::new(&render_state.ini, &export_state.level_dir, render_state.seed);
             let subdir_pattern = NamePattern::parse(&export_state.subdir_spec);
             let subdir_name = subdir_pattern.make_string(&level_info, None);
             let output_dir = export_state.output_dir.join(subdir_name);
@@ -622,7 +622,8 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
         prerender_state.output_info = get_output_paths_for_partitions(
             &render_state.partitions,
             export_state,
-            &render_state.ini);
+            &render_state.ini,
+            render_state.seed);
         prerender_state.allow_overwrite = export_state.allow_overwrite;
         
         if let Err(err) = find_path_conflicts(prerender_state) {
@@ -2559,11 +2560,12 @@ struct OutputInfo {
 fn get_output_paths_for_partitions(
     partitions: &[Partition],
     export_state: &ExportState,
-    ini: &Ini
+    ini: &Ini,
+    seed: MapSeed
 ) -> OutputInfo {
     const INVALID_PATH_CHARS: [char; 9] = ['<', '>', ':', '"', '/', '\\', '|', '?', '*'];
     
-    let level_info = name_pattern::LevelInfo::new(ini, &export_state.level_dir);
+    let level_info = name_pattern::LevelInfo::new(ini, &export_state.level_dir, seed);
     let partition_name_pattern = NamePattern::parse(&export_state.partition_spec);
     let subdir_name_pattern = NamePattern::parse(&export_state.subdir_spec);
     let subdir_name = subdir_name_pattern.make_string(&level_info, None)

@@ -3,6 +3,7 @@ use std::path::Path;
 
 use libks_ini::edit::Ini;
 use ksmap::partition::Bounds;
+use ksmap::seed::MapSeed;
 
 use crate::get_level_author_and_name;
 
@@ -21,10 +22,11 @@ pub struct LevelInfo<'a> {
     pub dir_name: &'a str,
     pub author: &'a str,
     pub name: &'a str,
+    pub seed: MapSeed
 }
 
 impl<'a> LevelInfo<'a> {
-    pub fn new(ini: &'a Ini, level_dir: &'a Path) -> Self {
+    pub fn new(ini: &'a Ini, level_dir: &'a Path, seed: MapSeed) -> Self {
         let (author, level_name) = get_level_author_and_name(ini);
         let dir_name = level_dir.file_name()
             .and_then(|name| name.to_str());
@@ -33,6 +35,7 @@ impl<'a> LevelInfo<'a> {
             dir_name: dir_name.unwrap_or("Unknown"),
             author: author.unwrap_or("Unknown"),
             name: level_name.unwrap_or("Unknown"),
+            seed
         }
     }
 }
@@ -42,6 +45,7 @@ enum LevelInfoField {
     Directory,
     Author,
     Name,
+    Seed,
 }
 
 pub struct PartitionInfo {
@@ -66,6 +70,7 @@ fn get_pattern_part_by_name(name: &str) -> Option<PatternPart> {
         "dirname" => PatternPart::LevelInfo(LevelInfoField::Directory),
         "author"  => PatternPart::LevelInfo(LevelInfoField::Author),
         "name"    => PatternPart::LevelInfo(LevelInfoField::Name),
+        "seed"    => PatternPart::LevelInfo(LevelInfoField::Seed),
         "index"   => PatternPart::PartitionInfo(PartitionInfoField::Index),
         "bounds"  => PatternPart::PartitionInfo(PartitionInfoField::Bounds),
         "min"     => PatternPart::PartitionInfo(PartitionInfoField::BoundsMin),
@@ -165,6 +170,7 @@ impl NamePattern {
                 PatternPart::LevelInfo(LevelInfoField::Directory) => out.push_str(level_info.dir_name),
                 PatternPart::LevelInfo(LevelInfoField::Author) => out.push_str(level_info.author),
                 PatternPart::LevelInfo(LevelInfoField::Name) => out.push_str(level_info.name),
+                PatternPart::LevelInfo(LevelInfoField::Seed) => { let _ = write!(out, "{}", level_info.seed); }
                 PatternPart::PartitionInfo(field) if let Some(partition_info) = &partition_info => {
                     match field {
                         PartitionInfoField::Index      => { let _ = write!(out, "{}", partition_info.index); }
@@ -194,8 +200,9 @@ impl From<&str> for NamePattern {
 #[cfg(test)]
 mod test {
     use ksmap::partition::Bounds;
+    use ksmap::seed::MapSeed;
 
-use crate::name_pattern::{LevelInfo, LevelInfoField, NamePattern, PartitionInfo, PartitionInfoField, PatternPart};
+    use crate::name_pattern::{LevelInfo, LevelInfoField, NamePattern, PartitionInfo, PartitionInfoField, PatternPart};
 
     #[test]
     fn parser_handles_basic_spec() {
@@ -252,12 +259,13 @@ use crate::name_pattern::{LevelInfo, LevelInfoField, NamePattern, PartitionInfo,
     
     #[test]
     fn parser_recognizes_all_fields() {
-        let spec = "$dirname$author$name$index$bounds$min$max$xmin$xmax$ymin$ymax";
+        let spec = "$dirname$author$name$seed$index$bounds$min$max$xmin$xmax$ymin$ymax";
         let pattern = NamePattern::parse(spec);
         assert_eq!(pattern.parts, [
             PatternPart::LevelInfo(LevelInfoField::Directory),
             PatternPart::LevelInfo(LevelInfoField::Author),
             PatternPart::LevelInfo(LevelInfoField::Name),
+            PatternPart::LevelInfo(LevelInfoField::Seed),
             PatternPart::PartitionInfo(PartitionInfoField::Index),
             PatternPart::PartitionInfo(PartitionInfoField::Bounds),
             PatternPart::PartitionInfo(PartitionInfoField::BoundsMin),
@@ -275,6 +283,7 @@ use crate::name_pattern::{LevelInfo, LevelInfoField, NamePattern, PartitionInfo,
             dir_name: "Directory name",
             author: "Level author",
             name: "Level name",
+            seed: MapSeed { seed: 0x0123456789ABCDEF }
         };
         let partition_info = PartitionInfo {
             index: 0,
@@ -283,13 +292,14 @@ use crate::name_pattern::{LevelInfo, LevelInfoField, NamePattern, PartitionInfo,
                 y: 300..401,
             },
         };
-        let spec = "$dirname\n$author\n$name\n$index\n$bounds\n$min\n$max\n$xmin\n$xmax\n$ymin\n$ymax";
+        let spec = "$dirname\n$author\n$name\n$seed\n$index\n$bounds\n$min\n$max\n$xmin\n$xmax\n$ymin\n$ymax";
         let pattern = NamePattern::parse(spec);
         let result = pattern.make_string(&level_info, Some(partition_info));
         assert_eq!(result, "\
 Directory name
 Level author
 Level name
+0123456789ABCDEF
 0
 x100y300 to x200y400
 x100y300
@@ -306,14 +316,16 @@ x200y400
             dir_name: "Directory name",
             author: "Level author",
             name: "Level name",
+            seed: MapSeed { seed: 0x0123456789ABCDEF }
         };
-        let spec = "$dirname\n$author\n$name\n$index\n$bounds\n$min\n$max\n$xmin\n$xmax\n$ymin\n$ymax";
+        let spec = "$dirname\n$author\n$name\n$seed\n$index\n$bounds\n$min\n$max\n$xmin\n$xmax\n$ymin\n$ymax";
         let pattern = NamePattern::parse(spec);
         let result = pattern.make_string(&level_info, None);
         assert_eq!(result, "\
 Directory name
 Level author
 Level name
+0123456789ABCDEF
 
 
 
