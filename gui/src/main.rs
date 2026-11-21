@@ -19,7 +19,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Result, Context};
 use imgui_app::{imgui_init, platform_init, renderer_init, run};
-use imgui_app::dear_imgui_rs::{ConfigFlags, StyleColor};
+use imgui_app::dear_imgui_rs::{ConfigFlags, Key, StyleColor};
 use libks::editions::is_ks_dir;
 use libks_ini::edit::Ini;
 
@@ -75,6 +75,10 @@ fn main() -> Result<()> {
     
     run(imgui, |ui, mut ex| {
         app.prefs.start_maximized = ex.window.is_maximized();
+        
+        if ui.is_key_pressed(Key::F1) {
+            tooltips::toggle_tooltips();
+        }
         
         match &mut app.screen {
             Screen::StartupError(state) => startup_error::build_ui(ui, &mut ex, state, &mut app.prefs),

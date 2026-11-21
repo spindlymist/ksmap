@@ -49,7 +49,7 @@ use libks_ini::edit::Ini;
 
 use crate::map_widget::{build_map, MAP_COLORS, MapState, PartitionSelection};
 use crate::name_pattern::{self, NamePattern};
-use crate::tooltips::{set_tooltips_enabled, toggle_tooltips, tooltip, tooltips_are_enabled};
+use crate::tooltips::{set_tooltips_enabled, tooltip, tooltips_are_enabled};
 use crate::ui_extensions::UiExt;
 use crate::format_bytes::*;
 use crate::prefs::Preferences;
@@ -563,11 +563,9 @@ pub fn build_ui(ui: &Ui, ex: &mut Extras, state: &mut State, prefs: &mut Prefere
     }
     
     if !ui.is_popup_open_with_flags("", PopupQueryFlags::ANY_POPUP) {
-        // Hotkeys that should always trigger
         let ctrl = ui.io().key_ctrl();
-        if ui.is_key_pressed(Key::F1) {
-            toggle_tooltips();
-        }
+        
+        // Hotkeys that should trigger as long as no popup is open
         if ui.is_key_pressed(Key::F2) {
             show_level_list = true;
         }
