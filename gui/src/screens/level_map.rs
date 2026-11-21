@@ -1900,6 +1900,7 @@ fn build_window_export(
         - $dirname: The name of the level directory.\n\
         - $author: The author of the level from World.ini.\n\
         - $name: The name of the level from World.ini.\n\
+        - $seed: The current RNG seed.\n\
         \n\
         Use $$ if you want the directory name to have a dollar sign.");
     
@@ -1920,6 +1921,7 @@ fn build_window_export(
         - $dirname: The name of the level directory.\n\
         - $author: The author of the level from World.ini.\n\
         - $name: The name of the level from World.ini.\n\
+        - $seed: The current RNG seed.\n\
         \n\
         Use $$ if you want the filename to have a dollar sign.");
     
